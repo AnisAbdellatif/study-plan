@@ -515,3 +515,98 @@ describe('milestone 6', () => {
     }
   })
 })
+
+describe('admin dashboard', () => {
+  const respond = (body: unknown, status = 200) =>
+    new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
+
+  const stats = {
+    users: { total: 12, verified: 10, newLast30Days: 3, activeLast30Days: 7 },
+    plans: {
+      total: 9,
+      byPreset: [
+        {
+          presetId: 'luh/technische-informatik-bsc-2026',
+          programmeName: 'Technische Informatik',
+          universityName: 'Leibniz Universität Hannover',
+          poVersion: 'PO 2017 in der Fassung ab WS 2026/27',
+          plans: 9,
+        },
+      ],
+    },
+    shares: { active: 2 },
+    reminders: { enabled: 4, sentLast30Days: 11 },
+  }
+  const users = [
+    {
+      id: 'u1',
+      email: 'studi@example.org',
+      emailVerified: false,
+      createdAt: '2026-09-01T10:00:00Z',
+      lastActiveAt: null,
+      plans: 1,
+      activeShares: 1,
+      reminders: false,
+    },
+    {
+      id: 'u0',
+      email: 'admin@example.org',
+      emailVerified: true,
+      createdAt: '2026-08-01T10:00:00Z',
+      lastActiveAt: '2026-09-12T10:00:00Z',
+      plans: 1,
+      activeShares: 0,
+      reminders: true,
+    },
+  ]
+
+  it('shows numbers and accounts, and runs an action after confirming', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const url = String(input)
+      if (url === '/api/admin/me') return respond({ email: 'admin@example.org' })
+      if (url === '/api/admin/stats') return respond(stats)
+      if (url.startsWith('/api/admin/users?q=')) return respond({ users })
+      if (url === '/api/admin/audit') return respond({ entries: [] })
+      if (url === '/api/admin/users/u1/revoke-shares' && init?.method === 'POST')
+        return respond({ revoked: 1 })
+      return respond({ error: 'not_found' }, 404)
+    })
+    try {
+      const { user } = renderApp({ path: '/admin' })
+      expect(await screen.findByRole('heading', { name: 'Verwaltung' })).toBeInTheDocument()
+      expect(await screen.findByText('10 bestätigt, 3 neu in 30 Tagen')).toBeInTheDocument()
+      expect(screen.getByText('PO 2017 in der Fassung ab WS 2026/27')).toBeInTheDocument()
+
+      const row = (await screen.findByText('studi@example.org')).closest('tr')
+      if (!row) throw new Error('expected a table row')
+      expect(within(row).getByText('nicht bestätigt')).toBeInTheDocument()
+      const ownRow = screen.getByText('admin@example.org', { selector: 'span' }).closest('tr')
+      if (!ownRow) throw new Error('expected the own row')
+      expect(within(ownRow).queryByRole('button', { name: /Löschen/ })).not.toBeInTheDocument()
+
+      await user.click(within(row).getByRole('button', { name: 'Links deaktivieren' }))
+      const dialog = await screen.findByRole('alertdialog')
+      expect(within(dialog).getByText(/Alle aktiven Links von studi@example.org/)).toBeInTheDocument()
+      await user.click(within(dialog).getByRole('button', { name: 'Deaktivieren' }))
+
+      expect(await screen.findByText('1 Link von studi@example.org deaktiviert.')).toBeInTheDocument()
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/admin/users/u1/revoke-shares',
+        expect.objectContaining({ method: 'POST' }),
+      )
+    } finally {
+      fetchMock.mockRestore()
+    }
+  })
+
+  it('looks like a missing page to accounts without access', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(respond({ error: 'not_found' }, 404))
+    try {
+      renderApp({ path: '/admin' })
+      expect(await screen.findByRole('heading', { name: 'Seite nicht gefunden' })).toBeInTheDocument()
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+    } finally {
+      fetchMock.mockRestore()
+    }
+  })
+})

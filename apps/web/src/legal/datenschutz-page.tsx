@@ -88,6 +88,15 @@ export function DatenschutzPage() {
         gelöscht, wenn du dein Konto löschst.
       </p>
       <p>
+        Zur Betreuung des Dienstes sehen wir in einer Verwaltungsansicht deine E-Mail-Adresse, ob sie
+        bestätigt ist, wann du das Konto angelegt und zuletzt genutzt hast, wie viele Pläne und geteilte Links
+        du hast und ob Erinnerungen eingeschaltet sind, aber keine Noten und keine Planinhalte. Auf Anfrage
+        oder bei Missbrauch können wir dort Bestätigungs-E-Mails senden, Links deaktivieren, Anmeldungen
+        beenden und Konten löschen. Jede solche Aktion protokollieren wir mit der Kontokennung, ohne
+        E-Mail-Adresse, und löschen das Protokoll nach einem Jahr. Rechtsgrundlage ist unser berechtigtes
+        Interesse an einem sicheren und funktionierenden Dienst (Art. 6 Abs. 1 lit. f DSGVO).
+      </p>
+      <p>
         Noten gehören nicht zu den besonderen Kategorien personenbezogener Daten nach Art. 9 DSGVO. Wir
         behandeln sie trotzdem vertraulich: Sie sind nur über dein Konto abrufbar und werden nicht an andere
         weitergegeben.

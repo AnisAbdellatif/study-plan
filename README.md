@@ -53,6 +53,7 @@ API (`apps/api`, environment variables):
 - `WEB_DIST`: path to `apps/web/dist` to serve the web app from the API process.
 - `IP_ADDRESS_HEADER`: behind a reverse proxy that sets it, e.g. `x-forwarded-for`, so rate limiting sees client IPs.
 - `PORT`: defaults to 3000.
+- `ADMIN_EMAILS`: comma-separated e-mail addresses of verified accounts that may open the admin dashboard at `/admin`. Everyone else gets a 404. The dashboard shows account and usage numbers but never grades or plan contents, and logs every action.
 - `REMINDER_INTERVAL_MINUTES`: how often the API checks for due reminder e-mails, default 60. `0` turns the reminder job off, e.g. when a second API process runs next to the first. Reminders are claimed in the database before sending, so parallel runs never send one twice.
 
 Migrations run automatically when the API starts.

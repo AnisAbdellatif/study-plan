@@ -21,6 +21,8 @@ const envSchema = z.object({
    */
   IP_ADDRESS_HEADER: z.string().min(1).optional(),
   /** How often reminder e-mails are checked, in minutes. 0 turns reminders off for this process. */
+  /** Comma-separated e-mail addresses of verified accounts that may open the admin dashboard. */
+  ADMIN_EMAILS: z.string().default(''),
   REMINDER_INTERVAL_MINUTES: z.coerce.number().int().min(0).max(1440).default(60),
 })
 
@@ -36,6 +38,8 @@ export interface Config {
   mailFrom: string
   webDist: string | undefined
   ipAddressHeaders: string[] | undefined
+  /** Lower-case e-mail addresses with admin access. Empty means nobody. */
+  adminEmails: string[]
   /** 0 when reminders are off. */
   reminderIntervalMinutes: number
 }
@@ -64,6 +68,9 @@ export function loadConfig(source: Record<string, string | undefined> = process.
     mailFrom: env.MAIL_FROM,
     webDist: env.WEB_DIST,
     ipAddressHeaders: env.IP_ADDRESS_HEADER?.split(',').map((header) => header.trim().toLowerCase()),
+    adminEmails: env.ADMIN_EMAILS.split(',')
+      .map((email) => email.trim().toLowerCase())
+      .filter((email) => email.length > 0),
     reminderIntervalMinutes: env.REMINDER_INTERVAL_MINUTES,
   }
 }

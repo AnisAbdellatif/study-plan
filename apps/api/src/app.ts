@@ -8,6 +8,7 @@ import type { Config } from './config.ts'
 import type { Database } from './db/connection.ts'
 import { UNSUBSCRIBE_PATH } from './reminders.ts'
 import { accountRoutes } from './routes/account.ts'
+import { adminRoutes, requireAdmin } from './routes/admin.ts'
 import { notificationSettingsRoutes, unsubscribeRoutes } from './routes/notifications.ts'
 import { planRoutes } from './routes/plans.ts'
 import { planShareRoutes, publicShareRoutes } from './routes/shares.ts'
@@ -83,6 +84,8 @@ export function createApp({ config, db, auth, staticFiles }: AppDependencies) {
   app.route('/api/account/notifications', notificationSettingsRoutes(db))
   app.route('/api/account', accountRoutes(db))
   app.route('/api/notifications', unsubscribeRoutes(db, config))
+  app.use('/api/admin/*', requireAdmin(auth, config))
+  app.route('/api/admin', adminRoutes(db, auth))
   app.all('/api/*', (c) => c.json({ error: 'not_found' }, 404))
 
   if (staticFiles) {

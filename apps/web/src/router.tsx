@@ -4,6 +4,7 @@ import { AnnouncerProvider } from './components/announcer.tsx'
 import { SiteFooter } from './components/site-footer.tsx'
 import { DatenschutzPage } from './legal/datenschutz-page.tsx'
 import { ImpressumPage } from './legal/impressum-page.tsx'
+import { AdminPage } from './routes/admin-page.tsx'
 import {
   AccountPage,
   ForgotPasswordPage,
@@ -68,6 +69,8 @@ const unsubscribeRoute = createRoute({
   component: UnsubscribePage,
 })
 
+const adminRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin', component: AdminPage })
+
 export const routeTree = rootRoute.addChildren([
   boardRoute,
   startRoute,
@@ -80,6 +83,7 @@ export const routeTree = rootRoute.addChildren([
   datenschutzRoute,
   sharedRoute,
   unsubscribeRoute,
+  adminRoute,
 ])
 
 type RouterOptions = Parameters<typeof createRouter<typeof routeTree>>[0]

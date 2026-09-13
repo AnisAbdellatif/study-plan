@@ -3,7 +3,7 @@ import { type FormEvent, type ReactNode, useEffect, useId, useState } from 'reac
 import { describeSyncState, useAccountSync } from '../components/account-sync.tsx'
 import { Button } from '../components/ui/button.tsx'
 import { ConfirmDialog } from '../components/ui/dialog.tsx'
-import { notificationApi } from '../lib/api.ts'
+import { adminApi, notificationApi } from '../lib/api.ts'
 import { authClient } from '../lib/auth-client.ts'
 import { downloadFile } from '../lib/files.ts'
 import { useGuestState } from '../store/guest-store.ts'
@@ -455,6 +455,31 @@ function ReminderSettings() {
   )
 }
 
+/** Shown only to accounts listed in ADMIN_EMAILS; everyone else gets a 404 from the check. */
+function AdminLink() {
+  const [allowed, setAllowed] = useState(false)
+  useEffect(() => {
+    let active = true
+    adminApi
+      .me()
+      .then(() => {
+        if (active) setAllowed(true)
+      })
+      .catch(() => {})
+    return () => {
+      active = false
+    }
+  }, [])
+  if (!allowed) return null
+  return (
+    <p className="text-sm">
+      <Link to="/admin" className={linkClass}>
+        Zur Verwaltung
+      </Link>
+    </p>
+  )
+}
+
 export function UnsubscribePage() {
   const search = useSearch({ strict: false }) as { token?: unknown }
   const token = typeof search.token === 'string' ? search.token : ''
@@ -587,6 +612,7 @@ export function AccountPage() {
       </section>
 
       <ReminderSettings />
+      <AdminLink />
 
       <section className={cardClass} aria-labelledby="konto-daten">
         <h2 id="konto-daten" className="font-semibold">

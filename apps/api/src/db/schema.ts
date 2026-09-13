@@ -155,3 +155,21 @@ export const reminderDelivery = pgTable(
     ),
   ],
 )
+
+/**
+ * Admin actions, for accountability. Targets are stored by account id only, so a deleted account leaves no
+ * e-mail address behind. Entries are purged after a year.
+ */
+export const adminAuditLog = pgTable(
+  'admin_audit_log',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    adminEmail: text('admin_email').notNull(),
+    action: text('action', {
+      enum: ['send_verification_email', 'revoke_shares', 'sign_out', 'delete_user'],
+    }).notNull(),
+    targetUserId: text('target_user_id').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('admin_audit_log_created_at_idx').on(table.createdAt)],
+)

@@ -14,7 +14,14 @@ import { createApp } from './app.ts'
 import { createAuth } from './auth.ts'
 import { loadConfig } from './config.ts'
 import { type DatabaseConnection, openDatabase } from './db/connection.ts'
-import { account, planShare, plan as planTable, reminderDelivery, user as userTable } from './db/schema.ts'
+import {
+  account,
+  adminAuditLog,
+  planShare,
+  plan as planTable,
+  reminderDelivery,
+  user as userTable,
+} from './db/schema.ts'
 import { createMemoryMailer, type Mailer } from './mail.ts'
 import { berlinDate, runReminders, UNSUBSCRIBE_PATH, verifyUnsubscribeToken } from './reminders.ts'
 import { MAX_PLANS_PER_USER } from './routes/plans.ts'
@@ -24,6 +31,7 @@ const config = loadConfig({
   DATABASE_URL: 'pglite://memory',
   PUBLIC_URL: 'http://localhost:5173',
   BETTER_AUTH_SECRET: 'test-secret-that-is-long-enough-for-better-auth',
+  ADMIN_EMAILS: ' Admin@example.org , ',
 })
 
 const preset = presetSchema.parse(
@@ -614,5 +622,169 @@ describe('reminders', () => {
   it('purges delivery records a month after the deadline', async () => {
     await runReminders({ db: connection.db, mailer, config }, new Date('2027-03-20T08:00:00Z'))
     expect(await connection.db.select().from(reminderDelivery)).toEqual([])
+  })
+})
+
+describe('admin', () => {
+  let adminCookie = ''
+  let userCookie = ''
+  let userId = ''
+  let shareToken = ''
+
+  const userRow = async (email: string) => {
+    const [row] = await connection.db.select().from(userTable).where(eq(userTable.email, email))
+    if (!row) throw new Error(`no user ${email}`)
+    return row
+  }
+
+  beforeAll(async () => {
+    adminCookie = await registerVerifiedUser('admin@example.org')
+    userCookie = await registerVerifiedUser('nutzer@example.org')
+    userId = (await userRow('nutzer@example.org')).id
+    const created = await json<{ id: string }>(
+      await call('/api/plans', {
+        method: 'POST',
+        cookie: userCookie,
+        body: { document: planDocument('Geheim') },
+      }),
+    )
+    const share = await call(`/api/plans/${created.id}/share`, { method: 'POST', cookie: userCookie })
+    shareToken = (await json<{ token: string }>(share)).token
+    expect((await signUp('offen@example.org')).status).toBe(200)
+  })
+
+  it('answers 404 to anyone who is not a listed, verified admin', async () => {
+    for (const cookie of [undefined, userCookie]) {
+      for (const path of ['/api/admin/me', '/api/admin/stats', '/api/admin/users', '/api/admin/audit']) {
+        const response = await call(path, { cookie })
+        expect(response.status).toBe(404)
+        expect(await json(response)).toEqual({ error: 'not_found' })
+      }
+      expect((await call(`/api/admin/users/${userId}`, { method: 'DELETE', cookie })).status).toBe(404)
+    }
+    expect(await userRow('nutzer@example.org')).toBeDefined()
+  })
+
+  it('lets the admin in, matching the address case-insensitively', async () => {
+    expect(await json(await call('/api/admin/me', { cookie: adminCookie }))).toEqual({
+      email: 'admin@example.org',
+    })
+  })
+
+  it('shows usage numbers without grades or plan contents', async () => {
+    const response = await call('/api/admin/stats', { cookie: adminCookie })
+    expect(response.status).toBe(200)
+    const text = await response.text()
+    expect(text).not.toContain('attempts')
+    expect(text).not.toContain('Geheim')
+    const stats = JSON.parse(text) as {
+      users: { total: number; verified: number }
+      plans: { total: number; byPreset: { presetId: string; programmeName: string; plans: number }[] }
+      shares: { active: number }
+    }
+    expect(stats.users.total).toBeGreaterThan(stats.users.verified)
+    expect(stats.plans.byPreset).toContainEqual(
+      expect.objectContaining({ presetId: 'example/informatik-bsc-example', programmeName: 'Informatik' }),
+    )
+    expect(stats.plans.byPreset.reduce((sum, row) => sum + row.plans, 0)).toBe(stats.plans.total)
+    expect(stats.shares.active).toBeGreaterThanOrEqual(1)
+  })
+
+  it('searches accounts by e-mail address and treats wildcards literally', async () => {
+    const response = await call('/api/admin/users?q=nutzer@', { cookie: adminCookie })
+    const text = await response.text()
+    expect(text).not.toContain('document')
+    expect(text).not.toContain('Geheim')
+    const { users } = JSON.parse(text) as { users: { id: string; plans: number; activeShares: number }[] }
+    expect(users).toEqual([
+      expect.objectContaining({
+        id: userId,
+        email: 'nutzer@example.org',
+        emailVerified: true,
+        plans: 1,
+        activeShares: 1,
+      }),
+    ])
+    const wildcard = await json<{ users: unknown[] }>(
+      await call('/api/admin/users?q=%25', { cookie: adminCookie }),
+    )
+    expect(wildcard.users).toEqual([])
+  })
+
+  it('resends the verification e-mail only to unverified accounts', async () => {
+    const pendingId = (await userRow('offen@example.org')).id
+    const before = mailer.sent.filter((mail) => mail.to === 'offen@example.org').length
+    const sent = await call(`/api/admin/users/${pendingId}/verification-email`, {
+      method: 'POST',
+      cookie: adminCookie,
+    })
+    expect(sent.status).toBe(200)
+    expect(mailer.sent.filter((mail) => mail.to === 'offen@example.org')).toHaveLength(before + 1)
+
+    const verified = await call(`/api/admin/users/${userId}/verification-email`, {
+      method: 'POST',
+      cookie: adminCookie,
+    })
+    expect(verified.status).toBe(409)
+    expect(await json(verified)).toEqual({ error: 'already_verified' })
+  })
+
+  it('revokes share links and ends sessions', async () => {
+    expect((await call(`/api/share/${shareToken}`)).status).toBe(200)
+    const revoked = await call(`/api/admin/users/${userId}/revoke-shares`, {
+      method: 'POST',
+      cookie: adminCookie,
+    })
+    expect(await json(revoked)).toEqual({ revoked: 1 })
+    expect((await call(`/api/share/${shareToken}`)).status).toBe(404)
+
+    expect((await call('/api/plans', { cookie: userCookie })).status).toBe(200)
+    const signedOut = await json<{ sessions: number }>(
+      await call(`/api/admin/users/${userId}/sign-out`, { method: 'POST', cookie: adminCookie }),
+    )
+    expect(signedOut.sessions).toBeGreaterThanOrEqual(1)
+    expect((await call('/api/plans', { cookie: userCookie })).status).toBe(401)
+  })
+
+  it('refuses actions on the own account and unknown accounts', async () => {
+    const adminId = (await userRow('admin@example.org')).id
+    const self = await call(`/api/admin/users/${adminId}`, { method: 'DELETE', cookie: adminCookie })
+    expect(self.status).toBe(409)
+    expect(await json(self)).toEqual({ error: 'cannot_modify_self' })
+    expect(
+      (await call('/api/admin/users/unbekannt/sign-out', { method: 'POST', cookie: adminCookie })).status,
+    ).toBe(404)
+  })
+
+  it('deletes an account with everything in it and keeps an audit log without e-mail addresses', async () => {
+    const deleted = await call(`/api/admin/users/${userId}`, { method: 'DELETE', cookie: adminCookie })
+    expect(deleted.status).toBe(204)
+    expect(await connection.db.select().from(userTable).where(eq(userTable.id, userId))).toEqual([])
+    expect(await connection.db.select().from(planTable).where(eq(planTable.userId, userId))).toEqual([])
+
+    const { entries } = await json<{
+      entries: { action: string; targetUserId: string; adminEmail: string }[]
+    }>(await call('/api/admin/audit', { cookie: adminCookie }))
+    expect(entries.slice(0, 4).map((entry) => entry.action)).toEqual([
+      'delete_user',
+      'sign_out',
+      'revoke_shares',
+      'send_verification_email',
+    ])
+    expect(entries[0]).toMatchObject({ targetUserId: userId, adminEmail: 'admin@example.org' })
+    expect(JSON.stringify(entries)).not.toContain('nutzer@example.org')
+  })
+
+  it('purges audit entries older than a year', async () => {
+    await connection.db.insert(adminAuditLog).values({
+      adminEmail: 'admin@example.org',
+      action: 'sign_out',
+      targetUserId: 'alt',
+      createdAt: new Date('2020-01-01T00:00:00Z'),
+    })
+    const pendingId = (await userRow('offen@example.org')).id
+    await call(`/api/admin/users/${pendingId}/sign-out`, { method: 'POST', cookie: adminCookie })
+    const rows = await connection.db.select().from(adminAuditLog).where(eq(adminAuditLog.targetUserId, 'alt'))
+    expect(rows).toEqual([])
   })
 })

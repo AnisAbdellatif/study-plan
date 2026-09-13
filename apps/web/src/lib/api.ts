@@ -117,3 +117,59 @@ export const notificationApi = {
       method: 'POST',
     }),
 }
+
+export interface AdminStats {
+  users: { total: number; verified: number; newLast30Days: number; activeLast30Days: number }
+  plans: {
+    total: number
+    byPreset: {
+      presetId: string
+      programmeName: string
+      universityName: string
+      poVersion: string
+      plans: number
+    }[]
+  }
+  shares: { active: number }
+  reminders: { enabled: number; sentLast30Days: number }
+}
+
+export interface AdminUser {
+  id: string
+  email: string
+  emailVerified: boolean
+  createdAt: string
+  lastActiveAt: string | null
+  plans: number
+  activeShares: number
+  reminders: boolean
+}
+
+export type AdminAction = 'send_verification_email' | 'revoke_shares' | 'sign_out' | 'delete_user'
+
+export interface AdminAuditEntry {
+  id: string
+  adminEmail: string
+  action: AdminAction
+  targetUserId: string
+  createdAt: string
+}
+
+const adminUser = (id: string) => `/api/admin/users/${encodeURIComponent(id)}`
+
+/** Operator tools. Every call answers 404 for accounts without admin access. */
+export const adminApi = {
+  me: (): Promise<{ email: string }> => request<{ email: string }>('/api/admin/me'),
+  stats: (): Promise<AdminStats> => request<AdminStats>('/api/admin/stats'),
+  users: async (query: string): Promise<AdminUser[]> =>
+    (await request<{ users: AdminUser[] }>(`/api/admin/users?q=${encodeURIComponent(query)}`)).users,
+  audit: async (): Promise<AdminAuditEntry[]> =>
+    (await request<{ entries: AdminAuditEntry[] }>('/api/admin/audit')).entries,
+  sendVerificationEmail: (id: string): Promise<void> =>
+    request<void>(`${adminUser(id)}/verification-email`, { method: 'POST' }),
+  revokeShares: (id: string): Promise<{ revoked: number }> =>
+    request<{ revoked: number }>(`${adminUser(id)}/revoke-shares`, { method: 'POST' }),
+  signOut: (id: string): Promise<{ sessions: number }> =>
+    request<{ sessions: number }>(`${adminUser(id)}/sign-out`, { method: 'POST' }),
+  deleteUser: (id: string): Promise<void> => request<void>(adminUser(id), { method: 'DELETE' }),
+}
