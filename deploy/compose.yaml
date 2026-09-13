@@ -1,10 +1,11 @@
-# Production stack for the VPS: the app, PostgreSQL and Caddy for HTTPS.
+# Production stack for the VPS: the app and PostgreSQL.
 # Lives next to a .env file (see .env.example) in DEPLOY_PATH; the CI deploy job copies this file there.
-# Caddy also serves the dev stack (compose.dev.yaml) on DEV_DOMAIN through the shared study-plan-proxy network.
+# HTTPS comes from Caddy installed on the host (see deploy/Caddyfile), which forwards DOMAIN to the app port
+# published on 127.0.0.1 below.
 name: study-plan
 
-# Container logs are rotated at 3 x 10 MB, so they don't grow forever. The app logs no IP addresses and Caddy
-# writes no access log, as the privacy policy states; update the policy if either changes.
+# Container logs are rotated at 3 x 10 MB, so they don't grow forever. The app logs no IP addresses and the host's Caddy
+# must write no access log, as the privacy policy states; update the policy if either changes.
 x-logging: &logging
   driver: json-file
   options:
@@ -34,13 +35,12 @@ services:
       REMINDER_INTERVAL_MINUTES: ${REMINDER_INTERVAL_MINUTES:-60}
       # Caddy replaces this header with the real client address, so rate limiting can trust it.
       IP_ADDRESS_HEADER: x-forwarded-for
-    networks:
-      internal:
-      web:
-        # Caddy must reach this app by a name no other container has. The plain service name "app" is also
-        # registered by the dev stack's app on the shared study-plan-proxy network, where Caddy is too, so
-        # "app" could resolve to dev and mix the two sites.
-        aliases: [study-plan-prod-app]
+    # Only on the loopback interface: the host's Caddy is the single way in from outside. Docker's published
+    # ports bypass host firewalls such as ufw, so never publish on 0.0.0.0 here.
+    ports:
+      - "127.0.0.1:${APP_PORT:-3000}:3000"
+    # internal reaches PostgreSQL; web gives outbound access for SMTP.
+    networks: [internal, web]
 
   postgres:
     image: postgres:18-alpine
@@ -60,36 +60,10 @@ services:
     # Not published on the host; only the app reaches it.
     networks: [internal]
 
-  caddy:
-    image: caddy:2-alpine
-    logging: *logging
-    restart: unless-stopped
-    depends_on:
-      app:
-        condition: service_healthy
-    ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
-    environment:
-      DOMAIN: ${DOMAIN:?set DOMAIN}
-      DEV_DOMAIN: ${DEV_DOMAIN:-dev.${DOMAIN}}
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy-data:/data
-      - caddy-config:/config
-    networks: [web, proxy]
-
 networks:
   internal:
     internal: true
   web:
-  # Shared with the dev stack. Created by the deploy job: docker network create study-plan-proxy
-  proxy:
-    name: study-plan-proxy
-    external: true
 
 volumes:
   postgres-data:
-  caddy-data:
-  caddy-config:

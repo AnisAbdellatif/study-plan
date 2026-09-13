@@ -1,7 +1,7 @@
 # Dev stack for the VPS: the app built from the dev branch with its own PostgreSQL, in its own directory
 # (DEV_DEPLOY_PATH) next to a .env file (see dev.env.example). The CI deploy job copies this file there as
-# compose.yaml. It has no Caddy of its own: the production Caddy serves it on DEV_DOMAIN through the shared
-# study-plan-proxy network, so the production stack must be running.
+# compose.yaml. The host's Caddy (see deploy/Caddyfile) serves it on the dev domain through the app port
+# published on 127.0.0.1 below.
 name: study-plan-dev
 
 # Rotated container logs, as in compose.yaml.
@@ -33,11 +33,10 @@ services:
       SUPERADMIN_NAME: ${SUPERADMIN_NAME:-Superadmin}
       REMINDER_INTERVAL_MINUTES: ${REMINDER_INTERVAL_MINUTES:-0}
       IP_ADDRESS_HEADER: x-forwarded-for
-    networks:
-      internal:
-      proxy:
-        # The production Caddyfile forwards DEV_DOMAIN to this name.
-        aliases: [study-plan-dev-app]
+    # Loopback only, as in compose.yaml, and a different port so both stacks run side by side.
+    ports:
+      - "127.0.0.1:${APP_PORT:-3001}:3000"
+    networks: [internal, web]
 
   postgres:
     image: postgres:18-alpine
@@ -59,9 +58,7 @@ services:
 networks:
   internal:
     internal: true
-  proxy:
-    name: study-plan-proxy
-    external: true
+  web:
 
 volumes:
   postgres-data:

@@ -58,11 +58,11 @@ Before publishing:
 
 1. Set the operator details above and check both legal pages. They are a starting point, not legal advice.
 2. Conclude data processing agreements (Art. 28 DSGVO) with the hosting provider and the mail provider.
-3. The Datenschutzerklärung states that no access logs with IP addresses are kept: Caddy writes no access log and the API logs no IP addresses. If you add access logging (in Caddy, a reverse proxy in front of it, or the API), update the policy.
+3. The Datenschutzerklärung states that no access logs with IP addresses are kept: the host's Caddy writes no access log and the API logs no IP addresses. If you add access logging (in Caddy, a reverse proxy in front of it, or the API), update the policy.
 
 ## Deployment
 
-The `Dockerfile` builds one image: the API, which also serves the built web app. `deploy/compose.yaml` runs it on a VPS together with PostgreSQL and Caddy, which obtains the HTTPS certificate. PostgreSQL is only reachable from the app container.
+The `Dockerfile` builds one image: the API, which also serves the built web app. `deploy/compose.yaml` runs it on a VPS together with PostgreSQL. Caddy runs on the host itself, obtains the HTTPS certificates and forwards each domain to its app, which Compose publishes on `127.0.0.1` only (`deploy/Caddyfile` is a reference configuration). PostgreSQL is only reachable from the app container.
 
 Branches: changes go to `dev` first and reach `main` through pull requests, usually several at once. Protect `main` in the repository settings (Settings → Branches: require a pull request and the CI checks).
 
@@ -70,20 +70,20 @@ Every push to `main` or `dev` runs the checks. When they pass, CI builds the ima
 
 | Branch | Image tags | VPS directory | Stack | Address |
 |---|---|---|---|---|
-| `main` | `latest`, `<sha>` | `DEPLOY_PATH` (`/opt/study-plan`) | `deploy/compose.yaml`: app, PostgreSQL, Caddy | `DOMAIN` |
-| `dev` | `dev`, `dev-<sha>` | `DEV_DEPLOY_PATH` (e.g. `/opt/study-plan-dev`) | `deploy/compose.dev.yaml`: app, PostgreSQL | `DEV_DOMAIN` |
+| `main` | `latest`, `<sha>` | `DEPLOY_PATH` (`/opt/study-plan`) | `deploy/compose.yaml`: app, PostgreSQL; `127.0.0.1:3000` | `DOMAIN` |
+| `dev` | `dev`, `dev-<sha>` | `DEV_DEPLOY_PATH` (e.g. `/opt/study-plan-dev`) | `deploy/compose.dev.yaml`: app, PostgreSQL; `127.0.0.1:3001` | dev domain |
 
-The dev stack has its own database, `.env` and superadmin, and never touches the production image tags or containers. Only one program can use ports 80 and 443, so the production Caddy also serves `DEV_DOMAIN`, forwarding it over the shared Docker network `study-plan-proxy`; the dev domain answers 502 while the dev stack is down. Dev deploys are skipped until `DEV_DEPLOY_PATH` is set.
+The dev stack has its own database, `.env` and superadmin, and never touches the production image tags or containers. Both stacks publish their app on a different loopback port (`APP_PORT` in each `.env`), and the host's Caddy forwards each domain to its port; the dev domain answers 502 while the dev stack is down. CI never touches the host's Caddy configuration. Dev deploys are skipped until `DEV_DEPLOY_PATH` is set.
 
 One-time setup:
 
-1. On the VPS: install Docker with the compose plugin, create a deploy user in the `docker` group, create the directory (default `/opt/study-plan`) and put a filled-in copy of `deploy/.env.example` there as `.env`. Point the domain at the VPS and open ports 80 and 443.
+1. On the VPS: install Docker with the compose plugin and Caddy, create a deploy user in the `docker` group, create the directory (default `/opt/study-plan`) and put a filled-in copy of `deploy/.env.example` there as `.env`. Adapt `deploy/Caddyfile` to your domains in `/etc/caddy/Caddyfile` and run `sudo systemctl reload caddy`. Point the domain at the VPS and open ports 80 and 443.
 2. In the GitHub repository, under Settings → Secrets and variables → Actions:
    - Variables: `DEPLOY_HOST`, `DEPLOY_USER`, optional `DEPLOY_PORT` (22) and `DEPLOY_PATH` (`/opt/study-plan`), plus the `VITE_OPERATOR_*` variables above, which are compiled into the web app.
    - Secrets: `DEPLOY_SSH_KEY` (a private key whose public key is in the deploy user's `authorized_keys`) and `DEPLOY_KNOWN_HOSTS` (output of `ssh-keyscan -p <port> <host>`).
    The deploy job is skipped until `DEPLOY_HOST` is set; the image is still built.
 3. After the first deploy, sign in with `SUPERADMIN_EMAIL` and change the password.
-4. For the dev stack: add a DNS record for `DEV_DOMAIN`, create the directory (e.g. `/opt/study-plan-dev`, owned by the deploy user), put a filled-in copy of `deploy/dev.env.example` there as `.env` with its own passwords and secret, and set the repository variable `DEV_DEPLOY_PATH`. The next push to `dev` deploys it.
+4. For the dev stack: add a DNS record and a site block in the host's Caddyfile for the dev domain, create the directory (e.g. `/opt/study-plan-dev`, owned by the deploy user), put a filled-in copy of `deploy/dev.env.example` there as `.env` with its own passwords and secret, and set the repository variable `DEV_DEPLOY_PATH`. The next push to `dev` deploys it.
 
 Each deploy tags the image it pulled as `latest` (or `dev`) on the VPS, so `docker compose up -d` in the stack's directory restarts the deployed version without logging in to the registry. Rolling back: `docker compose pull` is not needed; run `APP_TAG=<older commit sha> docker compose up -d` if that image is still on the VPS (unused images are removed after two weeks), otherwise revert the commit and push. Back up the database with `docker compose exec postgres pg_dump -U studyplan studyplan > backup.sql`.
 

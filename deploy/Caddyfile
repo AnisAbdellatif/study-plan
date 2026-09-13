@@ -1,16 +1,19 @@
-# Obtains and renews the TLS certificates automatically. No access log is written, matching the retention stated
-# in the privacy policy; add a `log` block here if you want one.
-# Upstreams use names unique across both stacks: Caddy sits on the production and the shared network, and the
-# service name "app" exists on both (production and dev), so it must never be used here.
-{$DOMAIN} {
+# Reference configuration for Caddy installed on the VPS host (e.g. /etc/caddy/Caddyfile, then
+# `sudo systemctl reload caddy`). CI does not copy or reload it; change the host's file by hand.
+# Replace the domains with yours. Caddy obtains and renews the TLS certificates automatically.
+# No access log is written, matching the retention stated in the privacy policy; if you add a `log` block,
+# update the policy.
+
+# Production: deploy/compose.yaml publishes the app on 127.0.0.1:APP_PORT (default 3000).
+plan.example.org {
 	encode zstd gzip
-	reverse_proxy study-plan-prod-app:3000
+	reverse_proxy 127.0.0.1:3000
 }
 
-# The dev stack (compose.dev.yaml) joins the shared study-plan-proxy network under this name. While it is not
-# running, this domain answers 502. Search engines are asked not to index it.
-{$DEV_DOMAIN} {
+# Dev: deploy/compose.dev.yaml publishes its app on 127.0.0.1:APP_PORT (default 3001). While the dev stack is
+# down, this domain answers 502. Search engines are asked not to index it.
+dev.plan.example.org {
 	encode zstd gzip
 	header X-Robots-Tag "noindex, nofollow"
-	reverse_proxy study-plan-dev-app:3000
+	reverse_proxy 127.0.0.1:3001
 }

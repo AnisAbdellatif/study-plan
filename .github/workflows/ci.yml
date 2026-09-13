@@ -172,7 +172,7 @@ jobs:
       - name: Copy the stack definition
         run: |
           if [ "$GITHUB_REF_NAME" = main ]; then
-            scp -i ~/.ssh/deploy_key $SSH_OPTIONS -P "$DEPLOY_PORT" deploy/compose.yaml deploy/Caddyfile \
+            scp -i ~/.ssh/deploy_key $SSH_OPTIONS -P "$DEPLOY_PORT" deploy/compose.yaml \
               "$DEPLOY_USER@$DEPLOY_HOST:$TARGET_PATH/"
           else
             scp -i ~/.ssh/deploy_key $SSH_OPTIONS -P "$DEPLOY_PORT" deploy/compose.dev.yaml \
@@ -190,15 +190,11 @@ jobs:
           echo "$TOKEN" | ssh -i ~/.ssh/deploy_key $SSH_OPTIONS -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
             "set -eu
              cd '$TARGET_PATH'
-             docker network create study-plan-proxy >/dev/null 2>&1 || true
              docker login ghcr.io --username '$GITHUB_ACTOR' --password-stdin
              docker pull '$IMAGE:$TAG'
              docker logout ghcr.io
              docker tag '$IMAGE:$TAG' '$IMAGE:$ALIAS'
              export APP_IMAGE='$IMAGE'
+             # HTTPS is handled by Caddy on the host, outside this stack; nothing to reload here.
              docker compose up --detach --wait --remove-orphans
-             # Caddy reads its Caddyfile only at start, and up does not restart it when just the file changed.
-             if [ '$GITHUB_REF_NAME' = main ]; then
-               docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
-             fi
              docker image prune --all --force --filter until=336h"
