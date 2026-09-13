@@ -122,6 +122,13 @@ export const board = {
     remove: 'Remove placeholder',
   },
   picker: {
+    offeringFilter: 'Offered in',
+    filters: {
+      all: 'All',
+      summer: 'Summer semester',
+      winter: 'Winter semester',
+    },
+    noSeasonMatch: 'No matching module is offered in the {{season}}.',
     title: 'Choose a module for {{area}}',
     browseTitle: 'Options for {{area}}',
     forSemester: 'For semester {{number}} ({{term}}), estimated {{credits}} {{label}}.',

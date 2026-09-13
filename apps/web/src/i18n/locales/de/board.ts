@@ -120,6 +120,13 @@ export const board = {
     remove: 'Platzhalter entfernen',
   },
   picker: {
+    offeringFilter: 'Angebot',
+    filters: {
+      all: 'Alle',
+      summer: 'Sommersemester',
+      winter: 'Wintersemester',
+    },
+    noSeasonMatch: 'Kein passendes Modul wird im {{season}} angeboten.',
     title: 'Modul für {{area}} auswählen',
     browseTitle: 'Optionen für {{area}}',
     forSemester: 'Für das {{number}}. Semester ({{term}}), geschätzt {{credits}} {{label}}.',
