@@ -175,7 +175,8 @@ const shared = {
   de: {
     greeting: 'Hallo,',
     fallback: 'Falls der Button nicht funktioniert, kopiere diesen Link in deinen Browser:',
-    accountFooter: `Du bekommst diese E-Mail, weil mit dieser Adresse ein ${BRAND_NAME}-Konto angelegt oder verwendet wurde.`,
+    // German compounds with a multi-word name are hyphenated throughout: Study-Plan-Konto.
+    accountFooter: `Du bekommst diese E-Mail, weil mit dieser Adresse ein ${BRAND_NAME.replace(/ /g, '-')}-Konto angelegt oder verwendet wurde.`,
   },
   en: {
     greeting: 'Hello,',
@@ -214,14 +215,14 @@ const accountMails = {
     verificationSubject: 'Bitte bestätige deine E-Mail-Adresse',
     verificationPreheader: 'Ein Klick, dann ist dein Konto aktiv.',
     verificationHeading: 'Bestätige deine E-Mail-Adresse',
-    verificationIntro: `bitte bestätige deine E-Mail-Adresse für deinen ${BRAND_NAME}-Account:`,
+    verificationIntro: `bitte bestätige deine E-Mail-Adresse für deinen ${BRAND_NAME.replace(/ /g, '-')}-Account:`,
     verificationButton: 'E-Mail-Adresse bestätigen',
     verificationOutro:
       'Der Link ist eine Stunde gültig. Wenn du dich nicht registriert hast, kannst du diese E-Mail ignorieren.',
     resetSubject: 'Passwort zurücksetzen',
     resetPreheader: 'Lege ein neues Passwort fest. Der Link ist eine Stunde gültig.',
     resetHeading: 'Neues Passwort festlegen',
-    resetIntro: `über diesen Link kannst du ein neues Passwort für deinen ${BRAND_NAME}-Account festlegen:`,
+    resetIntro: `über diesen Link kannst du ein neues Passwort für deinen ${BRAND_NAME.replace(/ /g, '-')}-Account festlegen:`,
     resetButton: 'Neues Passwort festlegen',
     resetOutro:
       'Der Link ist eine Stunde gültig und funktioniert nur einmal. Wenn du kein neues Passwort angefordert hast, kannst du diese E-Mail ignorieren.',
