@@ -1,4 +1,11 @@
-import type { AggregationNode, GradeRules, GroupChild, ModuleChild, RoundingSpec } from '../schema/rules.ts'
+import type {
+  AggregationNode,
+  GradeRules,
+  GroupChild,
+  KeepBestRule,
+  ModuleChild,
+  RoundingSpec,
+} from '../schema/rules.ts'
 import { GradeRuleError } from './errors.ts'
 import {
   absolute,
@@ -45,6 +52,7 @@ export type ModuleStatus =
   | 'excluded'
   | 'zero_weight'
   | 'missing'
+  | 'surplus'
 
 export interface TraceModule {
   code: string
@@ -266,6 +274,59 @@ function applyDropWorst(entries: Entry[], budgetHalves: bigint): void {
   }
 }
 
+/**
+ * Best-of selection. Quota minimums are filled first with each quota's best modules, then the remaining
+ * capacity is filled best grade first. The module that crosses `maxCredits` still counts. Everything else
+ * becomes a surplus module that does not enter the average. Greedy, which is optimal for equal-credit modules.
+ * Group entries in the same node are not part of the selection and always count.
+ */
+function applyKeepBest(entries: Entry[], rule: KeepBestRule): void {
+  const candidates = entries
+    .filter((entry) => entry.module !== undefined)
+    .sort(
+      (a, b) =>
+        compare(a.value, b.value) ||
+        Number(b.creditHalves - a.creditHalves) ||
+        (a.module?.code ?? '').localeCompare(b.module?.code ?? ''),
+    )
+  const quotas = (rule.quotas ?? []).map((quota) => ({
+    codes: new Set(quota.codes),
+    min: BigInt(toHalves(quota.minCredits)),
+    max: quota.maxCredits === undefined ? null : BigInt(toHalves(quota.maxCredits)),
+    counted: 0n,
+  }))
+  const cap = BigInt(toHalves(rule.maxCredits))
+  const kept = new Set<Entry>()
+  let counted = 0n
+
+  const quotasOf = (entry: Entry) => quotas.filter((quota) => quota.codes.has(entry.module?.code ?? ''))
+  const take = (entry: Entry) => {
+    kept.add(entry)
+    counted += entry.creditHalves
+    for (const quota of quotasOf(entry)) quota.counted += entry.creditHalves
+  }
+
+  for (const quota of quotas) {
+    for (const entry of candidates) {
+      if (quota.counted >= quota.min) break
+      if (!kept.has(entry) && quota.codes.has(entry.module?.code ?? '')) take(entry)
+    }
+  }
+  for (const entry of candidates) {
+    if (counted >= cap) break
+    if (kept.has(entry)) continue
+    if (quotasOf(entry).some((quota) => quota.max !== null && quota.counted + entry.creditHalves > quota.max))
+      continue
+    take(entry)
+  }
+  for (const entry of candidates) {
+    if (kept.has(entry) || !entry.module) continue
+    entry.dropped = true
+    entry.module.status = 'surplus'
+    entry.module.weight = null
+  }
+}
+
 function evaluateNode(node: AggregationNode, ctx: Context): NodeResult {
   const trace: TraceNode = {
     id: node.id,
@@ -283,6 +344,7 @@ function evaluateNode(node: AggregationNode, ctx: Context): NodeResult {
       child.kind === 'module' ? moduleEntry(node, child, ctx, trace) : groupEntry(node, child, ctx, trace)
     if (entry) entries.push(entry)
   }
+  if (node.keepBest) applyKeepBest(entries, node.keepBest)
   if (node.dropWorst) applyDropWorst(entries, BigInt(toHalves(node.dropWorst.maxCredits)))
 
   const active = entries.filter((entry) => !entry.dropped)

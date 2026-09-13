@@ -2,19 +2,30 @@
   "$schema": "../preset.schema.json",
   "schemaVersion": 1,
   "id": "example/informatik-bsc-example",
-  "university": { "slug": "example", "name": "Beispiel-Universität" },
-  "programme": { "slug": "informatik-bsc-example", "name": "Informatik", "degree": "bsc" },
+  "university": {
+    "slug": "example",
+    "name": "Beispiel-Universität"
+  },
+  "programme": {
+    "slug": "informatik-bsc-example",
+    "name": "Informatik",
+    "degree": "bsc"
+  },
   "poVersion": "PO 2024 (fiktiv)",
   "handbookVersion": "Modulhandbuch WS 2024/25 (fiktiv)",
   "standardSemesters": 6,
   "totalCredits": 180,
   "creditLabel": "ECTS",
+  "codesAreOfficial": true,
   "notes": "Fictional example preset. It is not based on any real Prüfungsordnung and lists only a subset of modules. It exists to exercise every rule the engine supports: truncated group grades, a Streichregel, a double-weighted thesis and an ungraded module.",
   "gradeRules": {
     "allowedValues": [1.0, 1.3, 1.7, 2.0, 2.3, 2.7, 3.0, 3.3, 3.7, 4.0, 5.0],
     "passThreshold": 4.0,
     "attemptSelection": "best",
-    "finalRounding": { "mode": "truncate", "precision": 1 },
+    "finalRounding": {
+      "mode": "truncate",
+      "precision": 1
+    },
     "aggregation": {
       "id": "gesamtnote",
       "label": "Gesamtnote",
@@ -26,12 +37,27 @@
             "id": "grundlagen",
             "label": "Grundlagen",
             "weightMode": "credits",
-            "roundResult": { "mode": "truncate", "precision": 1 },
+            "roundResult": {
+              "mode": "truncate",
+              "precision": 1
+            },
             "children": [
-              { "kind": "module", "code": "INF-101" },
-              { "kind": "module", "code": "INF-102" },
-              { "kind": "module", "code": "MAT-101" },
-              { "kind": "module", "code": "MAT-102" }
+              {
+                "kind": "module",
+                "code": "INF-101"
+              },
+              {
+                "kind": "module",
+                "code": "INF-102"
+              },
+              {
+                "kind": "module",
+                "code": "MAT-101"
+              },
+              {
+                "kind": "module",
+                "code": "MAT-102"
+              }
             ]
           }
         },
@@ -41,16 +67,34 @@
             "id": "vertiefung",
             "label": "Vertiefung",
             "weightMode": "credits",
-            "dropWorst": { "maxCredits": 6 },
+            "dropWorst": {
+              "maxCredits": 6
+            },
             "children": [
-              { "kind": "module", "code": "INF-201" },
-              { "kind": "module", "code": "INF-202" },
-              { "kind": "module", "code": "WP-401" },
-              { "kind": "module", "code": "WP-402" }
+              {
+                "kind": "module",
+                "code": "INF-201"
+              },
+              {
+                "kind": "module",
+                "code": "INF-202"
+              },
+              {
+                "kind": "module",
+                "code": "WP-401"
+              },
+              {
+                "kind": "module",
+                "code": "WP-402"
+              }
             ]
           }
         },
-        { "kind": "module", "code": "BA-601", "factor": 2 }
+        {
+          "kind": "module",
+          "code": "BA-601",
+          "factor": 2
+        }
       ]
     }
   },

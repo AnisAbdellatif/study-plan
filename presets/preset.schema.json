@@ -80,6 +80,9 @@
         "CP"
       ]
     },
+    "codesAreOfficial": {
+      "type": "boolean"
+    },
     "notes": {
       "type": "string"
     },
@@ -88,6 +91,14 @@
       "properties": {
         "allowedValues": {
           "minItems": 2,
+          "type": "array",
+          "items": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 5
+          }
+        },
+        "standardGrades": {
           "type": "array",
           "items": {
             "type": "number",
@@ -185,7 +196,8 @@
             "enum": [
               "winter",
               "summer",
-              "both"
+              "both",
+              "irregular"
             ]
           },
           "typicalSemester": {
@@ -196,8 +208,33 @@
           "prerequisites": {
             "type": "array",
             "items": {
-              "type": "string"
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "anyOf": {
+                      "minItems": 2,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    }
+                  },
+                  "required": [
+                    "anyOf"
+                  ]
+                }
+              ]
             }
+          },
+          "requiresCredits": {
+            "type": "number",
+            "minimum": 0
           }
         },
         "required": [
@@ -259,6 +296,7 @@
     "standardSemesters",
     "totalCredits",
     "creditLabel",
+    "codesAreOfficial",
     "gradeRules",
     "modules",
     "areas"
@@ -316,6 +354,49 @@
             "maxCredits": {
               "type": "number",
               "minimum": 0
+            }
+          },
+          "required": [
+            "maxCredits"
+          ]
+        },
+        "keepBest": {
+          "type": "object",
+          "properties": {
+            "maxCredits": {
+              "type": "number",
+              "minimum": 0
+            },
+            "quotas": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "label": {
+                    "type": "string"
+                  },
+                  "codes": {
+                    "minItems": 1,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "minCredits": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "maxCredits": {
+                    "type": "number",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "codes",
+                  "minCredits"
+                ]
+              }
             }
           },
           "required": [

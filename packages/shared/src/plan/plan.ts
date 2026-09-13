@@ -36,6 +36,8 @@ export const presetInfoSchema = z.object({
   standardSemesters: z.number().int().min(1),
   totalCredits: creditValueSchema,
   creditLabel: z.enum(['ECTS', 'LP', 'CP']),
+  /** Missing in plans created before the flag existed; treat as true. */
+  codesAreOfficial: z.boolean().optional(),
 })
 export type PresetInfo = z.infer<typeof presetInfoSchema>
 
@@ -144,6 +146,7 @@ export function createPlanFromPreset(preset: Preset, options: CreatePlanOptions)
       standardSemesters: preset.standardSemesters,
       totalCredits: preset.totalCredits,
       creditLabel: preset.creditLabel,
+      codesAreOfficial: preset.codesAreOfficial,
     },
     rules: structuredClone(preset.gradeRules),
     areas: structuredClone(preset.areas),

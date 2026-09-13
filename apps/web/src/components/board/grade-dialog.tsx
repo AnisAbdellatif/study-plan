@@ -12,15 +12,43 @@ function decode(value: string): ResultEntry {
   return { kind: 'open' }
 }
 
+function GradeOption({ grade, passThreshold }: { grade: number; passThreshold: number }) {
+  return (
+    <option value={`grade:${grade}`}>
+      {formatGrade(grade)}
+      {grade > passThreshold ? ' (nicht bestanden)' : ''}
+    </option>
+  )
+}
+
+/** Standard exam grade steps first; composite module grades (e.g. 1,2 from weighted parts) in their own group. */
+function GradeOptions({ rules }: { rules: GradeRules }) {
+  const option = (grade: number) => (
+    <GradeOption key={grade} grade={grade} passThreshold={rules.passThreshold} />
+  )
+  const standard = rules.standardGrades
+  if (!standard?.length) return <>{rules.allowedValues.map(option)}</>
+  const composite = rules.allowedValues.filter((grade) => !standard.includes(grade))
+  return (
+    <>
+      <optgroup label="Notenstufen">{standard.map(option)}</optgroup>
+      {composite.length > 0 ? (
+        <optgroup label="Zusammengesetzte Modulnoten">{composite.map(option)}</optgroup>
+      ) : null}
+    </>
+  )
+}
+
 interface GradeFormProps {
   module: PlanModule
   rules: GradeRules
   creditLabel: string
+  showCode: boolean
   onSave: (entry: ResultEntry) => void
   onCancel: () => void
 }
 
-function GradeForm({ module, rules, creditLabel, onSave, onCancel }: GradeFormProps) {
+function GradeForm({ module, rules, creditLabel, showCode, onSave, onCancel }: GradeFormProps) {
   const id = useId()
   const [value, setValue] = useState(() => encode(currentResult(module)))
 
@@ -32,7 +60,8 @@ function GradeForm({ module, rules, creditLabel, onSave, onCancel }: GradeFormPr
   return (
     <form onSubmit={submit}>
       <p className="text-sm text-zinc-600 dark:text-zinc-400">
-        {module.code} · {formatCredits(module.credits)} {creditLabel}
+        {showCode ? `${module.code} · ` : ''}
+        {formatCredits(module.credits)} {creditLabel}
         {module.countsTowardAverage ? '' : ' · zählt nicht zum Schnitt'}
       </p>
       <label htmlFor={id} className="mt-4 block text-sm font-medium">
@@ -46,12 +75,7 @@ function GradeForm({ module, rules, creditLabel, onSave, onCancel }: GradeFormPr
       >
         <option value="open">Noch offen</option>
         {module.grading === 'graded' ? (
-          rules.allowedValues.map((grade) => (
-            <option key={grade} value={`grade:${grade}`}>
-              {formatGrade(grade)}
-              {grade > rules.passThreshold ? ' (nicht bestanden)' : ''}
-            </option>
-          ))
+          <GradeOptions rules={rules} />
         ) : (
           <>
             <option value="passed">Bestanden</option>
@@ -75,11 +99,13 @@ export interface GradeDialogProps {
   module: PlanModule | null
   rules: GradeRules
   creditLabel: string
+  /** False when the preset's module codes are made up; they are then hidden. */
+  showCode: boolean
   onSave: (code: string, entry: ResultEntry) => void
   onClose: () => void
 }
 
-export function GradeDialog({ module, rules, creditLabel, onSave, onClose }: GradeDialogProps) {
+export function GradeDialog({ module, rules, creditLabel, showCode, onSave, onClose }: GradeDialogProps) {
   return (
     <Dialog
       open={module !== null}
@@ -94,6 +120,7 @@ export function GradeDialog({ module, rules, creditLabel, onSave, onClose }: Gra
           module={module}
           rules={rules}
           creditLabel={creditLabel}
+          showCode={showCode}
           onCancel={onClose}
           onSave={(entry) => onSave(module.code, entry)}
         />

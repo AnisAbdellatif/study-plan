@@ -10,6 +10,7 @@ const STATUS_LABEL: Record<TraceModule['status'], string> = {
   excluded: 'zählt nicht',
   zero_weight: 'Gewicht 0',
   missing: 'fehlt im Plan',
+  surplus: 'Zusatzmodul, zählt nicht',
 }
 
 function CreditBar({

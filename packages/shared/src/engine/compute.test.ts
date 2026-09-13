@@ -237,3 +237,66 @@ describe('computeCreditProgress', () => {
     })
   })
 })
+
+describe('computeOverall: keepBest (best-of selection)', () => {
+  const withKeepBest = (codes: string[], keepBest: NonNullable<GradeRules['aggregation']['keepBest']>) => {
+    const rules = flatRules(codes)
+    rules.aggregation.keepBest = keepBest
+    return rules
+  }
+
+  it('counts only the best modules up to the limit and marks the rest as surplus', () => {
+    const rules = withKeepBest(['A', 'B', 'C'], { maxCredits: 10 })
+    const result = computeOverall(rules, [graded('A', 5, 1.0), graded('B', 5, 2.0), graded('C', 5, 3.0)])
+    expect(result.value).toBe('1.5')
+    expect(result.countedCredits).toBe(10)
+    expect(result.trace.modules.find((m) => m.code === 'C')?.status).toBe('surplus')
+  })
+
+  it('still counts the module that crosses the limit', () => {
+    const rules = withKeepBest(['A', 'B', 'C'], { maxCredits: 8 })
+    const result = computeOverall(rules, [graded('A', 5, 1.0), graded('B', 5, 2.0), graded('C', 5, 3.0)])
+    expect(result.value).toBe('1.5')
+    expect(result.countedCredits).toBe(10)
+  })
+
+  it('fills quota minimums before choosing the best remaining modules', () => {
+    const rules = withKeepBest(['A', 'B', 'C', 'D'], {
+      maxCredits: 10,
+      quotas: [
+        { codes: ['A', 'B'], minCredits: 5 },
+        { codes: ['C', 'D'], minCredits: 5 },
+      ],
+    })
+    const result = computeOverall(rules, [
+      graded('A', 5, 1.0),
+      graded('B', 5, 1.0),
+      graded('C', 5, 3.0),
+      graded('D', 5, 4.0),
+    ])
+    // Best of each quota: A (1.0) and C (3.0), even though B (1.0) is better than C
+    expect(result.value).toBe('2.0')
+    expect(result.trace.modules.filter((m) => m.status === 'surplus').map((m) => m.code)).toEqual(['B', 'D'])
+  })
+
+  it('respects quota maximums', () => {
+    const rules = withKeepBest(['A', 'B', 'C', 'D', 'E'], {
+      maxCredits: 15,
+      quotas: [{ codes: ['A', 'B', 'C'], minCredits: 0, maxCredits: 5 }],
+    })
+    const result = computeOverall(rules, [
+      graded('A', 5, 1.0),
+      graded('B', 5, 1.0),
+      graded('C', 5, 1.0),
+      graded('D', 5, 2.0),
+      graded('E', 5, 3.0),
+    ])
+    // Only one of A, B, C may count; then D and E fill the limit: (1.0 + 2.0 + 3.0) / 3
+    expect(result.value).toBe('2.0')
+  })
+
+  it('counts everything when the limit is not reached', () => {
+    const rules = withKeepBest(['A', 'B'], { maxCredits: 30 })
+    expect(computeOverall(rules, [graded('A', 5, 1.0), graded('B', 5, 2.0)]).countedCredits).toBe(10)
+  })
+})

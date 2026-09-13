@@ -1,0 +1,965 @@
+{
+  "$schema": "../preset.schema.json",
+  "schemaVersion": 1,
+  "id": "luh/technische-informatik-bsc-2026",
+  "university": {
+    "slug": "luh",
+    "name": "Leibniz Universität Hannover"
+  },
+  "programme": {
+    "slug": "technische-informatik-bsc",
+    "name": "Technische Informatik",
+    "degree": "bsc"
+  },
+  "poVersion": "PO 2017 in der Fassung ab WS 2026/27",
+  "handbookVersion": "Modulkatalog WS 2026/27 (Stand 07.09.2026)",
+  "standardSemesters": 6,
+  "totalCredits": 180,
+  "creditLabel": "LP",
+  "codesAreOfficial": false,
+  "notes": "Sources: Änderung der Prüfungsordnung Bachelor Technische Informatik (Verkündungsblatt 12/2026, in force 01.10.2026), Modulkatalog Technische Informatik Bachelor WS 2026/27 (Stand 07.09.2026), Studienverlaufsplan v8.7.2026. Module codes are made up for this preset; LUH publishes none. Gesamtnote per PO § 20 Abs. 3: LP-weighted mean of all graded modules, truncated after the first decimal. Per § 20 Abs. 1-2 only the best elective modules needed for 180 LP count: 180 - 149 fixed LP - 3 LP Studium Generale = 28 LP from the two Vertiefung areas, at least 10 LP from each (Anlage 1.6/1.7). This assumes 3 LP Studium Generale; more Studium Generale lowers the limit. Anlage 1 allows up to 20 LP per Vertiefung area; the Modulkatalog states 10-15 LP. Composite module grades (§ 20 Abs. 5, e.g. Bachelorarbeit 80 % thesis and 20 % presentation) are truncated means, so every tenth from 1.0 to 4.0 is allowed. Proseminar is one placeholder for any Proseminar in the catalog. Studium Generale is modelled as one 3 LP module (3-6 LP allowed). Elective lists contain the Vertiefung modules offered in the WS 2026/27 catalog, without greyed-out modules and without the \"Aktuelle Themen\" placeholders used for external credits. Einführung in die Informatik applies to students starting from 01.10.2025. Not modelled yet: Prädikat \"mit Auszeichnung\" (§ 20 Abs. 4), attempt limits (§ 14).",
+  "gradeRules": {
+    "allowedValues": [
+      1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 3.0,
+      3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9, 4.0, 5.0
+    ],
+    "standardGrades": [1.0, 1.3, 1.7, 2.0, 2.3, 2.7, 3.0, 3.3, 3.7, 4.0, 5.0],
+    "passThreshold": 4.0,
+    "attemptSelection": "best",
+    "finalRounding": {
+      "mode": "truncate",
+      "precision": 1
+    },
+    "aggregation": {
+      "id": "gesamtnote",
+      "label": "Gesamtnote",
+      "weightMode": "credits",
+      "children": [
+        {
+          "kind": "group",
+          "node": {
+            "id": "grundlagen-informatik",
+            "label": "Grundlagen der Informatik",
+            "weightMode": "credits",
+            "children": [
+              {
+                "kind": "module",
+                "code": "GI-GDS"
+              },
+              {
+                "kind": "module",
+                "code": "GI-GRA"
+              },
+              {
+                "kind": "module",
+                "code": "GI-RN"
+              },
+              {
+                "kind": "module",
+                "code": "GI-GSWT"
+              },
+              {
+                "kind": "module",
+                "code": "GI-GBS"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "group",
+          "node": {
+            "id": "grundlagen-informationstechnik",
+            "label": "Grundlagen der Informationstechnik",
+            "weightMode": "credits",
+            "children": [
+              {
+                "kind": "module",
+                "code": "GIT-ETGI"
+              },
+              {
+                "kind": "module",
+                "code": "GIT-DSE"
+              },
+              {
+                "kind": "module",
+                "code": "GIT-SUS"
+              },
+              {
+                "kind": "module",
+                "code": "GIT-FMIT"
+              },
+              {
+                "kind": "module",
+                "code": "GIT-GNT"
+              },
+              {
+                "kind": "module",
+                "code": "GIT-HLE"
+              },
+              {
+                "kind": "module",
+                "code": "GIT-STAT"
+              },
+              {
+                "kind": "module",
+                "code": "GIT-DSV"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "group",
+          "node": {
+            "id": "grundlagen-mathematik",
+            "label": "Grundlagen der Mathematik",
+            "weightMode": "credits",
+            "children": [
+              {
+                "kind": "module",
+                "code": "GM-MATHE1"
+              },
+              {
+                "kind": "module",
+                "code": "GM-MATHE2"
+              },
+              {
+                "kind": "module",
+                "code": "GM-MATHE3"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "group",
+          "node": {
+            "id": "akademisches-arbeiten",
+            "label": "Akademisches Arbeiten",
+            "weightMode": "credits",
+            "children": [
+              {
+                "kind": "module",
+                "code": "AA-PROSEM"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "group",
+          "node": {
+            "id": "vertiefung",
+            "label": "Vertiefungen",
+            "weightMode": "credits",
+            "keepBest": {
+              "maxCredits": 28,
+              "quotas": [
+                {
+                  "label": "Vertiefung der Informatik",
+                  "codes": [
+                    "VI-AI1",
+                    "VI-BSB",
+                    "VI-DS",
+                    "VI-LFS",
+                    "VI-GTI",
+                    "VI-KVA",
+                    "VI-PSU",
+                    "VI-GDBS",
+                    "VI-MCI",
+                    "VI-ITSEC",
+                    "VI-EMHCC",
+                    "VI-RS",
+                    "VI-SWQ",
+                    "VI-GVS",
+                    "VI-VBS"
+                  ],
+                  "minCredits": 10,
+                  "maxCredits": 20
+                },
+                {
+                  "label": "Vertiefung der Informationstechnik",
+                  "codes": [
+                    "VIT-DBV",
+                    "VIT-EDA",
+                    "VIT-MODV",
+                    "VIT-QC",
+                    "VIT-RT1",
+                    "VIT-TIB",
+                    "VIT-EMM",
+                    "VIT-BIPOLAR",
+                    "VIT-HLT",
+                    "VIT-PHYSIK",
+                    "VIT-MOS",
+                    "VIT-QM",
+                    "VIT-LEDS"
+                  ],
+                  "minCredits": 10,
+                  "maxCredits": 20
+                }
+              ]
+            },
+            "children": [
+              {
+                "kind": "module",
+                "code": "VI-AI1"
+              },
+              {
+                "kind": "module",
+                "code": "VI-BSB"
+              },
+              {
+                "kind": "module",
+                "code": "VI-DS"
+              },
+              {
+                "kind": "module",
+                "code": "VI-LFS"
+              },
+              {
+                "kind": "module",
+                "code": "VI-GTI"
+              },
+              {
+                "kind": "module",
+                "code": "VI-KVA"
+              },
+              {
+                "kind": "module",
+                "code": "VI-PSU"
+              },
+              {
+                "kind": "module",
+                "code": "VI-GDBS"
+              },
+              {
+                "kind": "module",
+                "code": "VI-MCI"
+              },
+              {
+                "kind": "module",
+                "code": "VI-ITSEC"
+              },
+              {
+                "kind": "module",
+                "code": "VI-EMHCC"
+              },
+              {
+                "kind": "module",
+                "code": "VI-RS"
+              },
+              {
+                "kind": "module",
+                "code": "VI-SWQ"
+              },
+              {
+                "kind": "module",
+                "code": "VI-GVS"
+              },
+              {
+                "kind": "module",
+                "code": "VI-VBS"
+              },
+              {
+                "kind": "module",
+                "code": "VIT-DBV"
+              },
+              {
+                "kind": "module",
+                "code": "VIT-EDA"
+              },
+              {
+                "kind": "module",
+                "code": "VIT-MODV"
+              },
+              {
+                "kind": "module",
+                "code": "VIT-QC"
+              },
+              {
+                "kind": "module",
+                "code": "VIT-RT1"
+              },
+              {
+                "kind": "module",
+                "code": "VIT-TIB"
+              },
+              {
+                "kind": "module",
+                "code": "VIT-EMM"
+              },
+              {
+                "kind": "module",
+                "code": "VIT-BIPOLAR"
+              },
+              {
+                "kind": "module",
+                "code": "VIT-HLT"
+              },
+              {
+                "kind": "module",
+                "code": "VIT-PHYSIK"
+              },
+              {
+                "kind": "module",
+                "code": "VIT-MOS"
+              },
+              {
+                "kind": "module",
+                "code": "VIT-QM"
+              },
+              {
+                "kind": "module",
+                "code": "VIT-LEDS"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "group",
+          "node": {
+            "id": "bachelorarbeit",
+            "label": "Bachelorarbeit",
+            "weightMode": "credits",
+            "children": [
+              {
+                "kind": "module",
+                "code": "BA-BA"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "modules": [
+    {
+      "code": "GI-PROG1",
+      "name": "Programmieren I",
+      "credits": 5,
+      "grading": "pass_fail",
+      "countsTowardAverage": false,
+      "category": "Grundlagen der Informatik",
+      "offering": "winter",
+      "typicalSemester": 1
+    },
+    {
+      "code": "GI-GDS",
+      "name": "Grundlagen digitaler Systeme",
+      "credits": 5,
+      "grading": "graded",
+      "countsTowardAverage": true,
+      "category": "Grundlagen der Informatik",
+      "offering": "winter",
+      "typicalSemester": 1
+    },
+    {
+      "code": "GI-PROG2",
+      "name": "Programmieren II",
+      "credits": 5,
+      "grading": "pass_fail",
+      "countsTowardAverage": false,
+      "category": "Grundlagen der Informatik",
+      "offering": "summer",
+      "typicalSemester": 2
+    },
+    {
+      "code": "GI-GRA",
+      "name": "Grundlagen der Rechnerarchitektur",
+      "credits": 5,
+      "grading": "graded",
+      "countsTowardAverage": true,
+      "category": "Grundlagen der Informatik",
+      "offering": "summer",
+      "typicalSemester": 2
+    },
+    {
+      "code": "GI-RN",
+      "name": "Rechnernetze",
+      "credits": 5,
+      "grading": "graded",
+      "countsTowardAverage": true,
+      "category": "Grundlagen der Informatik",
+      "offering": "summer",
+      "typicalSemester": 2
+    },
+    {
+      "code": "GI-GSWT",
+      "name": "Grundlagen der Software-Technik",
+      "credits": 5,
+      "grading": "graded",
+      "countsTowardAverage": true,
+      "category": "Grundlagen der Informatik",
+      "offering": "winter",
+      "typicalSemester": 3
+    },
+    {
+      "code": "GI-DSA",
+      "name": "Datenstrukturen und Algorithmen",
+      "credits": 5,
+      "grading": "pass_fail",
+      "countsTowardAverage": false,
+      "category": "Grundlagen der Informatik",
+      "offering": "winter",
+      "typicalSemester": 3
+    },
+    {
+      "code": "GI-GBS",
+      "name": "Grundlagen der Betriebssysteme",
+      "credits": 5,
+      "grading": "graded",
+      "countsTowardAverage": true,
+      "category": "Grundlagen der Informatik",
+      "offering": "winter",
+      "typicalSemester": 3
+    },
+    {
+      "code": "GI-SWP",
+      "name": "Software-Projekt",
+      "credits": 10,
+      "grading": "pass_fail",
+      "countsTowardAverage": false,
+      "category": "Grundlagen der Informatik",
+      "offering": "winter",
+      "typicalSemester": 5,
+      "prerequisites": [
+        {
+          "anyOf": ["GI-PROG1", "GI-PROG2", "GIT-PP"]
+        },
+        {
+          "anyOf": ["GI-GSWT", "VI-SWQ"]
+        }
+      ]
+    },
+    {
+      "code": "GIT-ETGI",
+      "name": "Elektrotechnische Grundlagen der Informatik",
+      "credits": 5,
+      "grading": "graded",
+      "countsTowardAverage": true,
+      "category": "Grundlagen der Informationstechnik",
+      "offering": "winter",
+      "typicalSemester": 1
+    },
+    {
+      "code": "GIT-DSE",
+      "name": "Digitalschaltungen der Elektronik",
+      "credits": 5,
+      "grading": "graded",
+      "countsTowardAverage": true,
+      "category": "Grundlagen der Informationstechnik",
+      "offering": "summer",
+      "typicalSemester": 2
+    },
+    {
+      "code": "GIT-SUS",
+      "name": "Signale und Systeme",
+      "credits": 5,
+      "grading": "graded",
+      "countsTowardAverage": true,
+      "category": "Grundlagen der Informationstechnik",
+      "offering": "winter",
+      "typicalSemester": 3
+    },
+    {
+      "code": "GIT-HWP",
+      "name": "Hardware-Praktikum",
+      "credits": 5,
+      "grading": "pass_fail",
+      "countsTowardAverage": false,
+      "category": "Grundlagen der Informationstechnik",
+      "offering": "winter",
+      "typicalSemester": 3,
+      "prerequisites": ["GI-GDS", "GIT-ETGI", "GI-GRA"]
+    },
+    {
+      "code": "GIT-FMIT",
+      "name": "Formale Methoden der Informationstechnik",
+      "credits": 5,
+      "grading": "graded",
+      "countsTowardAverage": true,
+      "category": "Grundlagen der Informationstechnik",
+      "offering": "summer",
+      "typicalSemester": 4
+    },
+    {
+      "code": "GIT-PP",
+      "name": "Programmierpraktikum",
+      "credits": 5,
+      "grading": "pass_fail",
+      "countsTowardAverage": false,
+      "category": "Grundlagen der Informationstechnik",
+      "offering": "summer",
+      "typicalSemester": 4
+    },
+    {
+      "code": "GIT-GNT",
+      "name": "Grundlagen der Nachrichtentechnik",
+      "credits": 5,
+      "grading": "graded",
+      "countsTowardAverage": true,
+      "category": "Grundlagen der Informationstechnik",
+      "offering": "summer",
+      "typicalSemester": 4
+    },
+    {
+      "code": "GIT-HLE",
+      "name": "Halbleiterelektronik",
+      "credits": 7,
+      "grading": "graded",
+      "countsTowardAverage": true,
+      "category": "Grundlagen der Informationstechnik",
+      "offering": "summer",
+      "typicalSemester": 4
+    },
+    {
+      "code": "GIT-STAT",
+      "name": "Statistische Methoden",
+      "credits": 5,
+      "grading": "graded",
+      "countsTowardAverage": true,
+      "category": "Grundlagen der Informationstechnik",
+      "offering": "winter",
+      "typicalSemester": 5
+    },
+    {
+      "code": "GIT-DSV",
+      "name": "Digitale Signalverarbeitung",
+      "credits": 5,
+      "grading": "graded",
+      "countsTowardAverage": true,
+      "category": "Grundlagen der Informationstechnik",
+      "offering": "winter",
+      "typicalSemester": 5
+    },
+    {
+      "code": "GM-MATHE1",
+      "name": "Mathematik für die Ingenieurwissenschaften I",
+      "credits": 8,
+      "grading": "graded",
+      "countsTowardAverage": true,
+      "category": "Grundlagen der Mathematik",
+      "offering": "both",
+      "typicalSemester": 1
+    },
+    {
+      "code": "GM-MATHE2",
+      "name": "Mathematik für die Ingenieurwissenschaften II",
+      "credits": 8,
+      "grading": "graded",
+      "countsTowardAverage": true,
+      "category": "Grundlagen der Mathematik",
+      "offering": "both",
+      "typicalSemester": 2
+    },
+    {
+      "code": "GM-MATHE3",
+      "name": "Mathematik für die Ingenieurwissenschaften III - Numerik",
+      "credits": 6,
+      "grading": "graded",
+      "countsTowardAverage": true,
+      "category": "Grundlagen der Mathematik",
+      "offering": "both",
+      "typicalSemester": 3
+    },
+    {
+      "code": "AA-EINF",
+      "name": "Einführung in die Informatik",
+      "credits": 5,
+      "grading": "pass_fail",
+      "countsTowardAverage": false,
+      "category": "Akademisches Arbeiten",
+      "offering": "winter",
+      "typicalSemester": 1
+    },
+    {
+      "code": "AA-PROSEM",
+      "name": "Proseminar",
+      "credits": 5,
+      "grading": "graded",
+      "countsTowardAverage": true,
+      "category": "Akademisches Arbeiten",
+      "offering": "both",
+      "typicalSemester": 4
+    },
+    {
+      "code": "SG-SG",
+      "name": "Studium Generale",
+      "credits": 3,
+      "grading": "pass_fail",
+      "countsTowardAverage": false,
+      "category": "Studium Generale",
+      "offering": "both",
+      "typicalSemester": 4
+    },
+    {
+      "code": "BA-BA",
+      "name": "Bachelorarbeit",
+      "credits": 15,
+      "grading": "graded",
+      "countsTowardAverage": true,
+      "category": "Bachelorarbeit",
+      "offering": "both",
+      "typicalSemester": 6,
+      "requiresCredits": 120
+    },
+    {
+      "code": "VI-AI1",
+      "name": "Artificial Intelligence I",
+      "credits": 5,
+      "grading": "graded",
+      "countsTowardAverage": true,
+      "category": "Vertiefung der Informatik",
+      "offering": "summer"
+    },
+    {
+      "code": "VI-BSB",
+      "name": "Betriebssystembau",
+      "credits": 5,
+      "grading": "graded",
+      "countsTowardAverage": true,
+      "category": "Vertiefung der Informatik",
+      "offering": "summer"
+    },
+    {
+      "code": "VI-DS",
+      "name": "Grundlagen der Data Science",
+      "credits": 5,
+      "grading": "graded",
+      "countsTowardAverage": true,
+      "category": "Vertiefung der Informatik",
+      "offering": "winter"
+    },
+    {
+      "code": "VI-LFS",
+      "name": "Logik und formale Systeme",
+      "credits": 5,
+      "grading": "graded",
+      "countsTowardAverage": true,
+      "category": "Vertiefung der Informatik",
+      "offering": "summer"
+    },
+    {
+      "code": "VI-GTI",
+      "name": "Grundlagen der Theoretischen Informatik",
+      "credits": 5,
+      "grading": "graded",
+      "countsTowardAverage": true,
+      "category": "Vertiefung der Informatik",
+      "offering": "winter"
+    },
+    {
+      "code": "VI-KVA",
+      "name": "Komplexität von Algorithmen",
+      "credits": 5,
+      "grading": "graded",
+      "countsTowardAverage": true,
+      "category": "Vertiefung der Informatik",
+      "offering": "summer"
+    },
+    {
+      "code": "VI-PSU",
+      "name": "Programmiersprachen und Übersetzer",
+      "credits": 5,
+      "grading": "graded",
+      "countsTowardAverage": true,
+      "category": "Vertiefung der Informatik",
+      "offering": "summer"
+    },
+    {
+      "code": "VI-GDBS",
+      "name": "Grundlagen der Datenbanksysteme",
+      "credits": 5,
+      "grading": "graded",
+      "countsTowardAverage": true,
+      "category": "Vertiefung der Informatik",
+      "offering": "summer"
+    },
+    {
+      "code": "VI-MCI",
+      "name": "Grundlagen der Mensch-Computer-Interaktion",
+      "credits": 5,
+      "grading": "graded",
+      "countsTowardAverage": true,
+      "category": "Vertiefung der Informatik",
+      "offering": "winter"
+    },
+    {
+      "code": "VI-ITSEC",
+      "name": "Grundlagen der IT-Sicherheit",
+      "credits": 5,
+      "grading": "graded",
+      "countsTowardAverage": true,
+      "category": "Vertiefung der Informatik",
+      "offering": "winter"
+    },
+    {
+      "code": "VI-EMHCC",
+      "name": "Einführung in Empirische Methoden des Human-Centered Computing",
+      "credits": 5,
+      "grading": "graded",
+      "countsTowardAverage": true,
+      "category": "Vertiefung der Informatik",
+      "offering": "irregular"
+    },
+    {
+      "code": "VI-RS",
+      "name": "Rechnerstrukturen",
+      "credits": 5,
+      "grading": "graded",
+      "countsTowardAverage": true,
+      "category": "Vertiefung der Informatik",
+      "offering": "winter"
+    },
+    {
+      "code": "VI-SWQ",
+      "name": "Software-Qualität",
+      "credits": 5,
+      "grading": "graded",
+      "countsTowardAverage": true,
+      "category": "Vertiefung der Informatik",
+      "offering": "summer"
+    },
+    {
+      "code": "VI-GVS",
+      "name": "Grundlagen der Verteilten Systeme",
+      "credits": 5,
+      "grading": "graded",
+      "countsTowardAverage": true,
+      "category": "Vertiefung der Informatik",
+      "offering": "winter"
+    },
+    {
+      "code": "VI-VBS",
+      "name": "Vertiefung der Betriebssysteme",
+      "credits": 5,
+      "grading": "graded",
+      "countsTowardAverage": true,
+      "category": "Vertiefung der Informatik",
+      "offering": "summer"
+    },
+    {
+      "code": "VIT-DBV",
+      "name": "Digitale Bildverarbeitung",
+      "credits": 5,
+      "grading": "graded",
+      "countsTowardAverage": true,
+      "category": "Vertiefung der Informationstechnik",
+      "offering": "summer"
+    },
+    {
+      "code": "VIT-EDA",
+      "name": "Electronic Design Automation",
+      "credits": 5,
+      "grading": "graded",
+      "countsTowardAverage": true,
+      "category": "Vertiefung der Informationstechnik",
+      "offering": "winter"
+    },
+    {
+      "code": "VIT-MODV",
+      "name": "Modulationsverfahren",
+      "credits": 5,
+      "grading": "graded",
+      "countsTowardAverage": true,
+      "category": "Vertiefung der Informationstechnik",
+      "offering": "winter"
+    },
+    {
+      "code": "VIT-QC",
+      "name": "Quellencodierung",
+      "credits": 5,
+      "grading": "graded",
+      "countsTowardAverage": true,
+      "category": "Vertiefung der Informationstechnik",
+      "offering": "winter"
+    },
+    {
+      "code": "VIT-RT1",
+      "name": "Regelungstechnik I",
+      "credits": 5,
+      "grading": "graded",
+      "countsTowardAverage": true,
+      "category": "Vertiefung der Informationstechnik",
+      "offering": "winter"
+    },
+    {
+      "code": "VIT-TIB",
+      "name": "Technologie integrierter Bauelemente",
+      "credits": 5,
+      "grading": "graded",
+      "countsTowardAverage": true,
+      "category": "Vertiefung der Informationstechnik",
+      "offering": "summer"
+    },
+    {
+      "code": "VIT-EMM",
+      "name": "Elektromagnetische Modellierung",
+      "credits": 5,
+      "grading": "graded",
+      "countsTowardAverage": true,
+      "category": "Vertiefung der Informationstechnik",
+      "offering": "winter"
+    },
+    {
+      "code": "VIT-BIPOLAR",
+      "name": "Bipolarbauelemente",
+      "credits": 5,
+      "grading": "graded",
+      "countsTowardAverage": true,
+      "category": "Vertiefung der Informationstechnik",
+      "offering": "winter"
+    },
+    {
+      "code": "VIT-HLT",
+      "name": "Halbleitertechnologie",
+      "credits": 5,
+      "grading": "graded",
+      "countsTowardAverage": true,
+      "category": "Vertiefung der Informationstechnik",
+      "offering": "winter"
+    },
+    {
+      "code": "VIT-PHYSIK",
+      "name": "Naturwissenschaftliche Grundlagen - Physik",
+      "credits": 5,
+      "grading": "graded",
+      "countsTowardAverage": true,
+      "category": "Vertiefung der Informationstechnik",
+      "offering": "summer"
+    },
+    {
+      "code": "VIT-MOS",
+      "name": "MOS-Transistoren und Speicher",
+      "credits": 5,
+      "grading": "graded",
+      "countsTowardAverage": true,
+      "category": "Vertiefung der Informationstechnik",
+      "offering": "summer"
+    },
+    {
+      "code": "VIT-QM",
+      "name": "Grundlagen der Quantenmechanik für Ingenieure und Informatiker",
+      "credits": 5,
+      "grading": "graded",
+      "countsTowardAverage": true,
+      "category": "Vertiefung der Informationstechnik",
+      "offering": "summer"
+    },
+    {
+      "code": "VIT-LEDS",
+      "name": "Logischer Entwurf digitaler Systeme",
+      "credits": 5,
+      "grading": "graded",
+      "countsTowardAverage": true,
+      "category": "Vertiefung der Informationstechnik",
+      "offering": "summer"
+    }
+  ],
+  "areas": [
+    {
+      "id": "grundlagen-informatik",
+      "name": "Grundlagen der Informatik",
+      "minCredits": 50,
+      "maxCredits": 50,
+      "moduleCodes": [
+        "GI-PROG1",
+        "GI-GDS",
+        "GI-PROG2",
+        "GI-GRA",
+        "GI-RN",
+        "GI-GSWT",
+        "GI-DSA",
+        "GI-GBS",
+        "GI-SWP"
+      ]
+    },
+    {
+      "id": "grundlagen-informationstechnik",
+      "name": "Grundlagen der Informationstechnik",
+      "minCredits": 52,
+      "maxCredits": 52,
+      "moduleCodes": [
+        "GIT-ETGI",
+        "GIT-DSE",
+        "GIT-SUS",
+        "GIT-HWP",
+        "GIT-FMIT",
+        "GIT-PP",
+        "GIT-GNT",
+        "GIT-HLE",
+        "GIT-STAT",
+        "GIT-DSV"
+      ]
+    },
+    {
+      "id": "grundlagen-mathematik",
+      "name": "Grundlagen der Mathematik",
+      "minCredits": 22,
+      "maxCredits": 22,
+      "moduleCodes": ["GM-MATHE1", "GM-MATHE2", "GM-MATHE3"]
+    },
+    {
+      "id": "akademisches-arbeiten",
+      "name": "Akademisches Arbeiten",
+      "minCredits": 10,
+      "maxCredits": 10,
+      "moduleCodes": ["AA-EINF", "AA-PROSEM"]
+    },
+    {
+      "id": "studium-generale",
+      "name": "Studium Generale",
+      "minCredits": 3,
+      "maxCredits": 6,
+      "moduleCodes": ["SG-SG"]
+    },
+    {
+      "id": "vertiefung-informatik",
+      "name": "Vertiefung der Informatik",
+      "minCredits": 10,
+      "maxCredits": 20,
+      "moduleCodes": [
+        "VI-AI1",
+        "VI-BSB",
+        "VI-DS",
+        "VI-LFS",
+        "VI-GTI",
+        "VI-KVA",
+        "VI-PSU",
+        "VI-GDBS",
+        "VI-MCI",
+        "VI-ITSEC",
+        "VI-EMHCC",
+        "VI-RS",
+        "VI-SWQ",
+        "VI-GVS",
+        "VI-VBS"
+      ]
+    },
+    {
+      "id": "vertiefung-informationstechnik",
+      "name": "Vertiefung der Informationstechnik",
+      "minCredits": 10,
+      "maxCredits": 20,
+      "moduleCodes": [
+        "VIT-DBV",
+        "VIT-EDA",
+        "VIT-MODV",
+        "VIT-QC",
+        "VIT-RT1",
+        "VIT-TIB",
+        "VIT-EMM",
+        "VIT-BIPOLAR",
+        "VIT-HLT",
+        "VIT-PHYSIK",
+        "VIT-MOS",
+        "VIT-QM",
+        "VIT-LEDS"
+      ]
+    },
+    {
+      "id": "bachelorarbeit",
+      "name": "Bachelorarbeit",
+      "minCredits": 15,
+      "maxCredits": 15,
+      "moduleCodes": ["BA-BA"]
+    }
+  ]
+}

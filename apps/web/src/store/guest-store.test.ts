@@ -1,6 +1,6 @@
 import { createPlanFromPreset, moveModule } from '@study-plan/shared'
 import { describe, expect, it } from 'vitest'
-import { presets } from '../presets.ts'
+import { findPreset } from '../presets.ts'
 import { BACKUP_KEY, createGuestStore, EXPORT_KEY, STORAGE_KEY, type StorageLike } from './guest-store.ts'
 
 const memoryStorage = (initial: Record<string, string> = {}) => {
@@ -17,7 +17,7 @@ const memoryStorage = (initial: Record<string, string> = {}) => {
   return { storage, data }
 }
 
-const preset = presets[0]?.preset
+const preset = findPreset('example/informatik-bsc-example')?.preset
 if (!preset) throw new Error('expected a bundled preset')
 
 const plan = createPlanFromPreset(preset, {

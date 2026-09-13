@@ -77,6 +77,7 @@ function Board({ plan }: { plan: Plan }) {
         module={plan.modules.find((m) => m.code === gradingCode) ?? null}
         rules={plan.rules}
         creditLabel={plan.preset.creditLabel}
+        showCode={plan.preset.codesAreOfficial ?? true}
         onSave={saveResult}
         onClose={() => setGradingCode(null)}
       />

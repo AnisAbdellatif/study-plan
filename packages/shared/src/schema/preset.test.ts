@@ -91,3 +91,45 @@ describe('example preset end to end', () => {
     expect(result.countedCredits).toBe(66)
   })
 })
+
+describe('presetSchema: rules added for real Prüfungsordnungen', () => {
+  const groupNode = (preset: Preset, index: number) => {
+    const child = preset.gradeRules.aggregation.children[index]
+    if (child?.kind !== 'group') throw new Error('expected a group')
+    return child.node
+  }
+
+  it('rejects keepBest combined with dropWorst', () => {
+    const preset = clone()
+    groupNode(preset, 1).keepBest = { maxCredits: 10 }
+    expect(issues(preset)).toContain('Node "vertiefung" cannot use keepBest and dropWorst together')
+  })
+
+  it('rejects quota modules that are not direct modules of the node', () => {
+    const preset = clone()
+    groupNode(preset, 0).keepBest = { maxCredits: 20, quotas: [{ codes: ['BA-601'], minCredits: 0 }] }
+    expect(issues(preset)).toContain('Quota module "BA-601" is not a direct module of node "grundlagen"')
+  })
+
+  it('rejects quota minimums above the limit', () => {
+    const preset = clone()
+    groupNode(preset, 0).keepBest = {
+      maxCredits: 5,
+      quotas: [{ codes: ['INF-101', 'INF-102'], minCredits: 10 }],
+    }
+    expect(issues(preset)).toContain('Quota minimums exceed keepBest.maxCredits')
+  })
+
+  it('requires standard grades to be allowed values', () => {
+    const preset = clone()
+    preset.gradeRules.standardGrades = [1.0, 1.5]
+    expect(issues(preset)).toContain('Standard grade 1.5 is not an allowed value')
+  })
+
+  it('checks every module in an any-of prerequisite', () => {
+    const preset = clone()
+    const module = preset.modules[1]
+    if (module) module.prerequisites = [{ anyOf: ['INF-101', 'NOPE'] }]
+    expect(issues(preset)).toContain('Unknown prerequisite "NOPE"')
+  })
+})

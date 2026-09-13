@@ -101,6 +101,7 @@ export function SemesterBoard({ plan, summary, currentIndex, onMove, onGrade }: 
             column={column}
             passThreshold={plan.rules.passThreshold}
             creditLabel={plan.preset.creditLabel}
+            showCode={plan.preset.codesAreOfficial ?? true}
             destinations={destinations}
             onMove={onMove}
             onGrade={onGrade}

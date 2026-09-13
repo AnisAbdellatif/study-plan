@@ -3,11 +3,11 @@ import { createMemoryHistory, RouterProvider } from '@tanstack/react-router'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { presets } from '../presets.ts'
+import { findPreset } from '../presets.ts'
 import { createAppRouter } from '../router.tsx'
 import { createGuestStore, EXPORT_KEY, GuestStoreContext, STORAGE_KEY } from '../store/guest-store.ts'
 
-const preset = presets[0]?.preset
+const preset = findPreset('example/informatik-bsc-example')?.preset
 if (!preset) throw new Error('expected a bundled preset')
 
 const makePlan = (): Plan =>
@@ -48,7 +48,9 @@ describe('onboarding', () => {
     const plan = store.getState().plan
     expect(plan?.startTerm.season).toBe('winter')
     expect(window.localStorage.getItem(STORAGE_KEY)).toContain('"format":"study-plan.guest"')
-    expect(within(column(/^1\. Semester/)).getByText('Grundlagen der Programmierung')).toBeInTheDocument()
+    // The LUH preset is listed first and selected by default
+    expect(plan?.preset.id).toBe('luh/technische-informatik-bsc-2026')
+    expect(within(column(/^1\. Semester/)).getByText('Programmieren I')).toBeInTheDocument()
   })
 })
 
@@ -180,5 +182,27 @@ describe('export and import', () => {
     await user.click(screen.getByRole('button', { name: 'Ersetzen' }))
     await waitFor(() => expect(store.getState().plan?.id).toBe('other'))
     expect(await screen.findByRole('heading', { name: 'Zweiter Plan' })).toBeInTheDocument()
+  })
+})
+
+describe('presets with made-up module codes', () => {
+  it('hides the codes on cards and in the grade dialog, and groups composite grades', async () => {
+    const luh = findPreset('luh/technische-informatik-bsc-2026')?.preset
+    if (!luh) throw new Error('expected the LUH preset')
+    const plan = createPlanFromPreset(luh, {
+      id: 'luh',
+      startTerm: { season: 'winter', year: 2026 },
+      now: new Date('2026-09-13T10:00:00Z'),
+    })
+    const { user } = renderApp({ plan })
+
+    await openCardMenu(user, 'Grundlagen digitaler Systeme')
+    await user.click(await screen.findByRole('menuitem', { name: 'Note eintragen…' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Grundlagen digitaler Systeme' })
+
+    expect(dialog).not.toHaveTextContent('GI-GDS')
+    expect(screen.queryByText(/GI-GDS/)).not.toBeInTheDocument()
+    expect(within(dialog).getByRole('group', { name: 'Notenstufen' })).toBeInTheDocument()
+    expect(within(dialog).getByRole('group', { name: 'Zusammengesetzte Modulnoten' })).toBeInTheDocument()
   })
 })

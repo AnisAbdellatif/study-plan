@@ -3,6 +3,13 @@ import { type AggregationNode, creditValueSchema, gradeRulesSchema } from './rul
 
 const slugSchema = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Use lowercase letters, digits and dashes')
 
+/** A prerequisite is a module code, or a group where any one of the listed modules suffices. */
+export const prerequisiteSchema = z.union([
+  z.string().min(1),
+  z.object({ anyOf: z.array(z.string().min(1)).min(2) }),
+])
+export type Prerequisite = z.infer<typeof prerequisiteSchema>
+
 export const presetModuleSchema = z.object({
   code: z.string().min(1),
   /** Kept verbatim from the Modulhandbuch. */
@@ -12,10 +19,13 @@ export const presetModuleSchema = z.object({
   /** False for Schlüsselqualifikationen, Zusatzleistungen and similar modules that never enter the average. */
   countsTowardAverage: z.boolean(),
   category: z.string().min(1),
-  /** Turnus. */
-  offering: z.enum(['winter', 'summer', 'both']),
+  /** Turnus. `irregular` for modules without a fixed cycle. */
+  offering: z.enum(['winter', 'summer', 'both', 'irregular']),
   typicalSemester: z.number().int().min(1).max(14).optional(),
-  prerequisites: z.array(z.string()).optional(),
+  /** All listed prerequisites must be met. */
+  prerequisites: z.array(prerequisiteSchema).optional(),
+  /** Minimum earned credits before the module can be taken, e.g. 120 for a Bachelorarbeit. */
+  requiresCredits: creditValueSchema.optional(),
 })
 export type PresetModule = z.infer<typeof presetModuleSchema>
 
@@ -36,6 +46,9 @@ function* walkAggregation(node: AggregationNode): Generator<{ node: AggregationN
   }
 }
 
+export const prerequisiteCodes = (prerequisite: Prerequisite): string[] =>
+  typeof prerequisite === 'string' ? [prerequisite] : prerequisite.anyOf
+
 export const presetSchema = z
   .object({
     $schema: z.string().optional(),
@@ -49,6 +62,8 @@ export const presetSchema = z
     standardSemesters: z.number().int().min(1).max(14),
     totalCredits: creditValueSchema,
     creditLabel: z.enum(['ECTS', 'LP', 'CP']),
+    /** False when the module codes were made up for this preset because the university publishes none. */
+    codesAreOfficial: z.boolean(),
     /** Free-text maintainer notes. JSON has no comments, so they live here. */
     notes: z.string().optional(),
     gradeRules: gradeRulesSchema,
@@ -69,14 +84,21 @@ export const presetSchema = z
     })
 
     preset.modules.forEach((module, index) => {
-      for (const prerequisite of module.prerequisites ?? []) {
-        if (!modules.has(prerequisite)) {
+      for (const code of (module.prerequisites ?? []).flatMap(prerequisiteCodes)) {
+        if (!modules.has(code)) {
           ctx.addIssue({
             code: 'custom',
             path: ['modules', index, 'prerequisites'],
-            message: `Unknown prerequisite "${prerequisite}"`,
+            message: `Unknown prerequisite "${code}"`,
           })
         }
+      }
+      if (module.requiresCredits !== undefined && module.requiresCredits > preset.totalCredits) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['modules', index, 'requiresCredits'],
+          message: 'requiresCredits exceeds the total credits of the programme',
+        })
       }
     })
 

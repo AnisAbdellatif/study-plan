@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { isMultipleOf } from '../engine/units.ts'
 
-/** A single grade on the German scale. The admissible step set is preset data, not hard-coded. */
+/** A single grade on the German scale. The admissible set is preset data, not hard-coded. */
 export const gradeValueSchema = z
   .number()
   .min(1)
@@ -29,6 +29,24 @@ export type RoundingSpec = z.infer<typeof roundingSpecSchema>
 
 export const weightFactorSchema = z.union([z.literal(0), z.literal(0.5), z.literal(1), z.literal(2)])
 export type WeightFactor = z.infer<typeof weightFactorSchema>
+
+export interface CreditQuota {
+  label?: string
+  /** Module codes of this node that belong to the quota, e.g. one Vertiefung area. */
+  codes: string[]
+  minCredits: number
+  maxCredits?: number
+}
+
+/**
+ * Only the best-graded modules count, up to a credit limit. Models rules such as "the elective modules
+ * with the best grades that are needed to reach the required credits" (e.g. LUH PO § 20 Abs. 1–2).
+ * The module that crosses the limit still counts. Quotas reserve minimum credits per sub-area first.
+ */
+export interface KeepBestRule {
+  maxCredits: number
+  quotas?: CreditQuota[]
+}
 
 export interface ModuleChild {
   kind: 'module'
@@ -63,6 +81,8 @@ export interface AggregationNode {
   roundResult?: RoundingSpec
   /** Streichregel: drop the worst graded modules directly in this node, up to this many credits. */
   dropWorst?: { maxCredits: number }
+  /** Best-of selection over the modules directly in this node. Cannot be combined with `dropWorst`. */
+  keepBest?: KeepBestRule
   children: AggregationChild[]
 }
 
@@ -81,6 +101,18 @@ const groupChildSchema = z.object({
   },
 })
 
+const creditQuotaSchema = z.object({
+  label: z.string().optional(),
+  codes: z.array(z.string().min(1)).min(1),
+  minCredits: creditValueSchema,
+  maxCredits: creditValueSchema.optional(),
+})
+
+const keepBestSchema = z.object({
+  maxCredits: creditValueSchema,
+  quotas: z.array(creditQuotaSchema).optional(),
+})
+
 export const aggregationNodeSchema: z.ZodType<AggregationNode> = z.lazy(() =>
   z
     .object({
@@ -89,6 +121,7 @@ export const aggregationNodeSchema: z.ZodType<AggregationNode> = z.lazy(() =>
       weightMode: z.enum(['credits', 'fixed']),
       roundResult: roundingSpecSchema.optional(),
       dropWorst: z.object({ maxCredits: creditValueSchema }).optional(),
+      keepBest: keepBestSchema.optional(),
       children: z.array(z.discriminatedUnion('kind', [moduleChildSchema, groupChildSchema])).min(1),
     })
     .superRefine((node, ctx) => {
@@ -106,6 +139,43 @@ export const aggregationNodeSchema: z.ZodType<AggregationNode> = z.lazy(() =>
           ctx.addIssue({ code: 'custom', path, message: 'Credit weights must be whole or half numbers' })
         }
       })
+
+      if (!node.keepBest) return
+      if (node.dropWorst) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['keepBest'],
+          message: `Node "${node.id}" cannot use keepBest and dropWorst together`,
+        })
+      }
+      const direct = new Set(node.children.flatMap((child) => (child.kind === 'module' ? [child.code] : [])))
+      let minimums = 0
+      node.keepBest.quotas?.forEach((quota, index) => {
+        minimums += quota.minCredits
+        if (quota.maxCredits !== undefined && quota.maxCredits < quota.minCredits) {
+          ctx.addIssue({
+            code: 'custom',
+            path: ['keepBest', 'quotas', index],
+            message: 'Quota maxCredits is below minCredits',
+          })
+        }
+        for (const code of quota.codes) {
+          if (!direct.has(code)) {
+            ctx.addIssue({
+              code: 'custom',
+              path: ['keepBest', 'quotas', index, 'codes'],
+              message: `Quota module "${code}" is not a direct module of node "${node.id}"`,
+            })
+          }
+        }
+      })
+      if (minimums > node.keepBest.maxCredits) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['keepBest', 'quotas'],
+          message: 'Quota minimums exceed keepBest.maxCredits',
+        })
+      }
     }),
 )
 
@@ -113,7 +183,13 @@ export const DEFAULT_ALLOWED_GRADES = [1.0, 1.3, 1.7, 2.0, 2.3, 2.7, 3.0, 3.3, 3
 
 export const gradeRulesSchema = z
   .object({
+    /** Every grade a module can end up with, including composite module grades like 1.2. */
     allowedValues: z.array(gradeValueSchema).min(2),
+    /**
+     * The grade steps of a single exam. When set, grade pickers show these first and the remaining
+     * allowed values as composite module grades.
+     */
+    standardGrades: z.array(gradeValueSchema).optional(),
     passThreshold: gradeValueSchema,
     /** Which passing attempt counts when a module has several (Notenverbesserung). */
     attemptSelection: z.enum(['best', 'latest']),
@@ -130,6 +206,15 @@ export const gradeRulesSchema = z
         path: ['passThreshold'],
         message: 'The pass threshold must be one of the allowed values',
       })
+    }
+    for (const grade of rules.standardGrades ?? []) {
+      if (!rules.allowedValues.includes(grade)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['standardGrades'],
+          message: `Standard grade ${grade} is not an allowed value`,
+        })
+      }
     }
   })
 

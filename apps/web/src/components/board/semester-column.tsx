@@ -20,6 +20,7 @@ export interface SemesterColumnProps {
   column: ColumnModel
   passThreshold: number
   creditLabel: string
+  showCode: boolean
   destinations: readonly Destination[]
   onMove: MoveHandler
   onGrade: (code: string) => void
@@ -30,6 +31,7 @@ export function SemesterColumn({
   column,
   passThreshold,
   creditLabel,
+  showCode,
   destinations,
   onMove,
   onGrade,
@@ -88,6 +90,7 @@ export function SemesterColumn({
             index={index}
             passThreshold={passThreshold}
             creditLabel={creditLabel}
+            showCode={showCode}
             destinations={destinations}
             onMove={onMove}
             onGrade={onGrade}

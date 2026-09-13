@@ -26,6 +26,8 @@ export interface ModuleCardProps {
   index: number
   passThreshold: number
   creditLabel: string
+  /** False when the preset's module codes are made up; they are then hidden. */
+  showCode: boolean
   destinations: readonly Destination[]
   onMove: MoveHandler
   onGrade: (code: string) => void
@@ -60,6 +62,7 @@ export function ModuleCard({
   index,
   passThreshold,
   creditLabel,
+  showCode,
   destinations,
   onMove,
   onGrade,
@@ -87,7 +90,8 @@ export function ModuleCard({
       <div className="flex items-start gap-1">
         <div className="min-w-0 flex-1">
           <p className="truncate text-[11px] text-zinc-500 dark:text-zinc-400">
-            {module.code} · {module.category}
+            {showCode ? `${module.code} · ` : ''}
+            {module.category}
           </p>
           <h3 className="text-sm leading-snug font-medium">{module.name}</h3>
           <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-zinc-600 dark:text-zinc-400">
