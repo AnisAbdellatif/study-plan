@@ -30,6 +30,7 @@ import {
   validatePlan,
 } from '@study-plan/shared'
 import { Navigate } from '@tanstack/react-router'
+import { ChartNoAxesColumn, LayoutGrid, ListChecks } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { AccountSyncBanner } from '../components/account-sync.tsx'
@@ -47,6 +48,7 @@ import { SummaryPanel } from '../components/board/summary-panel.tsx'
 import { StorageNotice } from '../components/storage-notice.tsx'
 import { ConfirmDialog } from '../components/ui/dialog.tsx'
 import i18n from '../i18n/index.ts'
+import { cn } from '../lib/cn.ts'
 import { useModuleDropMonitor, useSemesterDropMonitor } from '../lib/dnd.ts'
 import { calendarFilename, downloadFile } from '../lib/files.ts'
 import { formatGrade, newId } from '../lib/format.ts'
@@ -78,6 +80,13 @@ function storeBoardView(view: BoardView) {
     // The choice then only lasts until the page is reloaded.
   }
 }
+
+const MOBILE_TABS = [
+  { id: 'plan', icon: LayoutGrid },
+  { id: 'status', icon: ChartNoAxesColumn },
+  { id: 'hints', icon: ListChecks },
+] as const
+type MobileTab = (typeof MOBILE_TABS)[number]['id']
 
 export function BoardPage() {
   const { plan } = useGuestState()
@@ -117,6 +126,8 @@ function Board({ plan }: { plan: Plan }) {
   const [customTarget, setCustomTarget] = useState<CustomModuleTarget | null>(null)
   const [deleteCode, setDeleteCode] = useState<string | null>(null)
   const [view, setView] = useState<BoardView>(readBoardView)
+  // Phones show one part of the page at a time, chosen in the bottom bar; wider screens show everything.
+  const [mobileTab, setMobileTab] = useState<MobileTab>('plan')
   const changeView = (next: BoardView) => {
     setView(next)
     storeBoardView(next)
@@ -300,14 +311,17 @@ function Board({ plan }: { plan: Plan }) {
   }
 
   return (
-    <main className="mx-auto max-w-[240rem] space-y-4 px-4 py-5 sm:px-6">
+    // On phones main fills the screen, so the bottom bar sits at the bottom edge even on short pages.
+    <main className="mx-auto max-w-[240rem] space-y-4 px-4 pt-5 max-sm:flex max-sm:min-h-dvh max-sm:flex-col sm:px-6 sm:pb-5">
       <AppHeader plan={plan} />
       <div className="space-y-4 empty:hidden print:hidden">
         <StorageNotice plan={plan} />
         <AccountSyncBanner />
       </div>
-      <SummaryPanel plan={plan} summary={summary} />
-      <div className="print:hidden">
+      <div className={mobileTab === 'status' ? undefined : 'max-sm:hidden print:block!'}>
+        <SummaryPanel plan={plan} summary={summary} />
+      </div>
+      <div className={cn('print:hidden', mobileTab !== 'hints' && 'max-sm:hidden')}>
         <PlanInsights
           plan={plan}
           hints={issues.list}
@@ -320,49 +334,93 @@ function Board({ plan }: { plan: Plan }) {
           onExportCalendar={exportCalendar}
         />
       </div>
-      {/* Native radios give arrow-key navigation and the checked state for free; the label is the visible segment. */}
-      <fieldset className="print:hidden">
-        <legend className="sr-only">{t('view.label')}</legend>
-        <div className="inline-flex rounded-lg bg-zinc-100 p-1 dark:bg-zinc-900">
-          {BOARD_VIEWS.map((option) => (
-            <label
-              key={option}
-              className={
-                view === option
-                  ? 'flex h-8 cursor-pointer items-center rounded-md bg-white px-3 text-sm font-medium text-zinc-900 shadow-sm has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-indigo-500 dark:bg-zinc-800 dark:text-zinc-100'
-                  : 'flex h-8 cursor-pointer items-center rounded-md px-3 text-sm font-medium text-zinc-600 hover:text-zinc-900 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-indigo-500 dark:text-zinc-400 dark:hover:text-zinc-100'
-              }
-            >
-              <input
-                type="radio"
-                name="board-view"
-                value={option}
-                checked={view === option}
-                onChange={() => changeView(option)}
-                className="sr-only"
-              />
-              {t(`view.${option}`)}
-            </label>
-          ))}
+      <div className={cn('space-y-4', mobileTab !== 'plan' && 'max-sm:hidden print:block!')}>
+        {/* Native radios give arrow-key navigation and the checked state for free; the label is the visible segment. */}
+        <fieldset className="print:hidden">
+          <legend className="sr-only">{t('view.label')}</legend>
+          <div className="inline-flex rounded-lg bg-zinc-100 p-1 dark:bg-zinc-900">
+            {BOARD_VIEWS.map((option) => (
+              <label
+                key={option}
+                className={
+                  view === option
+                    ? 'flex h-8 cursor-pointer items-center rounded-md bg-white px-3 text-sm font-medium text-zinc-900 shadow-sm has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-indigo-500 dark:bg-zinc-800 dark:text-zinc-100'
+                    : 'flex h-8 cursor-pointer items-center rounded-md px-3 text-sm font-medium text-zinc-600 hover:text-zinc-900 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-indigo-500 dark:text-zinc-400 dark:hover:text-zinc-100'
+                }
+              >
+                <input
+                  type="radio"
+                  name="board-view"
+                  value={option}
+                  checked={view === option}
+                  onChange={() => changeView(option)}
+                  className="sr-only"
+                />
+                {t(`view.${option}`)}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        {view === 'board' && (
+          <div className="print:hidden">
+            <SemesterBoard
+              plan={plan}
+              summary={summary}
+              currentIndex={currentIndex}
+              actions={actions}
+              notesByCode={issues.byModule}
+            />
+          </div>
+        )}
+        {/* Printing always gives the overview. On the board it only mounts for printing, so edits don't rebuild it. */}
+        {view === 'overview' || printing ? (
+          <div className={view === 'overview' ? undefined : 'hidden print:block'}>
+            <PlanOverview plan={plan} summary={summary} />
+          </div>
+        ) : null}
+      </div>
+      <nav
+        aria-label={t('mobileNav.label')}
+        // Sticky inside main: it stays at the bottom of the screen and never covers the footer.
+        className="sticky bottom-0 z-30 -mx-4 mt-auto border-t border-zinc-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur sm:hidden print:hidden dark:border-zinc-800 dark:bg-zinc-900/95"
+      >
+        <div className="grid grid-cols-3">
+          {MOBILE_TABS.map(({ id, icon: Icon }) => {
+            const active = mobileTab === id
+            const warnings =
+              id === 'hints' ? issues.list.filter((issue) => issue.severity !== 'info').length : 0
+            return (
+              <button
+                key={id}
+                type="button"
+                aria-current={active ? 'page' : undefined}
+                // The count joins the name ("Hinweise, 7 Warnungen") rather than being extra text on the page.
+                aria-label={
+                  warnings > 0
+                    ? `${t(`mobileNav.${id}`)}, ${t('mobileNav.warnings', { count: warnings })}`
+                    : undefined
+                }
+                onClick={() => {
+                  setMobileTab(id)
+                  window.scrollTo({ top: 0 })
+                }}
+                className={cn(
+                  'relative flex h-14 flex-col items-center justify-center gap-0.5 text-xs font-medium',
+                  active ? 'text-indigo-700 dark:text-indigo-300' : 'text-zinc-600 dark:text-zinc-400',
+                )}
+              >
+                <Icon aria-hidden className="size-5" />
+                {t(`mobileNav.${id}`)}
+                {warnings > 0 ? (
+                  <span className="absolute top-1.5 left-[calc(50%+0.5rem)] min-w-5 rounded-full bg-amber-500 px-1.5 text-[11px] leading-5 font-semibold text-amber-950">
+                    <span aria-hidden>{warnings}</span>
+                  </span>
+                ) : null}
+              </button>
+            )
+          })}
         </div>
-      </fieldset>
-      {view === 'board' && (
-        <div className="print:hidden">
-          <SemesterBoard
-            plan={plan}
-            summary={summary}
-            currentIndex={currentIndex}
-            actions={actions}
-            notesByCode={issues.byModule}
-          />
-        </div>
-      )}
-      {/* Printing always gives the overview. On the board it only mounts for printing, so edits don't rebuild it. */}
-      {view === 'overview' || printing ? (
-        <div className={view === 'overview' ? undefined : 'hidden print:block'}>
-          <PlanOverview plan={plan} summary={summary} />
-        </div>
-      ) : null}
+      </nav>
       <ConfirmDialog
         open={semesterToDelete !== null}
         onOpenChange={(open) => {

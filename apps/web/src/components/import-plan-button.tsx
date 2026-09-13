@@ -1,7 +1,7 @@
 import { type ParseFailure, type Plan, parseGuestDocument } from '@study-plan/shared'
 import { useNavigate } from '@tanstack/react-router'
 import { Upload } from 'lucide-react'
-import { type ChangeEvent, useRef, useState } from 'react'
+import { type ChangeEvent, type ReactNode, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useGuestState, useGuestStore } from '../store/guest-store.ts'
 import { useAnnounce } from './announcer.tsx'
@@ -15,17 +15,11 @@ export const IMPORT_ERRORS = {
   invalid: 'importPlan.errors.invalid',
 } as const satisfies Record<ParseFailure['reason'], string>
 
-export function ImportPlanButton({
-  label,
-  labelClassName,
-  variant = 'secondary',
-  size = 'md',
-  className,
-}: {
-  label?: string
-  /** Classes for the text label, e.g. to show it only on larger screens while keeping it for screen readers. */
-  labelClassName?: string
-} & Pick<ButtonProps, 'variant' | 'size' | 'className'>) {
+/**
+ * Restoring a plan file: `open` shows the file picker, `element` holds the hidden input and the dialogs and must be
+ * rendered once. Split from the button so a menu item can open the same picker.
+ */
+export function useImportPlan(): { open: () => void; element: ReactNode } {
   const { t } = useTranslation(['dialogs', 'common'])
   const store = useGuestStore()
   const { plan } = useGuestState()
@@ -63,12 +57,8 @@ export function ImportPlanButton({
     else apply(result.document.plan)
   }
 
-  return (
+  const element = (
     <>
-      <Button variant={variant} size={size} className={className} onClick={() => inputRef.current?.click()}>
-        <Upload aria-hidden className="size-4" />
-        <span className={size === 'icon' ? 'sr-only' : labelClassName}>{label ?? t('importPlan.label')}</span>
-      </Button>
       <input
         ref={inputRef}
         type="file"
@@ -108,6 +98,32 @@ export function ImportPlanButton({
           <Button onClick={() => setError(null)}>{t('common:actions.close')}</Button>
         </div>
       </Dialog>
+    </>
+  )
+
+  return { open: () => inputRef.current?.click(), element }
+}
+
+export function ImportPlanButton({
+  label,
+  labelClassName,
+  variant = 'secondary',
+  size = 'md',
+  className,
+}: {
+  label?: string
+  /** Classes for the text label, e.g. to show it only on larger screens while keeping it for screen readers. */
+  labelClassName?: string
+} & Pick<ButtonProps, 'variant' | 'size' | 'className'>) {
+  const { t } = useTranslation('dialogs')
+  const importer = useImportPlan()
+  return (
+    <>
+      <Button variant={variant} size={size} className={className} onClick={importer.open}>
+        <Upload aria-hidden className="size-4" />
+        <span className={size === 'icon' ? 'sr-only' : labelClassName}>{label ?? t('importPlan.label')}</span>
+      </Button>
+      {importer.element}
     </>
   )
 }

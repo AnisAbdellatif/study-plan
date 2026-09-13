@@ -68,7 +68,7 @@ function HintsCard({ hints }: { hints: readonly IssueText[] }) {
             : t('hints.warnings', { count: warnings })}
       </p>
       {hints.length > 0 ? (
-        <ul className="mt-2 max-h-56 space-y-1.5 overflow-y-auto text-sm">
+        <ul className="mt-2 space-y-1.5 text-sm sm:max-h-56 sm:overflow-y-auto">
           {hints.map((hint) => (
             <li
               key={hint.text}
@@ -207,7 +207,7 @@ function DeadlinesCard({
         </Button>
       </div>
       {upcoming.length > 0 ? (
-        <ul className="mt-2 max-h-56 space-y-2 overflow-y-auto text-sm">
+        <ul className="mt-2 space-y-2 text-sm sm:max-h-56 sm:overflow-y-auto">
           {upcoming.map((event) => (
             <li key={`${event.kind}-${event.code}`} className="flex items-baseline justify-between gap-3">
               <span className="min-w-0">

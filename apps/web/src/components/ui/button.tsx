@@ -12,9 +12,10 @@ const variants = {
 } as const
 
 const sizes = {
-  sm: 'h-8 px-2.5 text-sm',
+  // Phones get 40px touch targets; from sm (and a mouse, usually) the compact sizes return.
+  sm: 'h-10 px-3 text-sm sm:h-8 sm:px-2.5',
   md: 'h-10 px-3.5 text-sm',
-  icon: 'size-8',
+  icon: 'size-10 sm:size-8',
 } as const
 
 export interface ButtonProps extends ComponentProps<'button'> {

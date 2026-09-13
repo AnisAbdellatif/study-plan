@@ -23,6 +23,14 @@ export const board = {
       'Your plan and all grades you entered will be removed from this browser. Export it first if you want to keep it.',
     resetConfirm: 'Delete plan',
   },
+  mobileNav: {
+    label: 'Plan sections',
+    plan: 'Plan',
+    status: 'Progress',
+    hints: 'Hints',
+    warnings_one: '{{count}} warning',
+    warnings_other: '{{count}} warnings',
+  },
   storage: {
     accountReminder:
       "Your plan is only stored in this browser so far. Some browsers, such as Safari, delete data from sites you haven't visited in a while. Save it to your account to have it on all your devices, or export it as a file.",

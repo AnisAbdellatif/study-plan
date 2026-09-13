@@ -20,6 +20,14 @@ export const board = {
       'Dein Plan und alle eingetragenen Noten werden aus diesem Browser entfernt. Exportiere ihn vorher, wenn du ihn behalten willst.',
     resetConfirm: 'Plan löschen',
   },
+  mobileNav: {
+    label: 'Planansicht',
+    plan: 'Plan',
+    status: 'Stand',
+    hints: 'Hinweise',
+    warnings_one: '{{count}} Warnung',
+    warnings_other: '{{count}} Warnungen',
+  },
   storage: {
     accountReminder:
       'Dein Plan liegt bisher nur in diesem Browser. Manche Browser, etwa Safari, löschen Daten von Seiten, die du länger nicht besucht hast. Sichere ihn im Konto, dann ist er auf allen deinen Geräten verfügbar, oder exportiere ihn als Datei.',

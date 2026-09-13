@@ -8,7 +8,7 @@ import {
   type PlanSummary,
   placeholderCredits,
 } from '@study-plan/shared'
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import i18n, { currentLocale } from '../../i18n/index.ts'
 import { cn } from '../../lib/cn.ts'
@@ -193,6 +193,27 @@ export function SemesterBoard({ plan, summary, currentIndex, actions, notesByCod
   const scrollTo = (id: string | null, behavior: ScrollBehavior = 'smooth') =>
     elements.current.get(id)?.scrollIntoView?.({ behavior, inline: 'start', block: 'nearest' })
 
+  // On phones one column fills the screen; the chip of the column in view is highlighted while swiping.
+  const [visibleId, setVisibleId] = useState<string | null | undefined>(undefined)
+  const columnKey = columns.map((column) => column.id ?? 'backlog').join('|')
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-observe when columns are added, removed or reordered
+  useEffect(() => {
+    const root = scrollerRef.current
+    if (!root || typeof IntersectionObserver === 'undefined') return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const best = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0]
+        if (!best) return
+        for (const [id, element] of elements.current) if (element === best.target) setVisibleId(id)
+      },
+      { root, threshold: [0.6] },
+    )
+    for (const element of elements.current.values()) observer.observe(element)
+    return () => observer.disconnect()
+  }, [columnKey])
+
   // Start with the current semester in view, which matters most on phones where one column fills the screen.
   const currentId = plan.semesters[currentIndex]?.id
   useEffect(() => {
@@ -206,27 +227,34 @@ export function SemesterBoard({ plan, summary, currentIndex, actions, notesByCod
     <div className="space-y-2">
       <nav
         aria-label={t('columns.jumpTo')}
-        className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 sm:hidden print:hidden"
+        // Stays at the top while a long semester is scrolled, so switching semesters is always one tap away.
+        className="sticky top-0 z-20 -mx-4 flex gap-1.5 overflow-x-auto bg-zinc-50/90 px-4 py-2 backdrop-blur sm:hidden print:hidden dark:bg-zinc-950/90"
       >
-        {columns.map((column) => (
-          <button
-            key={column.id ?? 'backlog'}
-            type="button"
-            onClick={() => scrollTo(column.id)}
-            className={cn(
-              'h-8 shrink-0 rounded-full px-3 text-xs font-medium ring-1 ring-inset',
-              column.isCurrent
-                ? 'bg-indigo-600 text-white shadow-sm ring-indigo-600'
-                : 'bg-white/70 ring-zinc-300 dark:bg-zinc-900/70 dark:ring-zinc-700',
-            )}
-          >
-            {column.id === null
-              ? t('columns.backlogShort')
-              : t('columns.semesterShort', {
-                  number: plan.semesters.findIndex((s) => s.id === column.id) + 1,
-                })}
-          </button>
-        ))}
+        {columns.map((column) => {
+          const active = visibleId === undefined ? column.isCurrent : visibleId === column.id
+          return (
+            <button
+              key={column.id ?? 'backlog'}
+              type="button"
+              aria-current={active ? 'true' : undefined}
+              onClick={() => scrollTo(column.id)}
+              className={cn(
+                'h-9 shrink-0 rounded-full px-3.5 text-sm font-medium ring-1 ring-inset',
+                active
+                  ? 'bg-indigo-600 text-white shadow-sm ring-indigo-600'
+                  : column.isCurrent
+                    ? 'bg-white/70 text-indigo-700 ring-2 ring-indigo-500 dark:bg-zinc-900/70 dark:text-indigo-300'
+                    : 'bg-white/70 ring-zinc-300 dark:bg-zinc-900/70 dark:ring-zinc-700',
+              )}
+            >
+              {column.id === null
+                ? t('columns.backlogShort')
+                : t('columns.semesterShort', {
+                    number: plan.semesters.findIndex((s) => s.id === column.id) + 1,
+                  })}
+            </button>
+          )
+        })}
       </nav>
       {/* A little padding on every side: the scroll area clips, and the current semester's ring sits outside its box. */}
       <div
