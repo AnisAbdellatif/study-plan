@@ -50,6 +50,26 @@ export async function createPasswordAccount(db: Database, auth: Auth, input: Pas
   return created.id
 }
 
+/**
+ * The superadmin never needs e-mail verification. Marks it verified when the flag was lost, e.g. through a
+ * database edit or a promotion. Pass an address to limit this to that account (sign-in); returns whether a row
+ * changed.
+ */
+export async function verifySuperadminEmail(db: Database, email?: string): Promise<boolean> {
+  const changed = await db
+    .update(user)
+    .set({ emailVerified: true, updatedAt: new Date() })
+    .where(
+      and(
+        eq(user.role, 'superadmin'),
+        eq(user.emailVerified, false),
+        email === undefined ? undefined : eq(user.email, email.trim().toLowerCase()),
+      ),
+    )
+    .returning({ id: user.id })
+  return changed.length > 0
+}
+
 export type SuperadminOutcome = 'created' | 'promoted' | 'exists'
 
 /**
@@ -70,6 +90,7 @@ export async function ensureSuperadmin(
         `[api] the superadmin is ${existing.email}; SUPERADMIN_EMAIL (${email}) is only used for the first start`,
       )
     }
+    await verifySuperadminEmail(db)
     return 'exists'
   }
 

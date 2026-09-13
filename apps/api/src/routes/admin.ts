@@ -33,9 +33,11 @@ type AdminAction = (typeof adminAuditLog.action.enumValues)[number]
 export function requireAdmin(auth: Auth, db: Database) {
   return createMiddleware<AppEnv>(async (c, next) => {
     const current = await auth.api.getSession({ headers: c.req.raw.headers })
-    if (!current?.user.emailVerified) return c.json({ error: 'not_found' }, 404)
+    if (!current) return c.json({ error: 'not_found' }, 404)
     const [row] = await db.select({ role: user.role }).from(user).where(eq(user.id, current.user.id))
     if (!isAdminRole(row?.role)) return c.json({ error: 'not_found' }, 404)
+    // Admins need a confirmed address; the superadmin never needs verification.
+    if (row.role !== 'superadmin' && !current.user.emailVerified) return c.json({ error: 'not_found' }, 404)
     c.set('user', { id: current.user.id, email: current.user.email, name: current.user.name })
     c.set('adminRole', row.role)
     await next()

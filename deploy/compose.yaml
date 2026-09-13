@@ -34,7 +34,13 @@ services:
       REMINDER_INTERVAL_MINUTES: ${REMINDER_INTERVAL_MINUTES:-60}
       # Caddy replaces this header with the real client address, so rate limiting can trust it.
       IP_ADDRESS_HEADER: x-forwarded-for
-    networks: [internal, web]
+    networks:
+      internal:
+      web:
+        # Caddy must reach this app by a name no other container has. The plain service name "app" is also
+        # registered by the dev stack's app on the shared study-plan-proxy network, where Caddy is too, so
+        # "app" could resolve to dev and mix the two sites.
+        aliases: [study-plan-prod-app]
 
   postgres:
     image: postgres:18-alpine
