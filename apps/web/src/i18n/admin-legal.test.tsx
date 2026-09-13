@@ -122,7 +122,7 @@ describe('legal pages in English', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Datenschutzerklärung' })).toBeInTheDocument()
     expect(screen.queryByText(/courtesy translation/)).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Kontoseite' })).toHaveAttribute('href', '/account')
-    expect(screen.getByText(/Diese Protokolle werden nach/)).toBeInTheDocument()
+    expect(screen.getByText(/Wir führen keine Zugriffsprotokolle mit IP-Adressen/)).toBeInTheDocument()
   })
 
   it('marks the legal notice as a courtesy translation and switches to German', async () => {

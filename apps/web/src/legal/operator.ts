@@ -11,7 +11,9 @@
  *   VITE_OPERATOR_EMAIL="kontakt@example.org"
  *   VITE_HOSTING_PROVIDER="Name und Anschrift des VPS-Anbieters"
  *   VITE_MAIL_PROVIDER="Name und Anschrift des E-Mail-Versanddienstes"
- *   VITE_SERVER_LOG_RETENTION="7 Tage"
+ *
+ * There is no log retention setting: neither the web server nor the app stores IP addresses in logs, which the
+ * privacy policy states directly.
  */
 export interface OperatorDetails {
   name: string
@@ -21,7 +23,6 @@ export interface OperatorDetails {
   phone: string
   hostingProvider: string
   mailProvider: string
-  serverLogRetention: string
 }
 
 const env = (value: string | undefined): string => value?.trim() ?? ''
@@ -34,7 +35,6 @@ export const operator: OperatorDetails = {
   phone: env(import.meta.env.VITE_OPERATOR_PHONE),
   hostingProvider: env(import.meta.env.VITE_HOSTING_PROVIDER),
   mailProvider: env(import.meta.env.VITE_MAIL_PROVIDER),
-  serverLogRetention: env(import.meta.env.VITE_SERVER_LOG_RETENTION),
 }
 
 const REQUIRED: (keyof OperatorDetails)[] = [
@@ -44,7 +44,6 @@ const REQUIRED: (keyof OperatorDetails)[] = [
   'email',
   'hostingProvider',
   'mailProvider',
-  'serverLogRetention',
 ]
 
 export const missingOperatorDetails = (details: OperatorDetails = operator): (keyof OperatorDetails)[] =>

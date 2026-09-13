@@ -52,13 +52,13 @@ API (`apps/api`, environment variables):
 
 Migrations run automatically when the API starts.
 
-Web app (`apps/web/.env.production.local`, read at build time): `VITE_OPERATOR_NAME`, `VITE_OPERATOR_STREET`, `VITE_OPERATOR_POSTAL_CITY`, `VITE_OPERATOR_EMAIL`, optional `VITE_OPERATOR_PHONE`, `VITE_HOSTING_PROVIDER`, `VITE_MAIL_PROVIDER`, `VITE_SERVER_LOG_RETENTION`. Until they are set, the Impressum and Datenschutzerklärung show marked gaps and a warning.
+Web app, read at build time (GitHub repository variables for the CI image, or `apps/web/.env.production.local` locally): `VITE_OPERATOR_NAME`, `VITE_OPERATOR_STREET`, `VITE_OPERATOR_POSTAL_CITY`, `VITE_OPERATOR_EMAIL`, optional `VITE_OPERATOR_PHONE`, `VITE_HOSTING_PROVIDER`, `VITE_MAIL_PROVIDER`. Until they are set, the Impressum and Datenschutzerklärung show marked gaps and a warning.
 
 Before publishing:
 
 1. Set the operator details above and check both legal pages. They are a starting point, not legal advice.
 2. Conclude data processing agreements (Art. 28 DSGVO) with the hosting provider and the mail provider.
-3. Make sure the web server's own logs match the retention stated in the Datenschutzerklärung.
+3. The Datenschutzerklärung states that no access logs with IP addresses are kept: Caddy writes no access log and the API logs no IP addresses. If you add access logging (in Caddy, a reverse proxy in front of it, or the API), update the policy.
 
 ## Deployment
 

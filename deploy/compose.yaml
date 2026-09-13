@@ -4,7 +4,7 @@
 name: study-plan
 
 # Container logs are rotated at 3 x 10 MB, so they don't grow forever. The app logs no IP addresses and Caddy
-# writes no access log; state the resulting retention in VITE_SERVER_LOG_RETENTION.
+# writes no access log, as the privacy policy states; update the policy if either changes.
 x-logging: &logging
   driver: json-file
   options:

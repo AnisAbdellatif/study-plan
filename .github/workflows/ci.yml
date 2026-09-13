@@ -111,13 +111,12 @@ jobs:
           VITE_OPERATOR_PHONE: ${{ vars.VITE_OPERATOR_PHONE }}
           VITE_HOSTING_PROVIDER: ${{ vars.VITE_HOSTING_PROVIDER }}
           VITE_MAIL_PROVIDER: ${{ vars.VITE_MAIL_PROVIDER }}
-          VITE_SERVER_LOG_RETENTION: ${{ vars.VITE_SERVER_LOG_RETENTION }}
         run: |
           docker buildx create --use
           docker buildx build --push \
             --build-arg VITE_OPERATOR_NAME --build-arg VITE_OPERATOR_STREET --build-arg VITE_OPERATOR_POSTAL_CITY \
             --build-arg VITE_OPERATOR_EMAIL --build-arg VITE_OPERATOR_PHONE --build-arg VITE_HOSTING_PROVIDER \
-            --build-arg VITE_MAIL_PROVIDER --build-arg VITE_SERVER_LOG_RETENTION \
+            --build-arg VITE_MAIL_PROVIDER \
             --cache-from "type=registry,ref=$IMAGE:buildcache-$ALIAS" \
             --cache-to "type=registry,ref=$IMAGE:buildcache-$ALIAS,mode=max" \
             --tag "$IMAGE:$TAG" --tag "$IMAGE:$ALIAS" \

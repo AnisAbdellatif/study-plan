@@ -1,33 +1,36 @@
 import { useTranslation } from 'react-i18next'
-import { LegalPage, OperatorField } from './legal-page.tsx'
+import { LegalPage, LegalSection, OperatorField } from './legal-page.tsx'
 import { operator } from './operator.ts'
 
 export function ImpressumPage() {
   const { t } = useTranslation('legal')
   return (
     <LegalPage title={t('impressum.title')}>
-      <h2>{t('impressum.operatorHeading')}</h2>
-      <p>
-        <OperatorField field="name" />
-        <br />
-        <OperatorField field="street" />
-        <br />
-        <OperatorField field="postalCity" />
-      </p>
+      <LegalSection id="operator" heading={t('impressum.operatorHeading')}>
+        <p>
+          <OperatorField field="name" />
+          <br />
+          <OperatorField field="street" />
+          <br />
+          <OperatorField field="postalCity" />
+        </p>
+      </LegalSection>
 
-      <h2>{t('impressum.contactHeading')}</h2>
-      <p>
-        {t('labels.email')} <OperatorField field="email" />
-        {operator.phone ? (
-          <>
-            <br />
-            {t('labels.phone')} {operator.phone}
-          </>
-        ) : null}
-      </p>
+      <LegalSection id="contact" heading={t('impressum.contactHeading')}>
+        <p>
+          {t('labels.email')} <OperatorField field="email" />
+          {operator.phone ? (
+            <>
+              <br />
+              {t('labels.phone')} {operator.phone}
+            </>
+          ) : null}
+        </p>
+      </LegalSection>
 
-      <h2>{t('impressum.programmeDataHeading')}</h2>
-      <p>{t('impressum.programmeData')}</p>
+      <LegalSection id="programme-data" heading={t('impressum.programmeDataHeading')}>
+        <p>{t('impressum.programmeData')}</p>
+      </LegalSection>
     </LegalPage>
   )
 }

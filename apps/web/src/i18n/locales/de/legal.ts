@@ -1,9 +1,11 @@
 /**
  * Impressum and Datenschutzerklärung. The German text is legally binding; English is a courtesy translation.
- * One key per paragraph or list item. Tags such as <retention/> are filled by the page with operator details.
+ * One key per paragraph or list item. Tags such as <hosting/> are filled by the page with operator details.
  */
 export const legal = {
-  backToApp: 'Zurück zum Studienplaner',
+  backToApp: 'Zur Startseite',
+  eyebrow: 'Rechtliches',
+  contents: 'Inhalt',
   incomplete:
     'Diese Seite ist noch nicht vollständig: Angaben zum Betreiber fehlen. Vor der Veröffentlichung müssen sie in der Konfiguration eingetragen werden.',
   courtesyTranslation: {
@@ -18,7 +20,6 @@ export const legal = {
     phone: 'Telefonnummer',
     hostingProvider: 'Hosting-Anbieter',
     mailProvider: 'E-Mail-Versanddienst',
-    serverLogRetention: 'Speicherdauer der Server-Logs',
   },
   labels: {
     email: 'E-Mail:',
@@ -51,9 +52,9 @@ export const legal = {
     website: {
       heading: '3. Aufruf der Website',
       serverLogs:
-        'Beim Aufruf der Seite verarbeitet der Webserver technisch notwendige Verbindungsdaten: IP-Adresse, Zeitpunkt, aufgerufene Adresse, übertragene Datenmenge und die Kennung deines Browsers. Das ist nötig, um die Seite auszuliefern und die Sicherheit des Servers zu gewährleisten (Art. 6 Abs. 1 lit. f DSGVO). Diese Protokolle werden nach <retention/> gelöscht.',
+        'Beim Aufruf der Seite verarbeitet der Server technisch notwendige Verbindungsdaten wie deine IP-Adresse, den Zeitpunkt und die aufgerufene Adresse, damit die Seite ausgeliefert werden kann (Art. 6 Abs. 1 lit. f DSGVO). Diese Daten werden nur für die Dauer der Verbindung verarbeitet. Wir führen keine Zugriffsprotokolle mit IP-Adressen: Weder der Webserver noch die Anwendung speichern IP-Adressen in Protokollen. Ausnahmen sind nur die unter 5. und 8. beschriebenen Anmeldungen und Zähler zum Schutz vor Missbrauch.',
       appLogs:
-        'Die Anwendung selbst protokolliert Anfragen nur mit Methode, Pfad, Statuscode und Dauer, ohne IP-Adressen und ohne Inhalte.',
+        'Die Anwendung protokolliert Anfragen nur mit Methode, Pfad, Statuscode und Dauer, ohne IP-Adressen und ohne Inhalte. Diese technischen Protokolle haben eine feste Maximalgröße; ältere Einträge werden automatisch überschrieben.',
       hosting:
         'Der Server wird betrieben bei: <hosting/>. Der Anbieter verarbeitet die Daten in unserem Auftrag (Art. 28 DSGVO).',
     },

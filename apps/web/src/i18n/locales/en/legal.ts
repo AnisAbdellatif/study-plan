@@ -3,7 +3,9 @@ import type { Messages } from '../types.ts'
 
 /** Courtesy translation of the legal notice and privacy policy. Keep it in step with the German original. */
 export const legal = {
-  backToApp: 'Back to Study Planner',
+  backToApp: 'Back to home',
+  eyebrow: 'Legal',
+  contents: 'Contents',
   incomplete:
     'This page is not complete yet: details about the operator are missing. They must be added to the configuration before publishing.',
   courtesyTranslation: {
@@ -18,7 +20,6 @@ export const legal = {
     phone: 'Phone number',
     hostingProvider: 'Hosting provider',
     mailProvider: 'Email delivery service',
-    serverLogRetention: 'Retention period for server logs',
   },
   labels: {
     email: 'Email:',
@@ -52,9 +53,9 @@ export const legal = {
     website: {
       heading: '3. Visiting the website',
       serverLogs:
-        "When you visit the site, the web server processes technically necessary connection data: IP address, time, requested address, amount of data transferred and your browser's identifier. This is necessary to deliver the site and to keep the server secure (Art. 6(1)(f) GDPR). These logs are deleted after <retention/>.",
+        'When you visit the site, the server processes technically necessary connection data such as your IP address, the time and the requested address, so that the site can be delivered (Art. 6(1)(f) GDPR). This data is only processed for the duration of the connection. We do not keep access logs with IP addresses: neither the web server nor the application stores IP addresses in logs. The only exceptions are the sign-ins and misuse counters described in sections 5 and 8.',
       appLogs:
-        'The application itself logs requests only with method, path, status code and duration, without IP addresses and without content.',
+        'The application logs requests only with method, path, status code and duration, without IP addresses and without content. These technical logs have a fixed maximum size; older entries are overwritten automatically.',
       hosting:
         'The server is hosted by: <hosting/>. The provider processes the data on our behalf (Art. 28 GDPR).',
     },
