@@ -9,6 +9,7 @@ import {
 import { Link, useNavigate } from '@tanstack/react-router'
 import { type FormEvent, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useAccountSync } from '../components/account-sync.tsx'
 import { ImportPlanButton } from '../components/import-plan-button.tsx'
 import { AnswerPanel } from '../components/programme-extraction/answer-panel.tsx'
 import { DescribeForm } from '../components/programme-extraction/describe-form.tsx'
@@ -65,6 +66,7 @@ export function StartPage() {
   const { t } = useTranslation(['start', 'customPreset', 'common'])
   const store = useGuestStore()
   const { plan, loadError } = useGuestState()
+  const { user, sessionPending } = useAccountSync()
   const navigate = useNavigate()
   const extraction = useProgrammeExtraction({
     draftKey: DRAFT_KEY,
@@ -132,9 +134,12 @@ export function StartPage() {
           <p className={hintClass}>{t('importNote')}</p>
         </div>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <Link to="/sign-in" className={linkClass}>
-            {t('haveAccount')}
-          </Link>
+          {/* Hidden while the session loads too, so signed-in students never see it flash. */}
+          {user || sessionPending ? null : (
+            <Link to="/sign-in" className={linkClass}>
+              {t('haveAccount')}
+            </Link>
+          )}
           {plan ? (
             <Link to="/" className={linkClass}>
               {t('backToPlan')}
