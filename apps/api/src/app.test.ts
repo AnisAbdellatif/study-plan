@@ -860,6 +860,141 @@ describe('admin', () => {
     expect((await call('/api/admin/mail')).status).toBe(404)
   })
 
+  describe('presets', () => {
+    interface PresetSummary {
+      id: string
+      universityName: string
+      programmeName: string
+      degree: string
+      poVersion: string
+      updatedAt: string
+    }
+
+    const upload = (path: string, method: string, body: unknown, cookie = adminCookie) =>
+      call(path, { method, cookie, body })
+
+    const presetFile = (changes: Record<string, unknown> = {}) => ({ ...preset, ...changes })
+
+    it('answers 404 to anyone who is not an admin', async () => {
+      const student = await registerVerifiedUser('vorlagen-studi@example.org')
+      for (const cookie of [undefined, student]) {
+        const response = await call('/api/admin/presets', { method: 'POST', cookie, body: presetFile() })
+        expect(response.status).toBe(404)
+        expect(await json(response)).toEqual({ error: 'not_found' })
+      }
+      expect(await json(await call('/api/presets'))).toEqual({ presets: [] })
+    })
+
+    it('creates, lists, loads, replaces and deletes presets with a stable id', async () => {
+      const created = await upload('/api/admin/presets', 'POST', presetFile())
+      expect(created.status).toBe(201)
+      const { preset: summary } = await json<{ preset: PresetSummary }>(created)
+      expect(summary).toMatchObject({
+        universityName: preset.university.name,
+        programmeName: 'Informatik',
+        degree: 'bsc',
+        poVersion: preset.poVersion,
+      })
+
+      const second = await upload(
+        '/api/admin/presets',
+        'POST',
+        presetFile({ university: { slug: 'aaa', name: 'Aachen Test' } }),
+        superCookie,
+      )
+      expect(second.status).toBe(201)
+
+      // Public, no session, sorted by university.
+      const listed = await json<{ presets: PresetSummary[] }>(await call('/api/presets'))
+      expect(listed.presets.map((entry) => entry.universityName)).toEqual([
+        'Aachen Test',
+        preset.university.name,
+      ])
+      expect(listed.presets[1]).toEqual({ ...summary })
+
+      const loaded = await json<{ preset: { id: string; modules: unknown[] } }>(
+        await call(`/api/presets/${summary.id}`),
+      )
+      expect(loaded.preset.id).toBe(`preset/${summary.id}`)
+      expect(presetSchema.safeParse(loaded.preset).success).toBe(true)
+      expect(loaded.preset.modules).toHaveLength(preset.modules.length)
+
+      const replaced = await upload(
+        `/api/admin/presets/${summary.id}`,
+        'PUT',
+        presetFile({ id: 'someone/else', poVersion: 'PO 2030', modules: preset.modules.slice(0) }),
+      )
+      expect(replaced.status).toBe(200)
+      expect((await json<{ preset: PresetSummary }>(replaced)).preset).toMatchObject({
+        id: summary.id,
+        poVersion: 'PO 2030',
+      })
+      const reloaded = await json<{ preset: { id: string; poVersion: string } }>(
+        await call(`/api/presets/${summary.id}`),
+      )
+      expect(reloaded.preset).toMatchObject({ id: `preset/${summary.id}`, poVersion: 'PO 2030' })
+
+      expect((await upload(`/api/admin/presets/${summary.id}`, 'DELETE', undefined)).status).toBe(204)
+      expect((await call(`/api/presets/${summary.id}`)).status).toBe(404)
+      expect((await upload(`/api/admin/presets/${summary.id}`, 'DELETE', undefined)).status).toBe(404)
+      expect((await call('/api/presets/not-a-uuid')).status).toBe(404)
+      expect((await upload('/api/admin/presets/not-a-uuid', 'PUT', presetFile())).status).toBe(404)
+
+      const { entries } = await json<{ entries: { action: string; targetUserId: string }[] }>(
+        await call('/api/admin/audit', { cookie: adminCookie }),
+      )
+      expect(entries.slice(0, 3)).toEqual([
+        expect.objectContaining({ action: 'delete_preset', targetUserId: summary.id }),
+        expect.objectContaining({ action: 'update_preset', targetUserId: summary.id }),
+        expect.objectContaining({ action: 'create_preset' }),
+      ])
+    })
+
+    it('rejects invalid programme files with the issues', async () => {
+      const invalid = await upload('/api/admin/presets', 'POST', { modules: [] })
+      expect(invalid.status).toBe(400)
+      const body = await json<{ error: string; reason: string; issues: { path: string; message: string }[] }>(
+        invalid,
+      )
+      expect(body).toMatchObject({ error: 'invalid_preset', reason: 'invalid_preset' })
+      expect(body.issues.map((issue) => issue.path)).toContain('university.name')
+
+      const notJson = await app.request('/api/admin/presets', {
+        method: 'POST',
+        headers: { origin: config.publicOrigin, cookie: adminCookie, 'content-type': 'application/json' },
+        body: '{"kaputt": }',
+      })
+      expect(notJson.status).toBe(400)
+      expect(await json(notJson)).toMatchObject({ error: 'invalid_preset', reason: 'invalid_json' })
+    })
+
+    it('refuses a second preset for the same university, programme, degree and PO version', async () => {
+      const file = presetFile({ poVersion: 'PO Doppelt' })
+      const first = await json<{ preset: PresetSummary }>(await upload('/api/admin/presets', 'POST', file))
+      const duplicate = await upload('/api/admin/presets', 'POST', { ...file, notes: 'andere Notizen' })
+      expect(duplicate.status).toBe(409)
+      expect(await json(duplicate)).toEqual({ error: 'preset_exists' })
+
+      const other = await json<{ preset: PresetSummary }>(
+        await upload('/api/admin/presets', 'POST', presetFile({ poVersion: 'PO Anders' })),
+      )
+      const clash = await upload(`/api/admin/presets/${other.preset.id}`, 'PUT', file)
+      expect(clash.status).toBe(409)
+      // Replacing a preset with data of the same programme is not a clash with itself.
+      expect((await upload(`/api/admin/presets/${first.preset.id}`, 'PUT', file)).status).toBe(200)
+    })
+
+    it('accepts programme files above the general 1 MB limit, up to 5 MB', async () => {
+      const large = presetFile({ poVersion: 'PO Groß', notes: 'x'.repeat(2 * 1024 * 1024) })
+      expect((await upload('/api/admin/presets', 'POST', large)).status).toBe(201)
+      const tooLarge = presetFile({ poVersion: 'PO Riesig', notes: 'x'.repeat(6 * 1024 * 1024) })
+      expect((await upload('/api/admin/presets', 'POST', tooLarge)).status).toBe(413)
+      expect(
+        (await call('/api/plans', { method: 'POST', cookie: adminCookie, body: { document: large } })).status,
+      ).toBe(413)
+    })
+  })
+
   describe('superadmin', () => {
     it('is created once as a verified password account and never overwritten on later starts', async () => {
       const row = await userRow('chef@example.org')

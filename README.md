@@ -91,7 +91,18 @@ Building locally: `docker build -t study-plan .`
 
 ## Programme data
 
-There are no bundled programme presets. Every student builds the data for their own programme on the start page:
+Students get the data for their programme in one of three ways on the start page: they pick a preset maintained by admins, load a programme file (`programme.json`) they already have, or build the file with an LLM.
+
+### Presets
+
+Admins manage presets in the "Vorlagen" section of the admin dashboard. A preset is a programme file, validated with `parseCustomPreset` exactly like a file loaded on the start page, and stored whole in the `preset` table (`document` column). University, programme, degree and PO version come from the file and are unique together; uploading a second file for the same combination answers 409, so admins replace the existing preset instead.
+
+- Public routes, no account needed: `GET /api/presets` lists `{ id, universityName, programmeName, degree, poVersion, updatedAt }` sorted by university and programme; `GET /api/presets/:id` returns `{ preset }`.
+- Admin routes: `POST /api/admin/presets` with the programme file as the request body, `PUT /api/admin/presets/:id` replaces the data, `DELETE /api/admin/presets/:id`. Invalid files answer 400 `{ error: 'invalid_preset', reason, issues }`. These routes accept bodies up to 5 MB, since files with full Modulkatalog details can exceed the general 1 MB limit.
+- The preset's own `id` is `preset/<row uuid>`, set by the server regardless of the file. It stays the same when an admin replaces the data, so plans (which store `preset.id`) keep pointing at their preset. Plans carry their own copy of the programme data, so replacing or deleting a preset never changes an existing plan.
+- On the start page, "Studiengang auswählen" offers a searchable combobox (`apps/web/src/components/presets/`): every word typed must match the university, programme, degree or PO version.
+
+### Building a programme file with an LLM
 
 1. They enter the university, programme, degree and optionally the PO version.
 2. The app generates a prompt (`buildExtractionPrompt` in `packages/shared/src/custom-preset/prompt.ts`). The student gives it to an LLM of their choice together with the Prüfungsordnung and the Modulkatalog. The app itself never contacts an LLM.

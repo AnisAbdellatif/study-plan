@@ -39,6 +39,17 @@
 
   body {
     @apply bg-zinc-100 text-zinc-900 antialiased dark:bg-zinc-950 dark:text-zinc-100;
+    /* A faint indigo and brand-blue glow along the top, so the page is not a flat grey; it fades out before content gets dense. */
+    background-image:
+      radial-gradient(70rem 28rem at 8% -8rem, oklch(87% 0.06 270 / 0.6), transparent 70%),
+      radial-gradient(60rem 24rem at 92% -8rem, oklch(89% 0.06 230 / 0.55), transparent 70%);
+    background-repeat: no-repeat;
+  }
+
+  .dark body {
+    background-image:
+      radial-gradient(70rem 28rem at 8% -8rem, oklch(42% 0.11 275 / 0.4), transparent 70%),
+      radial-gradient(60rem 24rem at 92% -8rem, oklch(45% 0.09 235 / 0.28), transparent 70%);
   }
 }
 
@@ -47,7 +58,8 @@
     margin: 12mm;
   }
 
-  body {
+  body,
+  .dark body {
     background: white;
     print-color-adjust: exact;
   }

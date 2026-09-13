@@ -2,9 +2,10 @@ import type { ComponentProps } from 'react'
 import { cn } from '../../lib/cn.ts'
 
 const variants = {
-  primary: 'bg-indigo-600 text-white hover:bg-indigo-500 disabled:bg-indigo-600/50',
+  primary:
+    'bg-indigo-600 text-white shadow-sm shadow-indigo-600/30 hover:bg-indigo-500 disabled:bg-indigo-600/50 disabled:shadow-none dark:shadow-indigo-950/60',
   secondary:
-    'bg-white text-zinc-900 ring-1 ring-zinc-300 ring-inset hover:bg-zinc-50 dark:bg-zinc-900 dark:text-zinc-100 dark:ring-zinc-700 dark:hover:bg-zinc-800',
+    'bg-white text-zinc-900 shadow-xs ring-1 ring-zinc-300 ring-inset hover:bg-zinc-50 hover:ring-zinc-400 dark:bg-zinc-900 dark:text-zinc-100 dark:ring-zinc-700 dark:hover:bg-zinc-800 dark:hover:ring-zinc-600',
   ghost: 'text-zinc-700 hover:bg-zinc-200/70 dark:text-zinc-300 dark:hover:bg-zinc-800',
   danger: 'bg-red-600 text-white hover:bg-red-500',
 } as const

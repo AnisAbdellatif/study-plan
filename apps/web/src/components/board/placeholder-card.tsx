@@ -1,6 +1,7 @@
 import { EllipsisVertical } from 'lucide-react'
 import { useRef } from 'react'
 import { useTranslation } from 'react-i18next'
+import { type AreaTone, NEUTRAL_TONE } from '../../lib/area-colors.ts'
 import { cn } from '../../lib/cn.ts'
 import { useDraggableModule } from '../../lib/dnd.ts'
 import { formatCredits } from '../../lib/format.ts'
@@ -28,6 +29,8 @@ export interface PlaceholderCardProps {
   /** Semesters only: moving a placeholder out of the semesters removes it, which has its own menu entry. */
   destinations: readonly Destination[]
   actions: BoardActions
+  /** Colour of the placeholder's area. */
+  tone?: AreaTone
 }
 
 /** A slot for a module still to be chosen from an area. Drags like a module card; dropping it on the backlog removes it. */
@@ -40,6 +43,7 @@ export function PlaceholderCard({
   creditLabel,
   destinations,
   actions,
+  tone = NEUTRAL_TONE,
 }: PlaceholderCardProps) {
   const { t } = useTranslation('board')
   const ref = useRef<HTMLLIElement>(null)
@@ -56,7 +60,9 @@ export function PlaceholderCard({
         actions.onChoose(id)
       }}
       className={cn(
-        'relative cursor-grab rounded-lg border-2 border-dashed border-zinc-400 bg-white/50 p-2.5 active:cursor-grabbing dark:border-zinc-600 dark:bg-zinc-950/40',
+        'relative cursor-grab rounded-lg border-2 border-l-4 border-dashed border-zinc-400 p-2.5 active:cursor-grabbing dark:border-zinc-500',
+        tone.stripe,
+        tone.soft,
         isDragging && 'opacity-40',
       )}
     >

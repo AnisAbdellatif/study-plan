@@ -54,6 +54,21 @@ export const board = {
     addCustomModule: 'Eigenes Modul hinzufügen',
     emptySemester: 'Module hierher ziehen oder über das Kartenmenü verschieben',
   },
+  view: {
+    label: 'Ansicht',
+    board: 'Planungsboard',
+    overview: 'Studienverlaufsplan',
+  },
+  overview: {
+    title: '{{degree}} {{programme}}',
+    subtitle: '{{university}} · {{poVersion}} · Studienbeginn {{term}}',
+    semester: '{{number}}. Fachsemester',
+    placeholder: 'Wahlpflichtmodul',
+    credits: '{{credits}} {{label}}',
+    legend: 'Bereiche',
+    unplanned_one: '{{count}} Modul ist noch nicht eingeplant.',
+    unplanned_other: '{{count}} Module sind noch nicht eingeplant.',
+  },
   card: {
     gradeSr: 'Note',
     passed: 'bestanden',
@@ -295,8 +310,25 @@ export const board = {
     alsoNeeded: 'Außerdem nötig: {{list}}.',
     or: ' oder ',
   },
+  semesterMenu: {
+    label: 'Aktionen für {{column}}',
+    insertBefore: 'Semester davor einfügen',
+    insertAfter: 'Semester danach einfügen',
+    moveLeft: 'Nach links verschieben',
+    moveRight: 'Nach rechts verschieben',
+    delete: 'Semester löschen…',
+    deleteTitle: '{{column}} löschen?',
+    deleteDescription_one:
+      'Das Semester enthält {{count}} Eintrag. Module landen unter „Nicht eingeplant“, Platzhalter für Wahlpflichtmodule werden entfernt. Die folgenden Semester rücken eine Position nach vorn.',
+    deleteDescription_other:
+      'Das Semester enthält {{count}} Einträge. Module landen unter „Nicht eingeplant“, Platzhalter für Wahlpflichtmodule werden entfernt. Die folgenden Semester rücken eine Position nach vorn.',
+    deleteConfirm: 'Semester löschen',
+  },
   announce: {
     moved: '{{name}} nach {{column}} verschoben',
+    semesterInserted: 'Neues Semester an Position {{number}} eingefügt',
+    semesterMoved: 'Semester an Position {{number}} verschoben',
+    semesterDeleted: '{{column}} gelöscht',
     resultRemoved: 'Ergebnis entfernt',
     graded: 'Note {{grade}} eingetragen',
     passed: 'als bestanden eingetragen',

@@ -117,13 +117,61 @@ export function setModuleResult(plan: Plan, code: string, entry: ResultEntry): P
 }
 
 export function addSemester(plan: Plan): Plan {
+  return insertSemester(plan, plan.semesters.length)
+}
+
+/** A semester id no semester has yet. Ids stay with their semester when semesters are moved. */
+function nextSemesterId(plan: Plan): string {
   const highest = plan.semesters.reduce((max, semester) => {
     const match = /^s(\d+)$/.exec(semester.id)
     return match ? Math.max(max, Number(match[1])) : max
   }, 0)
+  return `s${highest + 1}`
+}
+
+/**
+ * Inserts an empty semester at `index` (0 = before the first, length = after the last). Terms follow the position,
+ * so the semesters after it start one term later.
+ */
+export function insertSemester(plan: Plan, index: number): Plan {
+  if (!Number.isInteger(index) || index < 0 || index > plan.semesters.length) {
+    throw new PlanError(`Invalid semester position ${index}`)
+  }
+  const semesters = [...plan.semesters]
+  semesters.splice(index, 0, { id: nextSemesterId(plan), kind: 'regular', moduleCodes: [] })
+  return { ...plan, semesters }
+}
+
+/** Moves a semester with everything in it to `toIndex`; the other semesters close the gap. */
+export function moveSemester(plan: Plan, semesterId: string, toIndex: number): Plan {
+  const from = plan.semesters.findIndex((semester) => semester.id === semesterId)
+  if (from === -1) throw new PlanError(`Unknown semester "${semesterId}"`)
+  if (!Number.isInteger(toIndex) || toIndex < 0 || toIndex >= plan.semesters.length) {
+    throw new PlanError(`Invalid semester position ${toIndex}`)
+  }
+  if (from === toIndex) return plan
+  const semesters = [...plan.semesters]
+  const [moved] = semesters.splice(from, 1)
+  if (moved) semesters.splice(toIndex, 0, moved)
+  return { ...plan, semesters }
+}
+
+/**
+ * Removes a semester. Its modules move to the end of the backlog; its placeholders are dropped, because a
+ * placeholder only exists inside a semester.
+ */
+export function removeSemester(plan: Plan, semesterId: string): Plan {
+  const target = plan.semesters.find((semester) => semester.id === semesterId)
+  if (!target) throw new PlanError(`Unknown semester "${semesterId}"`)
+  if (plan.semesters.length === 1) throw new PlanError('A plan needs at least one semester')
+  const removedPlaceholders = new Set(target.moduleCodes.filter(isPlaceholderId))
   return {
     ...plan,
-    semesters: [...plan.semesters, { id: `s${highest + 1}`, kind: 'regular', moduleCodes: [] }],
+    semesters: plan.semesters.filter((semester) => semester.id !== semesterId),
+    backlog: [...plan.backlog, ...target.moduleCodes.filter((code) => !isPlaceholderId(code))],
+    ...(plan.placeholders
+      ? { placeholders: plan.placeholders.filter((placeholder) => !removedPlaceholders.has(placeholder.id)) }
+      : {}),
   }
 }
 
@@ -131,11 +179,7 @@ export function addSemester(plan: Plan): Plan {
 export function removeLastSemester(plan: Plan): Plan {
   const last = plan.semesters.at(-1)
   if (!last || plan.semesters.length === 1) throw new PlanError('A plan needs at least one semester')
-  return {
-    ...plan,
-    semesters: plan.semesters.slice(0, -1),
-    backlog: [...plan.backlog, ...last.moduleCodes],
-  }
+  return removeSemester(plan, last.id)
 }
 
 /** True for a real calendar date written as YYYY-MM-DD. */

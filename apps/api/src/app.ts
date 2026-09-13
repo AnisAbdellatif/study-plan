@@ -1,4 +1,4 @@
-import { Hono, type MiddlewareHandler } from 'hono'
+import { type Context, Hono, type MiddlewareHandler } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { csrf } from 'hono/csrf'
 import { createMiddleware } from 'hono/factory'
@@ -12,8 +12,12 @@ import { accountRoutes } from './routes/account.ts'
 import { adminRoutes, requireAdmin } from './routes/admin.ts'
 import { notificationSettingsRoutes, unsubscribeRoutes } from './routes/notifications.ts'
 import { planRoutes } from './routes/plans.ts'
+import { presetRoutes } from './routes/presets.ts'
 import { planShareRoutes, publicShareRoutes } from './routes/shares.ts'
 import type { AppEnv } from './types.ts'
+
+const MB = 1024 * 1024
+const ADMIN_PRESETS_PATH = '/api/admin/presets'
 
 export interface AppDependencies {
   config: Config
@@ -58,9 +62,15 @@ export function createApp({ config, db, auth, mailer, staticFiles }: AppDependen
       referrerPolicy: 'strict-origin-when-cross-origin',
     }),
   )
-  app.use(
-    '/api/*',
-    bodyLimit({ maxSize: 1024 * 1024, onError: (c) => c.json({ error: 'payload_too_large' }, 413) }),
+  const tooLarge = (c: Context) => c.json({ error: 'payload_too_large' }, 413)
+  const defaultBodyLimit = bodyLimit({ maxSize: MB, onError: tooLarge })
+  // Programme files with the full Modulkatalog details (content, literature, learning outcomes of every module)
+  // can exceed 1 MB. Only the admin preset uploads get more room; requireAdmin still runs before the body is read.
+  const presetUploadLimit = bodyLimit({ maxSize: 5 * MB, onError: tooLarge })
+  app.use('/api/*', (c, next) =>
+    c.req.path === ADMIN_PRESETS_PATH || c.req.path.startsWith(`${ADMIN_PRESETS_PATH}/`)
+      ? presetUploadLimit(c, next)
+      : defaultBodyLimit(c, next),
   )
   const csrfProtection = csrf({ origin: config.publicOrigin })
   // One-click unsubscribe requests come from mail clients without an Origin header. The endpoint only turns
@@ -87,6 +97,8 @@ export function createApp({ config, db, auth, mailer, staticFiles }: AppDependen
   app.route('/api/account/notifications', notificationSettingsRoutes(db))
   app.route('/api/account', accountRoutes(db))
   app.route('/api/notifications', unsubscribeRoutes(db, config))
+  // Public: students without an account pick presets on the start page.
+  app.route('/api/presets', presetRoutes(db))
   app.use('/api/admin/*', requireAdmin(auth, db))
   app.route('/api/admin', adminRoutes(db, auth, mailer, config.publicUrl))
   app.all('/api/*', (c) => c.json({ error: 'not_found' }, 404))

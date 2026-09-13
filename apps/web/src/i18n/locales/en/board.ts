@@ -56,6 +56,21 @@ export const board = {
     addCustomModule: 'Add custom module',
     emptySemester: 'Drag modules here or move them with the card menu',
   },
+  view: {
+    label: 'View',
+    board: 'Planning board',
+    overview: 'Study plan overview',
+  },
+  overview: {
+    title: '{{degree}} {{programme}}',
+    subtitle: '{{university}} · {{poVersion}} · starting {{term}}',
+    semester: 'Semester {{number}}',
+    placeholder: 'Elective module',
+    credits: '{{credits}} {{label}}',
+    legend: 'Areas',
+    unplanned_one: '{{count}} module is not planned yet.',
+    unplanned_other: '{{count}} modules are not planned yet.',
+  },
   card: {
     gradeSr: 'Grade',
     passed: 'passed',
@@ -297,8 +312,25 @@ export const board = {
     alsoNeeded: 'Also required: {{list}}.',
     or: ' or ',
   },
+  semesterMenu: {
+    label: 'Actions for {{column}}',
+    insertBefore: 'Insert semester before',
+    insertAfter: 'Insert semester after',
+    moveLeft: 'Move left',
+    moveRight: 'Move right',
+    delete: 'Delete semester…',
+    deleteTitle: 'Delete {{column}}?',
+    deleteDescription_one:
+      'This semester contains {{count}} entry. Modules move to “Not planned”, and placeholders for elective modules are removed. The following semesters move up one position.',
+    deleteDescription_other:
+      'This semester contains {{count}} entries. Modules move to “Not planned”, and placeholders for elective modules are removed. The following semesters move up one position.',
+    deleteConfirm: 'Delete semester',
+  },
   announce: {
     moved: '{{name}} moved to {{column}}',
+    semesterInserted: 'New semester inserted at position {{number}}',
+    semesterMoved: 'Semester moved to position {{number}}',
+    semesterDeleted: '{{column}} deleted',
     resultRemoved: 'result removed',
     graded: 'grade {{grade}} entered',
     passed: 'marked as passed',

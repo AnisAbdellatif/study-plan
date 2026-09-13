@@ -17,4 +17,9 @@ export interface BoardActions {
   onAddCustom: () => void
   onEditCustom: (code: string) => void
   onDeleteCustom: (code: string) => void
+  /** Inserts an empty semester at this position (0 = before the first). */
+  onInsertSemester: (index: number) => void
+  onMoveSemester: (semesterId: string, toIndex: number) => void
+  /** Asks first when the semester is not empty. */
+  onDeleteSemester: (semesterId: string) => void
 }

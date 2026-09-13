@@ -2,6 +2,7 @@ import { currentResult, type PlanModule } from '@study-plan/shared'
 import { CircleAlert, EllipsisVertical, Info, TriangleAlert } from 'lucide-react'
 import { useRef } from 'react'
 import { useTranslation } from 'react-i18next'
+import { type AreaTone, NEUTRAL_TONE } from '../../lib/area-colors.ts'
 import { cn } from '../../lib/cn.ts'
 import { useDraggableModule } from '../../lib/dnd.ts'
 import { formatCredits, formatGrade, formatShortDate } from '../../lib/format.ts'
@@ -37,6 +38,8 @@ export interface ModuleCardProps {
   actions: BoardActions
   /** Validation notes for this module, already worded for the card. */
   notes: readonly IssueText[]
+  /** Colour of the module's area. */
+  tone?: AreaTone
 }
 
 function ResultBadge({ module, passThreshold }: { module: PlanModule; passThreshold: number }) {
@@ -74,6 +77,7 @@ export function ModuleCard({
   destinations,
   actions,
   notes,
+  tone = NEUTRAL_TONE,
 }: ModuleCardProps) {
   const { onMove, onGrade, onDetails } = actions
   const { t } = useTranslation('board')
@@ -91,7 +95,9 @@ export function ModuleCard({
         onDetails(module.code)
       }}
       className={cn(
-        'relative cursor-grab rounded-lg bg-white p-2.5 shadow-sm ring-1 ring-zinc-200 active:cursor-grabbing dark:bg-zinc-950 dark:ring-zinc-800',
+        'relative cursor-grab rounded-lg border-l-4 p-2.5 shadow-sm ring-1 ring-zinc-900/10 active:cursor-grabbing dark:ring-white/10',
+        tone.stripe,
+        tone.soft,
         isDragging && 'opacity-40',
         notes.some((note) => note.severity === 'error')
           ? 'outline-2 outline-red-500/80 dark:outline-red-500/70'
@@ -126,12 +132,12 @@ export function ModuleCard({
               <span className="tabular-nums">{t('card.attempt', { number: module.attempts.length })}</span>
             ) : null}
             {module.attempts.at(-1)?.result === 'registered' ? (
-              <span className="rounded bg-zinc-100 px-1.5 py-0.5 dark:bg-zinc-800">
+              <span className="rounded bg-white/80 px-1.5 py-0.5 dark:bg-zinc-950/50">
                 {t('card.registered')}
               </span>
             ) : null}
             {module.examDate ? (
-              <span className="rounded bg-zinc-100 px-1.5 py-0.5 tabular-nums dark:bg-zinc-800">
+              <span className="rounded bg-white/80 px-1.5 py-0.5 tabular-nums dark:bg-zinc-950/50">
                 {t('card.exam', { date: formatShortDate(module.examDate) })}
               </span>
             ) : null}

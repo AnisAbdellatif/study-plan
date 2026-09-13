@@ -1,6 +1,7 @@
 export const admin = {
   title: 'Verwaltung',
   signedInAs: 'Angemeldet als {{email}}',
+  backToHome: 'Zur Startseite',
   loadingStats: 'Zahlen werden geladen…',
   access: {
     notFound: 'Seite nicht gefunden',
@@ -164,10 +165,57 @@ export const admin = {
     testSent: 'Test-E-Mail an {{email}} gesendet. Schau auch in den Spam-Ordner.',
     testFailed: 'Senden fehlgeschlagen: {{error}}',
   },
+  presets: {
+    heading: 'Vorlagen',
+    intro:
+      'Vorlagen sind die Studiengänge, die Studierende auf der Startseite auswählen. Eine Vorlage ist eine Studiengangsdatei (JSON) im selben Format wie die Datei aus dem Prompt. Hochschule, Studiengang, Abschluss und PO-Version stehen in der Datei; jede Kombination gibt es nur einmal.',
+    add: 'Vorlage hinzufügen',
+    uploading: 'Wird hochgeladen…',
+    addInput: 'Studiengangsdatei (JSON) für eine neue Vorlage auswählen',
+    replaceInput: 'Studiengangsdatei (JSON) zum Ersetzen auswählen',
+    loadError: 'Die Vorlagen ließen sich nicht laden.',
+    empty: 'Noch keine Vorlagen. Studierende sehen auf der Startseite dann nur die anderen Wege.',
+    columns: {
+      programme: 'Studiengang',
+      university: 'Hochschule',
+      poVersion: 'PO-Version',
+      updated: 'Zuletzt geändert',
+      actions: 'Aktionen',
+    },
+    replace: 'Ersetzen…',
+    replaceLabel: '{{name}} ersetzen…',
+    delete: 'Löschen…',
+    deleteLabel: '{{name}} löschen…',
+    footnote:
+      'Ersetzen tauscht die Daten aus und behält die Kennung der Vorlage. Bestehende Pläne behalten ihre eigene Kopie der Daten, auch wenn eine Vorlage gelöscht wird.',
+    added: 'Vorlage {{name}} hinzugefügt.',
+    replaced: 'Vorlage {{name}} ersetzt.',
+    deleted: 'Vorlage {{name}} gelöscht.',
+    exists:
+      'Diese Kombination aus Hochschule, Studiengang, Abschluss und PO-Version gibt es schon als Vorlage. Ersetze stattdessen die bestehende Vorlage.',
+    tooLarge: 'Die Datei ist zu groß. Erlaubt sind höchstens 5 MB.',
+    notFound: 'Diese Vorlage gibt es nicht mehr.',
+    reasons: {
+      empty: 'Die Datei ist leer.',
+      no_json: 'Die Datei enthält kein JSON.',
+      invalid_json: 'Das JSON in der Datei ist fehlerhaft:',
+      invalid_preset:
+        'Die Datei passt nicht zum Aufbau einer Studiengangsdatei. Diese Stellen sind betroffen:',
+    },
+    moreIssues_one: 'und {{count}} weitere Stelle',
+    moreIssues_other: 'und {{count}} weitere Stellen',
+    confirmDelete: {
+      title: 'Vorlage löschen?',
+      description:
+        'Die Vorlage {{name}} wird gelöscht und lässt sich auf der Startseite nicht mehr auswählen. Bestehende Pläne bleiben erhalten.',
+      label: 'Endgültig löschen',
+    },
+  },
   audit: {
     heading: 'Protokoll',
     empty: 'Noch keine Aktionen.',
     account: 'Konto {{id}}',
+    preset: 'Vorlage {{id}}',
     footnote: 'Die letzten 50 Aktionen. Einträge werden nach einem Jahr gelöscht.',
     actions: {
       send_verification_email: 'Bestätigungs-E-Mail gesendet',
@@ -178,6 +226,9 @@ export const admin = {
       revoke_admin: 'Adminrechte entzogen',
       create_admin: 'Admin angelegt',
       send_test_email: 'Test-E-Mail gesendet',
+      create_preset: 'Vorlage hinzugefügt',
+      update_preset: 'Vorlage ersetzt',
+      delete_preset: 'Vorlage gelöscht',
     },
   },
 }

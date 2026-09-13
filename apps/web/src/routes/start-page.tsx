@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next'
 import { useAccountSync } from '../components/account-sync.tsx'
 import { BrandMark } from '../components/brand-logo.tsx'
 import { ImportPlanButton } from '../components/import-plan-button.tsx'
+import { PresetPicker } from '../components/presets/preset-picker.tsx'
 import { AnswerPanel } from '../components/programme-extraction/answer-panel.tsx'
 import { DescribeForm } from '../components/programme-extraction/describe-form.tsx'
 import { emptyDraft, loadDraft, useProgrammeExtraction } from '../components/programme-extraction/draft.ts'
@@ -30,8 +31,8 @@ export const DRAFT_KEY = 'study-plan:custom-preset-draft'
 
 const linkClass = 'font-medium text-indigo-700 underline-offset-4 hover:underline dark:text-indigo-300'
 
-/** Where the new plan comes from: the LLM steps, a programme file, or the example. */
-type Pending = 'programme' | 'file' | 'example'
+/** Where the new plan comes from: an admin preset, the LLM steps, a programme file, or the example. */
+type Pending = 'preset' | 'programme' | 'file' | 'example'
 
 function CreatePlanForm({
   preset,
@@ -74,6 +75,7 @@ export function StartPage() {
     initialDraft: () => loadDraft(DRAFT_KEY) ?? emptyDraft,
   })
   const { draft, result } = extraction
+  const [chosenPreset, setChosenPreset] = useState<Preset | null>(null)
   const [fileResult, setFileResult] = useState<CustomPresetResult | null>(null)
   const [startTerm, setStartTerm] = useState<Term>(() => termAt(new Date()))
   const [pending, setPending] = useState<Pending | null>(null)
@@ -89,6 +91,10 @@ export function StartPage() {
     const now = new Date()
     if (action === 'example') {
       open(createPlanFromPreset(demoPreset, { id: newId(), startTerm: termAt(now), now }))
+      return
+    }
+    if (action === 'preset') {
+      if (chosenPreset) open(createPlanFromPreset(chosenPreset, { id: newId(), startTerm, now }))
       return
     }
     if (action === 'file') {
@@ -146,6 +152,17 @@ export function StartPage() {
           ) : null}
         </div>
       </div>
+
+      <PresetPicker preset={chosenPreset} onPresetChange={setChosenPreset}>
+        {chosenPreset ? (
+          <CreatePlanForm
+            preset={chosenPreset}
+            startTerm={startTerm}
+            onStartTermChange={setStartTerm}
+            onSubmit={() => request('preset')}
+          />
+        ) : null}
+      </PresetPicker>
 
       <ProgrammeFileImport result={fileResult} onResult={setFileResult}>
         {fileResult?.success ? (

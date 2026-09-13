@@ -92,6 +92,7 @@ export function SemesterBoard({ plan, summary, currentIndex, actions, notesByCod
         const info = summary.semesters[index]
         return {
           id: semester.id,
+          index,
           title: t('columns.semester', { number: index + 1 }),
           // The summary labels its terms in German, so the term is formatted here for the current language.
           subtitle: info ? formatTerm(addTerms(plan.startTerm, index), locale) : null,
@@ -104,6 +105,7 @@ export function SemesterBoard({ plan, summary, currentIndex, actions, notesByCod
       }),
       {
         id: null,
+        index: null,
         title: t('columns.backlog'),
         subtitle: null,
         credits,
@@ -148,8 +150,10 @@ export function SemesterBoard({ plan, summary, currentIndex, actions, notesByCod
             type="button"
             onClick={() => scrollTo(column.id)}
             className={cn(
-              'h-8 shrink-0 rounded-full px-3 text-xs font-medium ring-1 ring-zinc-300 ring-inset dark:ring-zinc-700',
-              column.isCurrent && 'bg-indigo-600 text-white ring-indigo-600',
+              'h-8 shrink-0 rounded-full px-3 text-xs font-medium ring-1 ring-inset',
+              column.isCurrent
+                ? 'bg-indigo-600 text-white shadow-sm ring-indigo-600'
+                : 'bg-white/70 ring-zinc-300 dark:bg-zinc-900/70 dark:ring-zinc-700',
             )}
           >
             {column.id === null
@@ -173,6 +177,8 @@ export function SemesterBoard({ plan, summary, currentIndex, actions, notesByCod
             destinations={destinations}
             actions={actions}
             registerElement={registerElement}
+            areas={plan.areas}
+            semesterCount={plan.semesters.length}
           />
         ))}
       </div>

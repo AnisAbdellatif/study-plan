@@ -1,7 +1,7 @@
 export const start = {
   title: 'Studienplan anlegen',
   intro:
-    'Du fügst deinen Studiengang selbst hinzu: Ein Sprachmodell deiner Wahl liest deine Prüfungsordnung und den Modulkatalog aus, und aus seiner Antwort entsteht dein Plan. Die Module werden nach dem Studienverlaufsplan vorsortiert, du kannst sie danach frei verschieben. Du brauchst kein Konto: dein Plan wird nur in diesem Browser gespeichert.',
+    'Wähle deinen Studiengang aus den Vorlagen oder füge ihn selbst hinzu: Ein Sprachmodell deiner Wahl liest deine Prüfungsordnung und den Modulkatalog aus, und aus seiner Antwort entsteht dein Plan. Die Module werden nach dem Studienverlaufsplan vorsortiert, du kannst sie danach frei verschieben. Du brauchst kein Konto: dein Plan wird nur in diesem Browser gespeichert.',
   loadError:
     'Dein gespeicherter Plan konnte nicht gelesen werden. Eine Kopie der Daten bleibt im Browser erhalten. Du kannst einen exportierten Plan importieren oder neu beginnen.',
   dismiss: 'Ausblenden',
@@ -16,6 +16,26 @@ export const start = {
   import: 'Gesicherten Plan wiederherstellen',
   importNote:
     'Für eine Plan-Datei, die du vorher über „Exportieren“ gespeichert hast. Sie enthält deinen ganzen Plan mit Noten und Platzierungen. Eine Studiengangsdatei vom Sprachmodell lädst du dagegen unten unter „Studiengang aus Datei laden“.',
+  presets: {
+    heading: 'Studiengang auswählen',
+    intro:
+      'Für einige Studiengänge gibt es fertige Vorlagen. Such nach Hochschule, Studiengang, Abschluss oder Version der Prüfungsordnung.',
+    label: 'Studiengang suchen',
+    placeholder: 'z. B. Informatik Hannover',
+    hint: 'Mit den Pfeiltasten wählst du einen Treffer aus, mit Enter übernimmst du ihn.',
+    results_one: '{{count}} Studiengang gefunden',
+    results_other: '{{count}} Studiengänge gefunden',
+    noMatches: 'Kein Studiengang passt zu deiner Suche.',
+    loading: 'Studiengänge werden geladen…',
+    empty: 'Noch sind keine Studiengänge hinterlegt.',
+    loadError:
+      'Die Studiengänge konnten gerade nicht geladen werden. Du kannst deinen Studiengang trotzdem unten aus einer Datei laden oder mit einem Sprachmodell erstellen.',
+    loadingPreset: 'Studiengang wird geladen…',
+    presetError:
+      'Dieser Studiengang konnte nicht geladen werden. Wähle ihn noch einmal aus, um es erneut zu versuchen.',
+    alternatives:
+      'Dein Studiengang ist nicht dabei? Lade eine Studiengangsdatei oder erstelle sie mit einem Sprachmodell.',
+  },
   programmeFile: {
     heading: 'Studiengang aus Datei laden',
     intro:

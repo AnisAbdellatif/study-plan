@@ -43,6 +43,13 @@
       "when": 1789289344960,
       "tag": "0005_user_role",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789313644653,
+      "tag": "0006_presets",
+      "breakpoints": true
     }
   ]
 }

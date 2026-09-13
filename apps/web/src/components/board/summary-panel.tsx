@@ -1,18 +1,37 @@
 import type { Plan, PlanSummary, TraceNode } from '@study-plan/shared'
+import { GraduationCap, Layers, type LucideIcon, TrendingUp } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
+import { type AreaTone, areaTone } from '../../lib/area-colors.ts'
 import { cn } from '../../lib/cn.ts'
 import { describeRounding, formatCredits, formatGradeString } from '../../lib/format.ts'
+
+const cardClass = 'rounded-xl bg-white p-4 shadow-sm ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800'
+
+function CardHeading({ icon: Icon, children }: { icon: LucideIcon; children: ReactNode }) {
+  return (
+    <h2 className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
+      <span className="grid size-6 shrink-0 place-items-center rounded-md bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300">
+        <Icon aria-hidden className="size-3.5" />
+      </span>
+      {children}
+    </h2>
+  )
+}
 
 function CreditBar({
   earned,
   planned,
   total,
   label,
+  tone,
 }: {
   earned: number
   planned: number
   total: number
   label: string
+  /** Area colour; the overall bar uses indigo. */
+  tone?: AreaTone
 }) {
   const { t } = useTranslation('board')
   const percent = (value: number) => `${Math.min(100, total > 0 ? (value / total) * 100 : 0)}%`
@@ -31,11 +50,18 @@ function CreditBar({
       className="relative h-2 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800"
     >
       <div
-        className="absolute inset-y-0 left-0 bg-indigo-200 dark:bg-indigo-400/20"
+        className={cn(
+          'absolute inset-y-0 left-0',
+          // The planned part is the earned colour, faded, so each area keeps one hue.
+          tone ? cn(tone.dot, 'opacity-35') : 'bg-indigo-200 dark:bg-indigo-400/25',
+        )}
         style={{ width: percent(planned) }}
       />
       <div
-        className="absolute inset-y-0 left-0 bg-indigo-600 dark:bg-indigo-400"
+        className={cn(
+          'absolute inset-y-0 left-0',
+          tone ? tone.dot : 'bg-linear-to-r from-indigo-600 to-sky-500 dark:from-indigo-400 dark:to-sky-400',
+        )}
         style={{ width: percent(earned) }}
       />
     </div>
@@ -97,8 +123,8 @@ export function SummaryPanel({ plan, summary }: { plan: Plan; summary: PlanSumma
       aria-label={t('summary.overview')}
       className="grid grid-cols-2 gap-3 lg:grid-cols-[minmax(0,14rem)_minmax(0,1fr)_minmax(0,1fr)]"
     >
-      <section className="rounded-xl bg-white p-4 ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800">
-        <h2 className="text-sm text-zinc-600 dark:text-zinc-400">{t('summary.currentAverage')}</h2>
+      <section className="rounded-xl bg-linear-to-br from-indigo-50 to-white p-4 shadow-sm ring-1 ring-indigo-200/70 dark:from-indigo-950/60 dark:to-zinc-900 dark:ring-indigo-900/60">
+        <CardHeading icon={GraduationCap}>{t('summary.currentAverage')}</CardHeading>
         <p className="mt-1 text-3xl font-semibold tabular-nums" data-testid="overall-grade">
           {overall.value !== null ? formatGradeString(overall.value) : '–'}
         </p>
@@ -113,8 +139,8 @@ export function SummaryPanel({ plan, summary }: { plan: Plan; summary: PlanSumma
         </p>
       </section>
 
-      <section className="rounded-xl bg-white p-4 ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800">
-        <h2 className="text-sm text-zinc-600 dark:text-zinc-400">{t('summary.progress')}</h2>
+      <section className={cardClass}>
+        <CardHeading icon={TrendingUp}>{t('summary.progress')}</CardHeading>
         <p className="mt-1 text-lg font-semibold tabular-nums">
           {formatCredits(credits.earned)}{' '}
           <span className="font-normal text-zinc-500">
@@ -134,9 +160,9 @@ export function SummaryPanel({ plan, summary }: { plan: Plan; summary: PlanSumma
         </p>
       </section>
 
-      <section className="col-span-2 rounded-xl bg-white p-4 ring-1 ring-zinc-200 lg:col-span-1 dark:bg-zinc-900 dark:ring-zinc-800">
-        <div className="flex items-baseline justify-between gap-2">
-          <h2 className="text-sm text-zinc-600 dark:text-zinc-400">{t('summary.areas')}</h2>
+      <section className={cn(cardClass, 'col-span-2 lg:col-span-1')}>
+        <div className="flex items-center justify-between gap-2">
+          <CardHeading icon={Layers}>{t('summary.areas')}</CardHeading>
           <span className="text-xs text-zinc-500">{t('summary.areaLegend')}</span>
         </div>
         <ul className="mt-2 space-y-2.5">
@@ -150,10 +176,14 @@ export function SummaryPanel({ plan, summary }: { plan: Plan; summary: PlanSumma
                 })
               : formatCredits(area.minCredits)
             const plannedText = `${area.placeholderCredits > 0 ? '≈' : ''}${formatCredits(planned)}`
+            const tone = areaTone(plan, area.id)
             return (
               <li key={area.id}>
                 <div className="flex justify-between gap-2 text-sm">
-                  <span className="truncate">{area.name}</span>
+                  <span className="flex min-w-0 items-center gap-1.5">
+                    <span aria-hidden className={cn('size-2.5 shrink-0 rounded-full', tone.dot)} />
+                    <span className="truncate">{area.name}</span>
+                  </span>
                   <span
                     className="shrink-0 tabular-nums text-zinc-600 dark:text-zinc-400"
                     title={t('summary.areaValue', {
@@ -175,6 +205,7 @@ export function SummaryPanel({ plan, summary }: { plan: Plan; summary: PlanSumma
                     planned={planned}
                     total={Math.max(area.minCredits, planned)}
                     label={area.name}
+                    tone={tone}
                   />
                 </div>
               </li>
@@ -183,7 +214,7 @@ export function SummaryPanel({ plan, summary }: { plan: Plan; summary: PlanSumma
         </ul>
       </section>
 
-      <details className="col-span-2 rounded-xl print:hidden bg-white p-4 text-sm ring-1 ring-zinc-200 lg:col-span-3 dark:bg-zinc-900 dark:ring-zinc-800">
+      <details className={cn(cardClass, 'col-span-2 text-sm lg:col-span-3 print:hidden')}>
         <summary className="cursor-pointer font-medium">{t('summary.howCalculated')}</summary>
         <ul className="mt-3">
           <TraceGroup node={overall.trace} names={names} depth={0} />

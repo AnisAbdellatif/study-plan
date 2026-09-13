@@ -1,7 +1,9 @@
 import { Link } from '@tanstack/react-router'
+import { ArrowLeft } from 'lucide-react'
 import { type FormEvent, type ReactNode, useCallback, useEffect, useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { BrandMark } from '../components/brand-logo.tsx'
+import { AdminPresetsSection } from '../components/presets/admin-presets-section.tsx'
 import { Button } from '../components/ui/button.tsx'
 import { ConfirmDialog } from '../components/ui/dialog.tsx'
 import { currentIntlLocale } from '../i18n/index.ts'
@@ -19,6 +21,13 @@ import { MailSection } from './admin-mail-section.tsx'
 const cardClass = 'rounded-xl bg-white p-4 ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800'
 const inputClass =
   'mt-1 h-10 w-full rounded-lg bg-white px-3 text-sm ring-1 ring-zinc-300 ring-inset focus-visible:outline-2 focus-visible:outline-indigo-500 dark:bg-zinc-950 dark:ring-zinc-700'
+
+// Same look as the back link on the legal pages, see apps/web/src/legal/legal-page.tsx.
+const backLinkClass =
+  'inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-2 text-sm font-medium text-zinc-900 ring-1 ring-zinc-300 ring-inset hover:bg-zinc-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 dark:bg-zinc-900 dark:text-zinc-100 dark:ring-zinc-700 dark:hover:bg-zinc-800'
+
+/** Audit entries whose target is a preset rather than an account. */
+const PRESET_ACTIONS = new Set<AdminAuditEntry['action']>(['create_preset', 'update_preset', 'delete_preset'])
 
 type ViewerRole = Exclude<UserRole, 'user'>
 
@@ -611,7 +620,10 @@ function AuditLog({ entries }: { entries: AdminAuditEntry[] }) {
                 <span>
                   {t(`audit.actions.${entry.action}`)}{' '}
                   <span className="text-zinc-600 dark:text-zinc-400">
-                    · {t('audit.account', { id: entry.targetUserId })}
+                    ·{' '}
+                    {PRESET_ACTIONS.has(entry.action)
+                      ? t('audit.preset', { id: entry.targetUserId })
+                      : t('audit.account', { id: entry.targetUserId })}
                   </span>
                 </span>
                 <span className="text-xs text-zinc-600 tabular-nums dark:text-zinc-400">
@@ -697,7 +709,13 @@ export function AdminPage() {
   return (
     <main className="mx-auto max-w-6xl space-y-8 px-4 py-6 sm:px-6">
       <header>
-        <BrandMark className="mb-1" />
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+          <BrandMark />
+          <Link to="/" className={backLinkClass}>
+            <ArrowLeft aria-hidden className="size-4" />
+            {t('backToHome')}
+          </Link>
+        </div>
         <h1 className="text-xl font-semibold">{t('title')}</h1>
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
           {t('signedInAs', { email: selfEmail })}
@@ -706,6 +724,7 @@ export function AdminPage() {
       </header>
       {stats ? <Overview stats={stats} /> : <p className="text-sm">{t('loadingStats')}</p>}
       <MailSection onChanged={changed} />
+      <AdminPresetsSection onChanged={changed} />
       {viewer === 'superadmin' ? <AdminTeam {...sectionProps} /> : null}
       <Accounts {...sectionProps} />
       <AuditLog entries={audit} />
