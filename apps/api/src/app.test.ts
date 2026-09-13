@@ -788,3 +788,56 @@ describe('admin', () => {
     expect(rows).toEqual([])
   })
 })
+
+describe('e-mail language', () => {
+  const signUpIn = (email: string, locale: string) =>
+    call('/api/auth/sign-up/email', {
+      method: 'POST',
+      body: { email, password: PASSWORD, name: email.split('@')[0], locale },
+    })
+
+  it('sends the verification e-mail in the language chosen at sign-up and stores it', async () => {
+    expect((await signUpIn('english@example.org', 'en')).status).toBe(200)
+    const mail = lastMailTo('english@example.org')
+    expect(mail.subject).toBe('Please confirm your e-mail address')
+    expect(mail.text).toContain('Study Planner account')
+    const [row] = await connection.db
+      .select({ locale: userTable.locale })
+      .from(userTable)
+      .where(eq(userTable.email, 'english@example.org'))
+    expect(row?.locale).toBe('en')
+  })
+
+  it('falls back to German for missing or unknown languages', async () => {
+    expect((await signUpIn('french@example.org', 'fr')).status).toBe(200)
+    expect(lastMailTo('french@example.org').subject).toBe('Bitte bestätige deine E-Mail-Adresse')
+    expect((await signUp('ohne-sprache@example.org')).status).toBe(200)
+    expect(lastMailTo('ohne-sprache@example.org').subject).toBe('Bitte bestätige deine E-Mail-Adresse')
+  })
+
+  it('follows a language change for password reset and reminder e-mails', async () => {
+    const email = 'switch@example.org'
+    const cookie = await registerVerifiedUser(email)
+    const updated = await call('/api/auth/update-user', { method: 'POST', cookie, body: { locale: 'en' } })
+    expect(updated.status).toBe(200)
+
+    await call('/api/auth/request-password-reset', {
+      method: 'POST',
+      body: { email, redirectTo: '/reset-password' },
+    })
+    expect(lastMailTo(email).subject).toBe('Reset your password')
+
+    const document = planDocument('Exams')
+    document.plan = setExamDate(document.plan, 'INF-101', '2027-06-21')
+    await call('/api/plans', { method: 'POST', cookie, body: { document } })
+    await call('/api/account/notifications', { method: 'PUT', cookie, body: { examReminders: true } })
+    await runReminders({ db: connection.db, mailer, config }, new Date('2027-06-11T08:00:00Z'))
+    const exported = await json<{ user: { locale: string } }>(await call('/api/account/export', { cookie }))
+    expect(exported.user.locale).toBe('en')
+
+    const reminder = lastMailTo(email)
+    expect(reminder.subject).toBe('Reminder: withdrawal deadlines and exams')
+    expect(reminder.text).toMatch(/- Last day to withdraw: Grundlagen der Programmierung, Mon,? 14 June 2027/)
+    expect(reminder.text).toContain('Stop all reminders: http://localhost:5173/unsubscribe?token=')
+  })
+})

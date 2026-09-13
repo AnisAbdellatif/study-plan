@@ -1,6 +1,7 @@
 import { createRootRoute, createRoute, createRouter, Outlet } from '@tanstack/react-router'
 import { AccountSyncProvider } from './components/account-sync.tsx'
 import { AnnouncerProvider } from './components/announcer.tsx'
+import { LocaleSync } from './components/locale-sync.tsx'
 import { SiteFooter } from './components/site-footer.tsx'
 import { DatenschutzPage } from './legal/datenschutz-page.tsx'
 import { ImpressumPage } from './legal/impressum-page.tsx'
@@ -23,6 +24,7 @@ const rootRoute = createRootRoute({
       <AccountSyncProvider>
         <Outlet />
         <SiteFooter />
+        <LocaleSync />
       </AccountSyncProvider>
     </AnnouncerProvider>
   ),

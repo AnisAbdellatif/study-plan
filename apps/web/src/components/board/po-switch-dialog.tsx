@@ -1,5 +1,6 @@
 import { type AvailableTransition, type Plan, previewPoSwitch, switchPo } from '@study-plan/shared'
 import { useId, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useGuestStore } from '../../store/guest-store.ts'
 import { useAnnounce } from '../announcer.tsx'
 import { Button } from '../ui/button.tsx'
@@ -14,6 +15,7 @@ export interface PoSwitchDialogProps {
 }
 
 export function PoSwitchDialog({ plan, transitions, open, onOpenChange }: PoSwitchDialogProps) {
+  const { t } = useTranslation(['dialogs', 'common'])
   const store = useGuestStore()
   const announce = useAnnounce()
   const selectId = useId()
@@ -29,7 +31,7 @@ export function PoSwitchDialog({ plan, transitions, open, onOpenChange }: PoSwit
   const apply = () => {
     store.updatePlan((current) => switchPo(current, available.preset, available.transition))
     onOpenChange(false)
-    announce(`Plan auf ${available.preset.poVersion} umgestellt`)
+    announce(t('poSwitch.announced', { poVersion: available.preset.poVersion }))
   }
 
   return (
@@ -37,14 +39,17 @@ export function PoSwitchDialog({ plan, transitions, open, onOpenChange }: PoSwit
       size="lg"
       open={open}
       onOpenChange={onOpenChange}
-      title="Prüfungsordnung wechseln"
-      description={`Von ${plan.preset.poVersion} zu ${available.preset.poVersion}. Sieh dir an, was übernommen wird, bevor du wechselst.`}
+      title={t('poSwitch.title')}
+      description={t('poSwitch.description', {
+        from: plan.preset.poVersion,
+        to: available.preset.poVersion,
+      })}
     >
       <div className="space-y-4 text-sm">
         {transitions.length > 1 ? (
           <div>
             <label htmlFor={selectId} className="block font-medium">
-              Neue Prüfungsordnung
+              {t('poSwitch.newPo')}
             </label>
             <select
               id={selectId}
@@ -67,29 +72,24 @@ export function PoSwitchDialog({ plan, transitions, open, onOpenChange }: PoSwit
         ) : null}
         {preview.mapped.length > 0 ? (
           <section>
-            <h3 className="font-semibold">Übernommene Module ({preview.mapped.length})</h3>
-            <p className="text-zinc-600 dark:text-zinc-400">
-              Sie heißen in der neuen Prüfungsordnung anders und behalten Platz, Ergebnis und Prüfungstermin.
-            </p>
+            <h3 className="font-semibold">{t('poSwitch.mapped', { number: preview.mapped.length })}</h3>
+            <p className="text-zinc-600 dark:text-zinc-400">{t('poSwitch.mappedHint')}</p>
             <ul className="mt-1 list-disc space-y-0.5 pl-5">
               {preview.mapped.map((module) => (
                 <li key={module.from}>
                   {module.fromName} → {module.toName}
-                  {module.hasResult ? ' (mit Ergebnis)' : ''}
+                  {module.hasResult ? ` ${t('poSwitch.withResult')}` : ''}
                 </li>
               ))}
             </ul>
           </section>
         ) : null}
         <PresetDiffList diff={preview.diff} />
-        <p className="text-zinc-600 dark:text-zinc-400">
-          Verbindlich ist, was dein Prüfungsamt anerkennt. Exportiere deinen Plan vorher, wenn du den alten
-          Stand behalten willst.
-        </p>
+        <p className="text-zinc-600 dark:text-zinc-400">{t('poSwitch.disclaimer')}</p>
         <div className="flex justify-end gap-2">
-          <Button onClick={() => onOpenChange(false)}>Abbrechen</Button>
+          <Button onClick={() => onOpenChange(false)}>{t('common:actions.cancel')}</Button>
           <Button variant="primary" onClick={apply}>
-            Prüfungsordnung wechseln
+            {t('poSwitch.confirm')}
           </Button>
         </div>
       </div>

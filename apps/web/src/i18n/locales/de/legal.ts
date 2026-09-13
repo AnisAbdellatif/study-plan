@@ -1,1 +1,120 @@
-export const legal = {}
+/**
+ * Impressum and Datenschutzerklärung. The German text is legally binding; English is a courtesy translation.
+ * One key per paragraph or list item. Tags such as <retention/> are filled by the page with operator details.
+ */
+export const legal = {
+  backToApp: 'Zurück zum Studienplaner',
+  incomplete:
+    'Diese Seite ist noch nicht vollständig: Angaben zum Betreiber fehlen. Vor der Veröffentlichung müssen sie in der Konfiguration eingetragen werden.',
+  courtesyTranslation: {
+    note: 'Dies ist eine unverbindliche Übersetzung. Rechtlich verbindlich ist allein die deutsche Fassung.',
+    switchToGerman: 'Deutsche Fassung anzeigen',
+  },
+  placeholders: {
+    name: 'Vor- und Nachname',
+    street: 'Straße und Hausnummer',
+    postalCity: 'PLZ und Ort',
+    email: 'E-Mail-Adresse',
+    phone: 'Telefonnummer',
+    hostingProvider: 'Hosting-Anbieter',
+    mailProvider: 'E-Mail-Versanddienst',
+    serverLogRetention: 'Speicherdauer der Server-Logs',
+  },
+  labels: {
+    email: 'E-Mail:',
+    phone: 'Telefon:',
+  },
+  impressum: {
+    title: 'Impressum',
+    operatorHeading: 'Angaben gemäß § 5 DDG',
+    contactHeading: 'Kontakt',
+    programmeDataHeading: 'Hinweis zu den Studiengangsdaten',
+    programmeData:
+      'Die Studiengangsvorlagen werden nach bestem Wissen aus den öffentlich zugänglichen Prüfungsordnungen und Modulkatalogen der Hochschulen erstellt. Maßgeblich sind allein die amtlichen Dokumente der jeweiligen Hochschule. Der berechnete Notenschnitt ist eine unverbindliche Vorschau.',
+  },
+  privacy: {
+    title: 'Datenschutzerklärung',
+    controller: {
+      heading: '1. Verantwortlich',
+    },
+    summary: {
+      heading: '2. Das Wichtigste in Kürze',
+      guest: 'Ohne Konto bleibt dein Plan nur in deinem Browser und wird nicht an uns übertragen.',
+      account:
+        'Mit Konto speichern wir deine E-Mail-Adresse, einen verschlüsselten Passwort-Hash, deine Pläne mit Noten und Informationen zu deinen Anmeldungen.',
+      noTracking:
+        'Es gibt keine Werbung, kein Tracking, keine Analyse-Werkzeuge und keine eingebundenen Inhalte von Drittanbietern wie Schriften oder Skripte.',
+      cookie: 'Wir setzen nur ein technisch notwendiges Cookie, und zwar erst, wenn du dich anmeldest.',
+      sharing: 'Teilst du einen Plan per Link, sieht man darüber nur Semester und Module, nie deine Noten.',
+      selfService: 'Du kannst deine Daten jederzeit selbst herunterladen und dein Konto selbst löschen.',
+    },
+    website: {
+      heading: '3. Aufruf der Website',
+      serverLogs:
+        'Beim Aufruf der Seite verarbeitet der Webserver technisch notwendige Verbindungsdaten: IP-Adresse, Zeitpunkt, aufgerufene Adresse, übertragene Datenmenge und die Kennung deines Browsers. Das ist nötig, um die Seite auszuliefern und die Sicherheit des Servers zu gewährleisten (Art. 6 Abs. 1 lit. f DSGVO). Diese Protokolle werden nach <retention/> gelöscht.',
+      appLogs:
+        'Die Anwendung selbst protokolliert Anfragen nur mit Methode, Pfad, Statuscode und Dauer, ohne IP-Adressen und ohne Inhalte.',
+      hosting:
+        'Der Server wird betrieben bei: <hosting/>. Der Anbieter verarbeitet die Daten in unserem Auftrag (Art. 28 DSGVO).',
+    },
+    guest: {
+      heading: '4. Nutzung ohne Konto',
+      storage:
+        'Dein Plan, deine Noten, Prüfungstermine und dein Zielschnitt werden im lokalen Speicher deines Browsers (localStorage) abgelegt. Diese Daten verlassen deinen Browser nicht, außer du exportierst sie selbst als Datei oder sicherst sie in einem Konto. Die Speicherung ist für die von dir gewünschte Funktion unbedingt erforderlich (§ 25 Abs. 2 Nr. 2 TDDDG). Du löschst die Daten über „Neu beginnen“ oder indem du die Websitedaten in deinem Browser entfernst.',
+    },
+    account: {
+      heading: '5. Nutzung mit Konto',
+      intro: 'Wenn du ein Konto erstellst, speichern wir:',
+      identity:
+        'deine E-Mail-Adresse, einen Anzeigenamen (automatisch der Teil deiner E-Mail-Adresse vor dem @), ob die Adresse bestätigt ist, und wann das Konto angelegt und geändert wurde,',
+      password: 'dein Passwort nur als gesalzenen scrypt-Hash, niemals im Klartext,',
+      plans:
+        'deine Pläne: Studiengang, Module, Semester, Ergebnisse und Noten mit allen Prüfungsversuchen, Prüfungstermine und Zielschnitt,',
+      reminders: 'ob du E-Mail-Erinnerungen eingeschaltet hast,',
+      language:
+        'welche Sprache du für die Website gewählt hast, damit wir dir E-Mails in dieser Sprache schicken,',
+      sessions:
+        'für jede Anmeldung einen zufälligen Sitzungsschlüssel, ihr Ablaufdatum sowie die IP-Adresse und die Browserkennung zum Zeitpunkt der Anmeldung. So kannst du erkennen, wo du angemeldet bist, und Missbrauch lässt sich nachvollziehen.',
+      legalBasis:
+        'Rechtsgrundlage ist die Erfüllung des Nutzungsvertrags (Art. 6 Abs. 1 lit. b DSGVO). Eine Anmeldung bleibt 30 Tage nach der letzten Nutzung gültig. Alle Kontodaten, Pläne und Anmeldungen werden gelöscht, wenn du dein Konto löschst.',
+      adminView:
+        'Zur Betreuung des Dienstes sehen wir in einer Verwaltungsansicht deine E-Mail-Adresse, ob sie bestätigt ist, wann du das Konto angelegt und zuletzt genutzt hast, wie viele Pläne und geteilte Links du hast und ob Erinnerungen eingeschaltet sind, aber keine Noten und keine Planinhalte. Auf Anfrage oder bei Missbrauch können wir dort Bestätigungs-E-Mails senden, Links deaktivieren, Anmeldungen beenden und Konten löschen. Jede solche Aktion protokollieren wir mit der Kontokennung, ohne E-Mail-Adresse, und löschen das Protokoll nach einem Jahr. Rechtsgrundlage ist unser berechtigtes Interesse an einem sicheren und funktionierenden Dienst (Art. 6 Abs. 1 lit. f DSGVO).',
+      grades:
+        'Noten gehören nicht zu den besonderen Kategorien personenbezogener Daten nach Art. 9 DSGVO. Wir behandeln sie trotzdem vertraulich: Sie sind nur über dein Konto abrufbar und werden nicht an andere weitergegeben.',
+    },
+    sharing: {
+      heading: '6. Geteilte Pläne',
+      body: 'Wenn du einen Plan teilst, erzeugen wir einen zufälligen Link. Wir speichern davon nur einen Prüfwert (Hash), den Zeitpunkt der Erstellung und ob du den Link deaktiviert hast. Wer den Link kennt, sieht den Namen des Plans, Studiengang, Semester und Module, aber keine Noten, Prüfungstermine und keinen Zielschnitt, und kann den Plan als eigene Kopie übernehmen. Du kannst den Link jederzeit deaktivieren; er wird zusammen mit dem Plan oder deinem Konto gelöscht. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO.',
+    },
+    emails: {
+      heading: '7. E-Mails',
+      account:
+        'Wir schicken dir E-Mails, die für dein Konto nötig sind: die Bestätigung deiner E-Mail-Adresse und Links zum Zurücksetzen deines Passworts (Art. 6 Abs. 1 lit. b DSGVO).',
+      reminders:
+        'Wenn du auf der Kontoseite E-Mail-Erinnerungen einschaltest, erinnern wir dich an Abmeldefristen und Prüfungstermine, die du in deinen im Konto gespeicherten Plänen eingetragen hast. Die E-Mails enthalten nur Modulnamen und Daten. Damit keine Erinnerung doppelt kommt, speichern wir zu jeder verschickten Erinnerung den Plan, die Modulnummer, die Art und das Datum des Termins sowie den Versandzeitpunkt und löschen diese Einträge 30 Tage nach dem Termin. Du schaltest die Erinnerungen jederzeit auf der Kontoseite oder über den Link in jeder Erinnerung aus. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO.',
+      provider:
+        'Der Versand aller E-Mails erfolgt über <mail/>, der die Daten in unserem Auftrag verarbeitet (Art. 28 DSGVO).',
+    },
+    abuse: {
+      heading: '8. Schutz vor Missbrauch',
+      body: 'Um wiederholte Anmeldeversuche und andere automatisierte Angriffe auf Konten zu begrenzen, speichern wir kurzzeitig einen Zähler je IP-Adresse und aufgerufener Anmeldefunktion. Abrufe geteilter Pläne begrenzen wir ebenso, dafür werden Zähler nur im Arbeitsspeicher gehalten und nicht dauerhaft gespeichert. Rechtsgrundlage ist unser berechtigtes Interesse an der Sicherheit der Konten (Art. 6 Abs. 1 lit. f DSGVO).',
+    },
+    cookies: {
+      heading: '9. Cookies',
+      body: 'Nach der Anmeldung setzen wir ein Cookie mit deinem Sitzungsschlüssel, damit du angemeldet bleibst. Es ist für die Anmeldung unbedingt erforderlich (§ 25 Abs. 2 Nr. 2 TDDDG) und wird beim Abmelden entfernt. Weitere Cookies verwenden wir nicht.',
+    },
+    rights: {
+      heading: '10. Deine Rechte',
+      list: 'Du hast das Recht auf Auskunft (Art. 15 DSGVO), Berichtigung (Art. 16), Löschung (Art. 17), Einschränkung der Verarbeitung (Art. 18) und Datenübertragbarkeit (Art. 20). Gegen Verarbeitungen auf Grundlage berechtigter Interessen kannst du Widerspruch einlegen (Art. 21).',
+      selfService:
+        'Auskunft und Datenübertragbarkeit bekommst du jederzeit selbst über „Daten herunterladen“, und dein Konto löschst du selbst, beides auf der <account>Kontoseite</account>. Für alles andere schreib an die oben genannte E-Mail-Adresse.',
+      complaint:
+        'Du kannst dich außerdem bei einer Datenschutz-Aufsichtsbehörde beschweren (Art. 77 DSGVO), zum Beispiel bei der für deinen Wohnort zuständigen.',
+    },
+    misc: {
+      heading: '11. Sonstiges',
+      body: 'Die Nutzung ist freiwillig. Ein Konto brauchst du nur, wenn dein Plan auf mehreren Geräten verfügbar sein soll. Es findet keine automatisierte Entscheidungsfindung und kein Profiling statt.',
+    },
+    updated: 'Stand: September 2026',
+  },
+}

@@ -1,6 +1,7 @@
 import type { Plan } from '@study-plan/shared'
 import { Download, TriangleAlert } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '../lib/cn.ts'
 import { useGuestState } from '../store/guest-store.ts'
 import { useAccountSync } from './account-sync.tsx'
@@ -38,6 +39,7 @@ function Notice({
 
 /** Guest data lives only in this browser. Warn when saving fails and nudge regular exports. */
 export function StorageNotice({ plan }: { plan: Plan }) {
+  const { t } = useTranslation('board')
   const { saveFailed, lastExportedAt } = useGuestState()
   const exportPlan = useExportPlan()
   const { user, state } = useAccountSync()
@@ -46,15 +48,14 @@ export function StorageNotice({ plan }: { plan: Plan }) {
   const exportButton = (
     <Button size="sm" variant="secondary" onClick={() => exportPlan(plan)}>
       <Download aria-hidden className="size-4" />
-      Exportieren
+      {t('header.export')}
     </Button>
   )
 
   if (saveFailed) {
     return (
       <Notice tone="danger" actions={exportButton}>
-        Dein Plan konnte nicht im Browser gespeichert werden. Exportiere ihn als Datei, damit nichts verloren
-        geht.
+        {t('storage.saveFailed')}
       </Notice>
     )
   }
@@ -73,13 +74,12 @@ export function StorageNotice({ plan }: { plan: Plan }) {
         <>
           {exportButton}
           <Button size="sm" variant="ghost" onClick={() => setDismissed(true)}>
-            Später
+            {t('storage.later')}
           </Button>
         </>
       }
     >
-      Ohne Konto liegt dein Plan nur in diesem Browser. Manche Browser, etwa Safari, löschen Daten von Seiten,
-      die du länger nicht besucht hast. Sichere deinen Plan regelmäßig als Datei.
+      {t('storage.exportReminder')}
     </Notice>
   )
 }

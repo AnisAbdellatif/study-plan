@@ -1,5 +1,6 @@
 import { formatTerm, type Plan, type PlanIssue, type Prerequisite } from '@study-plan/shared'
-import { formatCredits } from './format.ts'
+import i18n, { currentLocale } from '../i18n/index.ts'
+import { formatCredits, formatGrade } from './format.ts'
 
 export interface IssueText {
   severity: PlanIssue['severity']
@@ -13,17 +14,17 @@ export interface DescribedIssues {
   list: IssueText[]
 }
 
-const season = (offering: 'winter' | 'summer') =>
-  offering === 'winter' ? 'Wintersemester' : 'Sommersemester'
+const season = (offering: 'winter' | 'summer') => i18n.t(`issues:season.${offering}`)
 
 export function describeIssues(plan: Plan, issues: readonly PlanIssue[]): DescribedIssues {
+  const t = i18n.t
   const names = new Map(plan.modules.map((module) => [module.code, module.name]))
   const nameOf = (code: string) => names.get(code) ?? code
   const graded = (code: string) => plan.modules.find((module) => module.code === code)?.grading === 'graded'
   const areaName = (id: string) => plan.areas.find((area) => area.id === id)?.name ?? id
   const credits = (value: number) => `${formatCredits(value)} ${plan.preset.creditLabel}`
   const prerequisite = (item: Prerequisite) =>
-    typeof item === 'string' ? nameOf(item) : item.anyOf.map(nameOf).join(' oder ')
+    typeof item === 'string' ? nameOf(item) : item.anyOf.map(nameOf).join(t('issues:or'))
 
   const byModule = new Map<string, IssueText[]>()
   const list: IssueText[] = []
@@ -37,71 +38,94 @@ export function describeIssues(plan: Plan, issues: readonly PlanIssue[]): Descri
       case 'wrong_term':
         add(
           issue.severity,
-          `${nameOf(issue.code)} wird nur im ${season(issue.offering)} angeboten, ist aber im ${formatTerm(issue.term)} geplant.`,
+          t('issues:wrongTerm', {
+            name: nameOf(issue.code),
+            season: season(issue.offering),
+            term: formatTerm(issue.term, currentLocale()),
+          }),
           issue.code,
-          `Nur im ${season(issue.offering)} angeboten`,
+          t('issues:wrongTermCard', { season: season(issue.offering) }),
         )
         break
       case 'irregular_offering':
         add(
           issue.severity,
-          `${nameOf(issue.code)} wird unregelmäßig angeboten. Prüfe das aktuelle Lehrangebot.`,
+          t('issues:irregularOffering', { name: nameOf(issue.code) }),
           issue.code,
-          'Wird unregelmäßig angeboten',
+          t('issues:irregularOfferingCard'),
         )
         break
       case 'missing_prerequisite': {
         const missing = issue.missing.map(prerequisite)
         add(
           issue.severity,
-          `${nameOf(issue.code)} setzt ${missing.join(' und ')} voraus. Plane das vorher ein.`,
+          t('issues:missingPrerequisite', {
+            name: nameOf(issue.code),
+            missing: missing.join(t('issues:and')),
+          }),
           issue.code,
-          `Voraussetzung fehlt: ${missing.join(', ')}`,
+          t('issues:missingPrerequisiteCard', { missing: missing.join(', ') }),
         )
         break
       }
       case 'not_enough_credits':
         add(
           issue.severity,
-          `${nameOf(issue.code)} setzt ${credits(issue.required)} voraus, bis dahin sind ${credits(issue.available)} eingeplant.`,
+          t('issues:notEnoughCredits', {
+            name: nameOf(issue.code),
+            required: credits(issue.required),
+            available: credits(issue.available),
+          }),
           issue.code,
-          `Erst ab ${credits(issue.required)}`,
+          t('issues:notEnoughCreditsCard', { required: credits(issue.required) }),
         )
         break
       case 'attempts_exhausted':
         add(
           issue.severity,
-          `${nameOf(issue.code)}: alle ${issue.maxAttempts} Versuche sind ohne Bestehen verbraucht. Bei Pflicht- und Wahlpflichtmodulen bedeutet das meist das endgültige Nichtbestehen. Sprich mit dem Prüfungsamt oder der Studienberatung.`,
+          t('issues:attemptsExhausted', { name: nameOf(issue.code), max: issue.maxAttempts }),
           issue.code,
-          'Keine Versuche mehr',
+          t('issues:attemptsExhaustedCard'),
         )
         break
-      case 'last_attempt':
-        add(
-          issue.severity,
-          `${nameOf(issue.code)}: nur noch ein Versuch von ${issue.maxAttempts} übrig.${issue.supplementaryExam ? ` Fällst du im letzten Versuch durch eine Klausur, folgt erst eine Ergänzungsprüfung, danach ist ${graded(issue.code) ? 'höchstens 4,0' : 'nur „bestanden“'} möglich.` : ''}`,
-          issue.code,
-          'Letzter Versuch',
-        )
+      case 'last_attempt': {
+        const sentences = [t('issues:lastAttempt', { name: nameOf(issue.code), max: issue.maxAttempts })]
+        if (issue.supplementaryExam) {
+          sentences.push(
+            graded(issue.code)
+              ? t('issues:lastAttemptSupplementaryGraded', { grade: formatGrade(4) })
+              : t('issues:lastAttemptSupplementaryPassFail'),
+          )
+        }
+        add(issue.severity, sentences.join(' '), issue.code, t('issues:lastAttemptCard'))
         break
+      }
       case 'retaken_after_pass':
         add(
           issue.severity,
-          `${nameOf(issue.code)} ist nach dem Bestehen noch einmal eingetragen. Laut Prüfungsordnung lassen sich bestandene Prüfungen nicht wiederholen.`,
+          t('issues:retakenAfterPass', { name: nameOf(issue.code) }),
           issue.code,
-          'Nach dem Bestehen wiederholt',
+          t('issues:retakenAfterPassCard'),
         )
         break
       case 'area_below_minimum':
         add(
           issue.severity,
-          `${areaName(issue.areaId)}: ${credits(issue.planned)} von mindestens ${credits(issue.minCredits)} eingeplant.`,
+          t('issues:areaBelowMinimum', {
+            area: areaName(issue.areaId),
+            planned: credits(issue.planned),
+            min: credits(issue.minCredits),
+          }),
         )
         break
       case 'area_above_maximum':
         add(
           issue.severity,
-          `${areaName(issue.areaId)}: ${credits(issue.planned)} eingeplant, vorgesehen sind höchstens ${credits(issue.maxCredits)}.`,
+          t('issues:areaAboveMaximum', {
+            area: areaName(issue.areaId),
+            planned: credits(issue.planned),
+            max: credits(issue.maxCredits),
+          }),
         )
         break
     }

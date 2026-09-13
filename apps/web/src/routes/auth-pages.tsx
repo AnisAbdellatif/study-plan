@@ -1,8 +1,10 @@
 import { Link, Navigate, useNavigate, useSearch } from '@tanstack/react-router'
 import { type FormEvent, type ReactNode, useEffect, useId, useState } from 'react'
+import { Trans, useTranslation } from 'react-i18next'
 import { describeSyncState, useAccountSync } from '../components/account-sync.tsx'
 import { Button } from '../components/ui/button.tsx'
 import { ConfirmDialog } from '../components/ui/dialog.tsx'
+import i18n, { currentLocale } from '../i18n/index.ts'
 import { adminApi, notificationApi } from '../lib/api.ts'
 import { authClient } from '../lib/auth-client.ts'
 import { downloadFile } from '../lib/files.ts'
@@ -24,30 +26,30 @@ interface AuthError {
 
 export function describeAuthError(error: AuthError): string {
   if (error.code === 'PASSWORD_TOO_SHORT')
-    return `Das Passwort muss mindestens ${MIN_PASSWORD_LENGTH} Zeichen lang sein.`
-  if (error.code?.startsWith('USER_ALREADY_EXISTS'))
-    return 'Mit dieser E-Mail-Adresse gibt es schon ein Konto. Melde dich an oder setze dein Passwort zurück.'
-  if (error.code === 'INVALID_TOKEN') return 'Der Link ist ungültig oder abgelaufen. Fordere einen neuen an.'
+    return i18n.t('auth:errors.passwordTooShort', { min: MIN_PASSWORD_LENGTH })
+  if (error.code?.startsWith('USER_ALREADY_EXISTS')) return i18n.t('auth:errors.userExists')
+  if (error.code === 'INVALID_TOKEN') return i18n.t('auth:errors.invalidToken')
   switch (error.status) {
     case 401:
-      return 'E-Mail-Adresse oder Passwort stimmen nicht.'
+      return i18n.t('auth:errors.invalidCredentials')
     case 403:
-      return 'Bitte bestätige zuerst deine E-Mail-Adresse über den Link, den wir dir geschickt haben.'
+      return i18n.t('auth:errors.emailNotVerified')
     case 429:
-      return 'Zu viele Versuche. Bitte warte eine Minute und versuche es dann noch einmal.'
+      return i18n.t('auth:errors.tooManyAttempts')
     default:
-      return 'Das hat nicht geklappt. Bitte versuche es später noch einmal.'
+      return i18n.t('auth:errors.generic')
   }
 }
 
 function AuthLayout({ title, intro, children }: { title: string; intro?: ReactNode; children: ReactNode }) {
+  const { t } = useTranslation()
   return (
     <main className="mx-auto flex min-h-[80dvh] max-w-md flex-col justify-center px-4 py-10">
       <Link
         to="/"
         className="text-xs font-medium tracking-wide text-indigo-600 uppercase dark:text-indigo-400"
       >
-        Studienplaner
+        {t('brand')}
       </Link>
       <h1 className="mt-1 text-2xl font-semibold">{title}</h1>
       {intro ? <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">{intro}</p> : null}
@@ -89,6 +91,7 @@ function Alert({ children, tone = 'danger' }: { children: ReactNode; tone?: 'dan
 }
 
 export function SignInPage() {
+  const { t } = useTranslation('auth')
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -112,23 +115,20 @@ export function SignInPage() {
   }
 
   return (
-    <AuthLayout
-      title="Anmelden"
-      intro="Mit einem Konto ist dein Plan auf allen deinen Geräten verfügbar und nicht nur in diesem Browser."
-    >
+    <AuthLayout title={t('signIn.title')} intro={t('signIn.intro')}>
       <form onSubmit={submit} className={cardClass}>
         {error ? <Alert>{describeAuthError(error)}</Alert> : null}
         {error?.status === 403 ? (
           resent ? (
-            <Alert tone="success">Wir haben dir eine neue Bestätigungs-E-Mail geschickt.</Alert>
+            <Alert tone="success">{t('signIn.verificationResent')}</Alert>
           ) : (
             <Button size="sm" onClick={resend}>
-              Bestätigungs-E-Mail erneut senden
+              {t('signIn.resendVerification')}
             </Button>
           )
         ) : null}
         <Field
-          label="E-Mail-Adresse"
+          label={t('fields.email')}
           type="email"
           autoComplete="email"
           required
@@ -136,7 +136,7 @@ export function SignInPage() {
           onChange={(e) => setEmail(e.target.value)}
         />
         <Field
-          label="Passwort"
+          label={t('fields.password')}
           type="password"
           autoComplete="current-password"
           required
@@ -144,15 +144,15 @@ export function SignInPage() {
           onChange={(e) => setPassword(e.target.value)}
         />
         <Button type="submit" variant="primary" className="w-full" disabled={pending}>
-          {pending ? 'Wird angemeldet…' : 'Anmelden'}
+          {pending ? t('signIn.pending') : t('signIn.submit')}
         </Button>
       </form>
       <div className="mt-4 flex flex-wrap justify-between gap-2 text-sm">
         <Link to="/forgot-password" className={linkClass}>
-          Passwort vergessen?
+          {t('signIn.forgotPassword')}
         </Link>
         <Link to="/sign-up" className={linkClass}>
-          Noch kein Konto? Registrieren
+          {t('signIn.noAccount')}
         </Link>
       </div>
     </AuthLayout>
@@ -160,6 +160,7 @@ export function SignInPage() {
 }
 
 export function SignUpPage() {
+  const { t } = useTranslation('auth')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [pending, setPending] = useState(false)
@@ -177,6 +178,7 @@ export function SignUpPage() {
       // Better Auth requires a name; the part before the @ avoids asking for more personal data.
       name: email.split('@')[0] || email,
       callbackURL: VERIFIED_CALLBACK,
+      locale: currentLocale(),
     })
     setPending(false)
     if (result.error) setError(result.error)
@@ -185,14 +187,18 @@ export function SignUpPage() {
 
   if (sentTo) {
     return (
-      <AuthLayout title="Bestätige deine E-Mail-Adresse">
+      <AuthLayout title={t('signUp.checkTitle')}>
         <div className={cardClass}>
           <p className="text-sm">
-            Wir haben dir eine E-Mail an <strong>{sentTo}</strong> geschickt. Öffne den Link darin, dann ist
-            dein Konto aktiv und du bist angemeldet. Der Link ist eine Stunde gültig.
+            <Trans
+              t={t}
+              i18nKey="signUp.checkText"
+              values={{ email: sentTo }}
+              components={{ strong: <strong /> }}
+            />
           </p>
           {resent ? (
-            <Alert tone="success">Wir haben dir die E-Mail noch einmal geschickt.</Alert>
+            <Alert tone="success">{t('signUp.resent')}</Alert>
           ) : (
             <Button
               size="sm"
@@ -201,7 +207,7 @@ export function SignUpPage() {
                 setResent(true)
               }}
             >
-              E-Mail erneut senden
+              {t('signUp.resend')}
             </Button>
           )}
         </div>
@@ -210,14 +216,11 @@ export function SignUpPage() {
   }
 
   return (
-    <AuthLayout
-      title="Konto erstellen"
-      intro="Dein Plan aus diesem Browser lässt sich danach im Konto sichern. Wir brauchen nur deine E-Mail-Adresse und ein Passwort."
-    >
+    <AuthLayout title={t('signUp.title')} intro={t('signUp.intro')}>
       <form onSubmit={submit} className={cardClass}>
         {error ? <Alert>{describeAuthError(error)}</Alert> : null}
         <Field
-          label="E-Mail-Adresse"
+          label={t('fields.email')}
           type="email"
           autoComplete="email"
           required
@@ -225,30 +228,30 @@ export function SignUpPage() {
           onChange={(e) => setEmail(e.target.value)}
         />
         <Field
-          label="Passwort"
+          label={t('fields.password')}
           type="password"
           autoComplete="new-password"
           required
           minLength={MIN_PASSWORD_LENGTH}
           maxLength={128}
-          hint={`Mindestens ${MIN_PASSWORD_LENGTH} Zeichen. Ein langer Satz ist leichter zu merken als ein kurzes, kompliziertes Passwort.`}
+          hint={t('signUp.passwordHint', { min: MIN_PASSWORD_LENGTH })}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
         <p className="text-xs text-zinc-600 dark:text-zinc-400">
-          Welche Daten wir speichern, steht in der{' '}
-          <Link to="/privacy" className={linkClass}>
-            Datenschutzerklärung
-          </Link>
-          .
+          <Trans
+            t={t}
+            i18nKey="signUp.privacy"
+            components={{ privacyLink: <Link to="/privacy" className={linkClass} /> }}
+          />
         </p>
         <Button type="submit" variant="primary" className="w-full" disabled={pending}>
-          {pending ? 'Wird erstellt…' : 'Konto erstellen'}
+          {pending ? t('signUp.pending') : t('signUp.submit')}
         </Button>
       </form>
       <p className="mt-4 text-sm">
         <Link to="/sign-in" className={linkClass}>
-          Schon ein Konto? Anmelden
+          {t('signUp.haveAccount')}
         </Link>
       </p>
     </AuthLayout>
@@ -256,6 +259,7 @@ export function SignUpPage() {
 }
 
 export function ForgotPasswordPage() {
+  const { t } = useTranslation('auth')
   const [email, setEmail] = useState('')
   const [pending, setPending] = useState(false)
   const [done, setDone] = useState(false)
@@ -273,18 +277,15 @@ export function ForgotPasswordPage() {
   }
 
   return (
-    <AuthLayout title="Passwort vergessen">
+    <AuthLayout title={t('forgotPassword.title')}>
       <form onSubmit={submit} className={cardClass}>
         {done ? (
-          <Alert tone="success">
-            Falls es ein Konto mit dieser Adresse gibt, haben wir dir einen Link zum Zurücksetzen geschickt.
-            Er ist eine Stunde gültig.
-          </Alert>
+          <Alert tone="success">{t('forgotPassword.sent')}</Alert>
         ) : (
           <>
             {error ? <Alert>{describeAuthError(error)}</Alert> : null}
             <Field
-              label="E-Mail-Adresse"
+              label={t('fields.email')}
               type="email"
               autoComplete="email"
               required
@@ -292,14 +293,14 @@ export function ForgotPasswordPage() {
               onChange={(e) => setEmail(e.target.value)}
             />
             <Button type="submit" variant="primary" className="w-full" disabled={pending}>
-              Link anfordern
+              {t('forgotPassword.submit')}
             </Button>
           </>
         )}
       </form>
       <p className="mt-4 text-sm">
         <Link to="/sign-in" className={linkClass}>
-          Zurück zur Anmeldung
+          {t('forgotPassword.back')}
         </Link>
       </p>
     </AuthLayout>
@@ -307,6 +308,7 @@ export function ForgotPasswordPage() {
 }
 
 export function ResetPasswordPage() {
+  const { t } = useTranslation('auth')
   const search = useSearch({ strict: false }) as { token?: unknown; error?: unknown }
   const token = typeof search.token === 'string' ? search.token : null
   const [password, setPassword] = useState('')
@@ -317,11 +319,11 @@ export function ResetPasswordPage() {
 
   if (!token || search.error) {
     return (
-      <AuthLayout title="Link ungültig">
+      <AuthLayout title={t('resetPassword.invalidTitle')}>
         <div className={cardClass}>
           <Alert>{describeAuthError({ code: 'INVALID_TOKEN' })}</Alert>
           <Link to="/forgot-password" className={linkClass}>
-            Neuen Link anfordern
+            {t('resetPassword.requestNew')}
           </Link>
         </div>
       </AuthLayout>
@@ -343,25 +345,23 @@ export function ResetPasswordPage() {
   }
 
   return (
-    <AuthLayout title="Neues Passwort festlegen">
+    <AuthLayout title={t('resetPassword.title')}>
       {done ? (
         <div className={cardClass}>
-          <Alert tone="success">Dein Passwort ist geändert. Andere Anmeldungen wurden beendet.</Alert>
+          <Alert tone="success">{t('resetPassword.done')}</Alert>
           <Link to="/sign-in" className={linkClass}>
-            Jetzt anmelden
+            {t('resetPassword.signInNow')}
           </Link>
         </div>
       ) : (
         <form onSubmit={submit} className={cardClass}>
           {error ? (
             <Alert>
-              {error.code === 'PASSWORDS_DIFFER'
-                ? 'Die beiden Passwörter stimmen nicht überein.'
-                : describeAuthError(error)}
+              {error.code === 'PASSWORDS_DIFFER' ? t('errors.passwordsDiffer') : describeAuthError(error)}
             </Alert>
           ) : null}
           <Field
-            label="Neues Passwort"
+            label={t('resetPassword.newPassword')}
             type="password"
             autoComplete="new-password"
             required
@@ -371,7 +371,7 @@ export function ResetPasswordPage() {
             onChange={(e) => setPassword(e.target.value)}
           />
           <Field
-            label="Passwort wiederholen"
+            label={t('resetPassword.repeatPassword')}
             type="password"
             autoComplete="new-password"
             required
@@ -379,7 +379,7 @@ export function ResetPasswordPage() {
             onChange={(e) => setConfirmation(e.target.value)}
           />
           <Button type="submit" variant="primary" className="w-full" disabled={pending}>
-            Passwort speichern
+            {t('resetPassword.submit')}
           </Button>
         </form>
       )}
@@ -390,6 +390,7 @@ export function ResetPasswordPage() {
 type ReminderState = { status: 'loading' } | { status: 'ready'; enabled: boolean } | { status: 'error' }
 
 function ReminderSettings() {
+  const { t } = useTranslation(['auth', 'common'])
   const [state, setState] = useState<ReminderState>({ status: 'loading' })
   const [saving, setSaving] = useState(false)
   const checkboxId = useId()
@@ -424,20 +425,12 @@ function ReminderSettings() {
   return (
     <section className={cardClass} aria-labelledby="konto-erinnerungen">
       <h2 id="konto-erinnerungen" className="font-semibold">
-        E-Mail-Erinnerungen
+        {t('reminders.title')}
       </h2>
-      <p className="text-sm text-zinc-600 dark:text-zinc-400">
-        Wir schreiben dir 3 Tage vor dem letzten Tag zur Abmeldung und 7 Tage vor einer Prüfung. Grundlage
-        sind die Prüfungstermine in deinen im Konto gespeicherten Plänen. Die E-Mails enthalten nur Modulnamen
-        und Daten.
-      </p>
-      {state.status === 'error' ? (
-        <Alert>
-          Die Einstellung ließ sich nicht laden oder speichern. Bitte versuche es später noch einmal.
-        </Alert>
-      ) : null}
+      <p className="text-sm text-zinc-600 dark:text-zinc-400">{t('reminders.intro')}</p>
+      {state.status === 'error' ? <Alert>{t('reminders.error')}</Alert> : null}
       {state.status === 'loading' ? (
-        <p className="text-sm">Wird geladen…</p>
+        <p className="text-sm">{t('common:loading')}</p>
       ) : state.status === 'ready' ? (
         <div className="flex items-start gap-2 text-sm">
           <input
@@ -448,7 +441,7 @@ function ReminderSettings() {
             disabled={saving}
             onChange={(event) => void toggle(event.target.checked)}
           />
-          <label htmlFor={checkboxId}>An Abmeldefristen und Prüfungen erinnern</label>
+          <label htmlFor={checkboxId}>{t('reminders.label')}</label>
         </div>
       ) : null}
     </section>
@@ -457,6 +450,7 @@ function ReminderSettings() {
 
 /** Shown only to accounts listed in ADMIN_EMAILS; everyone else gets a 404 from the check. */
 function AdminLink() {
+  const { t } = useTranslation('auth')
   const [allowed, setAllowed] = useState(false)
   useEffect(() => {
     let active = true
@@ -474,13 +468,14 @@ function AdminLink() {
   return (
     <p className="text-sm">
       <Link to="/admin" className={linkClass}>
-        Zur Verwaltung
+        {t('account.adminLink')}
       </Link>
     </p>
   )
 }
 
 export function UnsubscribePage() {
+  const { t } = useTranslation('auth')
   const search = useSearch({ strict: false }) as { token?: unknown }
   const token = typeof search.token === 'string' ? search.token : ''
   const [state, setState] = useState<'idle' | 'pending' | 'done' | 'error'>('idle')
@@ -496,32 +491,23 @@ export function UnsubscribePage() {
   }
 
   return (
-    <AuthLayout title="E-Mail-Erinnerungen ausschalten">
+    <AuthLayout title={t('unsubscribe.title')}>
       {token === '' ? (
-        <Alert>
-          Der Link ist unvollständig. Öffne ihn direkt aus der E-Mail oder schalte die Erinnerungen im Konto
-          aus.
-        </Alert>
+        <Alert>{t('unsubscribe.incomplete')}</Alert>
       ) : state === 'done' ? (
-        <Alert tone="success">
-          Erinnerungen sind ausgeschaltet. Auf der Kontoseite kannst du sie jederzeit wieder einschalten.
-        </Alert>
+        <Alert tone="success">{t('unsubscribe.done')}</Alert>
       ) : (
         <div className="mt-6 space-y-4">
-          {state === 'error' ? (
-            <Alert>
-              Der Link ist ungültig oder abgelaufen. Du kannst die Erinnerungen im Konto ausschalten.
-            </Alert>
-          ) : null}
-          <p className="text-sm">Du bekommst dann keine Erinnerungen an Abmeldefristen und Prüfungen mehr.</p>
+          {state === 'error' ? <Alert>{t('unsubscribe.invalid')}</Alert> : null}
+          <p className="text-sm">{t('unsubscribe.explanation')}</p>
           <Button variant="primary" disabled={state === 'pending'} onClick={() => void unsubscribe()}>
-            Erinnerungen ausschalten
+            {t('unsubscribe.submit')}
           </Button>
         </div>
       )}
       <p className="mt-6 text-sm">
         <Link to="/account" className={linkClass}>
-          Zum Konto
+          {t('unsubscribe.toAccount')}
         </Link>
       </p>
     </AuthLayout>
@@ -529,6 +515,7 @@ export function UnsubscribePage() {
 }
 
 export function AccountPage() {
+  const { t } = useTranslation(['auth', 'common'])
   const navigate = useNavigate()
   const search = useSearch({ strict: false }) as { verified?: unknown }
   const { sync, state, user, sessionPending } = useAccountSync()
@@ -540,8 +527,8 @@ export function AccountPage() {
 
   if (sessionPending) {
     return (
-      <AuthLayout title="Konto">
-        <p className="mt-6 text-sm">Wird geladen…</p>
+      <AuthLayout title={t('account.loadingTitle')}>
+        <p className="mt-6 text-sm">{t('common:loading')}</p>
       </AuthLayout>
     )
   }
@@ -554,7 +541,7 @@ export function AccountPage() {
       if (!response.ok) throw new Error(String(response.status))
       const filename =
         /filename="([^"]+)"/.exec(response.headers.get('content-disposition') ?? '')?.[1] ??
-        'studienplaner-daten.json'
+        t('account.data.exportFilename')
       downloadFile(filename, await response.text(), 'application/json')
     } catch {
       setExportError(true)
@@ -573,7 +560,7 @@ export function AccountPage() {
     if (result.error) {
       setDeleteError(
         result.error.status === 401 || result.error.status === 400
-          ? 'Das Passwort stimmt nicht.'
+          ? t('errors.wrongPassword')
           : describeAuthError(result.error),
       )
       return
@@ -583,28 +570,33 @@ export function AccountPage() {
   }
 
   return (
-    <AuthLayout title="Dein Konto">
-      {search.verified ? <Alert tone="success">Deine E-Mail-Adresse ist bestätigt. Willkommen!</Alert> : null}
+    <AuthLayout title={t('account.title')}>
+      {search.verified ? <Alert tone="success">{t('account.verified')}</Alert> : null}
 
       <section className={cardClass} aria-labelledby="konto-plan">
         <h2 id="konto-plan" className="font-semibold">
-          Plan
+          {t('account.plan.title')}
         </h2>
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          Angemeldet als <strong className="text-zinc-900 dark:text-zinc-100">{user.email}</strong>.{' '}
+          <Trans
+            t={t}
+            i18nKey="account.plan.signedInAs"
+            values={{ email: user.email }}
+            components={{ strong: <strong className="text-zinc-900 dark:text-zinc-100" /> }}
+          />{' '}
           {describeSyncState(state, true)}.
         </p>
         <div className="flex flex-wrap gap-2">
           {state.kind === 'no_account_plan' && plan ? (
             <Button variant="primary" onClick={() => void sync.uploadLocal()}>
-              Plan im Konto sichern
+              {t('account.plan.upload')}
             </Button>
           ) : null}
           {state.kind === 'error' ? (
-            <Button onClick={() => void sync.retry()}>Erneut versuchen</Button>
+            <Button onClick={() => void sync.retry()}>{t('account.plan.retry')}</Button>
           ) : null}
           <Link to={plan ? '/' : '/start'} className={`${linkClass} self-center text-sm`}>
-            {plan ? 'Zum Plan' : 'Plan anlegen'}
+            {plan ? t('account.plan.open') : t('account.plan.create')}
           </Link>
         </div>
       </section>
@@ -614,29 +606,23 @@ export function AccountPage() {
 
       <section className={cardClass} aria-labelledby="konto-daten">
         <h2 id="konto-daten" className="font-semibold">
-          Deine Daten
+          {t('account.data.title')}
         </h2>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          Lade alles herunter, was zu deinem Konto gespeichert ist: E-Mail-Adresse, Pläne mit Noten und aktive
-          Anmeldungen.
-        </p>
-        {exportError ? <Alert>Der Download hat nicht geklappt. Bitte versuche es noch einmal.</Alert> : null}
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">{t('account.data.intro')}</p>
+        {exportError ? <Alert>{t('account.data.exportError')}</Alert> : null}
         <div className="flex flex-wrap gap-2">
-          <Button onClick={exportData}>Daten herunterladen (JSON)</Button>
+          <Button onClick={exportData}>{t('account.data.download')}</Button>
           <Button variant="ghost" onClick={signOut}>
-            Abmelden
+            {t('account.data.signOut')}
           </Button>
         </div>
       </section>
 
       <section className={cardClass} aria-labelledby="konto-loeschen">
         <h2 id="konto-loeschen" className="font-semibold">
-          Konto löschen
+          {t('account.delete.title')}
         </h2>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          Löscht dein Konto und alle Pläne darin endgültig vom Server. Der Plan in diesem Browser bleibt
-          erhalten, bis du ihn selbst löschst.
-        </p>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">{t('account.delete.intro')}</p>
         {deleteError ? <Alert>{deleteError}</Alert> : null}
         <form
           onSubmit={(event) => {
@@ -646,7 +632,7 @@ export function AccountPage() {
           className="space-y-3"
         >
           <Field
-            label="Passwort zur Bestätigung"
+            label={t('account.delete.passwordLabel')}
             type="password"
             autoComplete="current-password"
             required
@@ -654,7 +640,7 @@ export function AccountPage() {
             onChange={(e) => setPassword(e.target.value)}
           />
           <Button type="submit" variant="danger">
-            Konto löschen…
+            {t('account.delete.submit')}
           </Button>
         </form>
       </section>
@@ -662,9 +648,9 @@ export function AccountPage() {
       <ConfirmDialog
         open={confirmDelete}
         onOpenChange={setConfirmDelete}
-        title="Konto endgültig löschen?"
-        description="Dein Konto und alle im Konto gespeicherten Pläne werden sofort gelöscht. Das lässt sich nicht rückgängig machen."
-        confirmLabel="Endgültig löschen"
+        title={t('account.delete.confirmTitle')}
+        description={t('account.delete.confirmDescription')}
+        confirmLabel={t('account.delete.confirm')}
         destructive
         onConfirm={() => void deleteAccount()}
       />

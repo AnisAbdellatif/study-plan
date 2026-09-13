@@ -1,6 +1,7 @@
 import { AlertDialog } from '@base-ui/react/alert-dialog'
 import { Dialog as BaseDialog } from '@base-ui/react/dialog'
 import type { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Button } from './button.tsx'
 
 const backdropClass = 'fixed inset-0 z-40 bg-zinc-950/40'
@@ -57,10 +58,11 @@ export function ConfirmDialog({
   title,
   description,
   confirmLabel,
-  cancelLabel = 'Abbrechen',
+  cancelLabel,
   destructive = false,
   onConfirm,
 }: ConfirmDialogProps) {
+  const { t } = useTranslation()
   return (
     <AlertDialog.Root open={open} onOpenChange={(next) => onOpenChange(next)}>
       <AlertDialog.Portal>
@@ -69,7 +71,9 @@ export function ConfirmDialog({
           <AlertDialog.Title className={titleClass}>{title}</AlertDialog.Title>
           <AlertDialog.Description className={descriptionClass}>{description}</AlertDialog.Description>
           <div className="mt-5 flex justify-end gap-2">
-            <AlertDialog.Close render={<Button variant="secondary" />}>{cancelLabel}</AlertDialog.Close>
+            <AlertDialog.Close render={<Button variant="secondary" />}>
+              {cancelLabel ?? t('actions.cancel')}
+            </AlertDialog.Close>
             <Button
               variant={destructive ? 'danger' : 'primary'}
               onClick={() => {

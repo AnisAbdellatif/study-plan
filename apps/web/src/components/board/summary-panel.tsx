@@ -1,17 +1,7 @@
-import type { Plan, PlanSummary, TraceModule, TraceNode } from '@study-plan/shared'
+import type { Plan, PlanSummary, TraceNode } from '@study-plan/shared'
+import { useTranslation } from 'react-i18next'
 import { cn } from '../../lib/cn.ts'
 import { describeRounding, formatCredits, formatGradeString } from '../../lib/format.ts'
-
-const STATUS_LABEL: Record<TraceModule['status'], string> = {
-  counted: 'gewertet',
-  dropped: 'gestrichen',
-  not_passed: 'offen',
-  pass_fail: 'unbenotet',
-  excluded: 'zählt nicht',
-  zero_weight: 'Gewicht 0',
-  missing: 'fehlt im Plan',
-  surplus: 'Zusatzmodul, zählt nicht',
-}
 
 function CreditBar({
   earned,
@@ -24,6 +14,7 @@ function CreditBar({
   total: number
   label: string
 }) {
+  const { t } = useTranslation('board')
   const percent = (value: number) => `${Math.min(100, total > 0 ? (value / total) * 100 : 0)}%`
   return (
     <div
@@ -32,7 +23,11 @@ function CreditBar({
       aria-valuemin={0}
       aria-valuemax={total}
       aria-valuenow={earned}
-      aria-valuetext={`${formatCredits(earned)} von ${formatCredits(total)} erreicht, ${formatCredits(planned)} eingeplant`}
+      aria-valuetext={t('summary.barValue', {
+        earned: formatCredits(earned),
+        total: formatCredits(total),
+        planned: formatCredits(planned),
+      })}
       className="relative h-2 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800"
     >
       <div
@@ -56,6 +51,7 @@ function TraceGroup({
   names: ReadonlyMap<string, string>
   depth: number
 }) {
+  const { t } = useTranslation('board')
   return (
     <li className={cn(depth > 0 && 'mt-2 border-l border-zinc-200 pl-3 dark:border-zinc-800')}>
       <div className="flex flex-wrap items-baseline gap-x-2">
@@ -64,10 +60,12 @@ function TraceGroup({
           <span className="text-zinc-600 dark:text-zinc-400">
             Ø {formatGradeString(node.value)}
             {node.rounded !== null ? ` → ${formatGradeString(node.rounded)}` : ''}
-            {node.weight !== null ? ` · Gewicht ${formatGradeString(node.weight)}` : ''}
+            {node.weight !== null
+              ? ` · ${t('summary.weight', { weight: formatGradeString(node.weight) })}`
+              : ''}
           </span>
         ) : (
-          <span className="text-zinc-500">noch keine Note</span>
+          <span className="text-zinc-500">{t('summary.noGrade')}</span>
         )}
       </div>
       <ul className="mt-1 space-y-0.5">
@@ -76,7 +74,7 @@ function TraceGroup({
             <span className="truncate">{names.get(module.code) ?? module.code}</span>
             <span className="shrink-0">
               {module.grade !== null ? `${formatGradeString(module.grade)} · ` : ''}
-              {STATUS_LABEL[module.status]}
+              {t(`summary.status.${module.status}`)}
             </span>
           </li>
         ))}
@@ -89,29 +87,34 @@ function TraceGroup({
 }
 
 export function SummaryPanel({ plan, summary }: { plan: Plan; summary: PlanSummary }) {
+  const { t } = useTranslation('board')
   const { overall, credits } = summary
   const label = plan.preset.creditLabel
   const names = new Map(plan.modules.map((m) => [m.code, m.name]))
 
   return (
     <aside
-      aria-label="Überblick"
+      aria-label={t('summary.overview')}
       className="grid grid-cols-2 gap-3 lg:grid-cols-[minmax(0,14rem)_minmax(0,1fr)_minmax(0,1fr)]"
     >
       <section className="rounded-xl bg-white p-4 ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800">
-        <h2 className="text-sm text-zinc-600 dark:text-zinc-400">Aktueller Schnitt</h2>
+        <h2 className="text-sm text-zinc-600 dark:text-zinc-400">{t('summary.currentAverage')}</h2>
         <p className="mt-1 text-3xl font-semibold tabular-nums" data-testid="overall-grade">
           {overall.value !== null ? formatGradeString(overall.value) : '–'}
         </p>
         <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
           {overall.value !== null
-            ? `Vorläufig, aus ${formatCredits(overall.countedCredits)} ${label}, ${describeRounding(plan.rules.finalRounding)}`
-            : 'Noch keine benotete Prüfung bestanden'}
+            ? t('summary.provisional', {
+                credits: formatCredits(overall.countedCredits),
+                label,
+                rounding: describeRounding(plan.rules.finalRounding),
+              })
+            : t('summary.noGradeYet')}
         </p>
       </section>
 
       <section className="rounded-xl bg-white p-4 ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800">
-        <h2 className="text-sm text-zinc-600 dark:text-zinc-400">Fortschritt</h2>
+        <h2 className="text-sm text-zinc-600 dark:text-zinc-400">{t('summary.progress')}</h2>
         <p className="mt-1 text-lg font-semibold tabular-nums">
           {formatCredits(credits.earned)}{' '}
           <span className="font-normal text-zinc-500">
@@ -123,16 +126,16 @@ export function SummaryPanel({ plan, summary }: { plan: Plan; summary: PlanSumma
             earned={credits.earned}
             planned={credits.planned}
             total={credits.required}
-            label={`${label} gesamt`}
+            label={t('summary.total', { label })}
           />
         </div>
         <p className="mt-2 text-xs text-zinc-600 dark:text-zinc-400">
-          {formatCredits(credits.planned)} {label} eingeplant
+          {t('summary.planned', { credits: formatCredits(credits.planned), label })}
         </p>
       </section>
 
       <section className="col-span-2 rounded-xl bg-white p-4 ring-1 ring-zinc-200 lg:col-span-1 dark:bg-zinc-900 dark:ring-zinc-800">
-        <h2 className="text-sm text-zinc-600 dark:text-zinc-400">Bereiche</h2>
+        <h2 className="text-sm text-zinc-600 dark:text-zinc-400">{t('summary.areas')}</h2>
         <ul className="mt-2 space-y-2.5">
           {summary.areas.map((area) => (
             <li key={area.id}>
@@ -141,7 +144,7 @@ export function SummaryPanel({ plan, summary }: { plan: Plan; summary: PlanSumma
                 <span className="shrink-0 tabular-nums text-zinc-600 dark:text-zinc-400">
                   {formatCredits(area.earnedCredits)} / {formatCredits(area.minCredits)}
                   {area.maxCredits !== undefined && area.maxCredits !== area.minCredits
-                    ? ` (max. ${formatCredits(area.maxCredits)})`
+                    ? ` ${t('summary.areaMax', { credits: formatCredits(area.maxCredits) })}`
                     : ''}
                 </span>
               </div>
@@ -159,7 +162,7 @@ export function SummaryPanel({ plan, summary }: { plan: Plan; summary: PlanSumma
       </section>
 
       <details className="col-span-2 rounded-xl print:hidden bg-white p-4 text-sm ring-1 ring-zinc-200 lg:col-span-3 dark:bg-zinc-900 dark:ring-zinc-800">
-        <summary className="cursor-pointer font-medium">So wird dein Schnitt berechnet</summary>
+        <summary className="cursor-pointer font-medium">{t('summary.howCalculated')}</summary>
         <ul className="mt-3">
           <TraceGroup node={overall.trace} names={names} depth={0} />
         </ul>

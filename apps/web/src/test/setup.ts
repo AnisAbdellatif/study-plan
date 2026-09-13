@@ -30,5 +30,6 @@ vi.mock('../lib/auth-client.ts', () => ({
     resetPassword: vi.fn(),
     sendVerificationEmail: vi.fn(),
     deleteUser: vi.fn(),
+    updateUser: vi.fn(),
   },
 }))

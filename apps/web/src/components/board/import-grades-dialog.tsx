@@ -10,26 +10,13 @@ import {
   setModuleAttempts,
 } from '@study-plan/shared'
 import { type ChangeEvent, useId, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '../../lib/cn.ts'
 import { formatGrade } from '../../lib/format.ts'
 import { useGuestStore } from '../../store/guest-store.ts'
 import { useAnnounce } from '../announcer.tsx'
 import { Button } from '../ui/button.tsx'
 import { Dialog } from '../ui/dialog.tsx'
-
-const describeResult = (result: ResultEntry | null): string => {
-  if (!result) return '–'
-  switch (result.kind) {
-    case 'graded':
-      return formatGrade(result.grade)
-    case 'passed':
-      return 'bestanden'
-    case 'failed':
-      return 'nicht bestanden'
-    case 'open':
-      return '–'
-  }
-}
 
 const sameResult = (a: ResultEntry, b: ResultEntry) => JSON.stringify(a) === JSON.stringify(b)
 
@@ -42,6 +29,7 @@ export function ImportGradesDialog({
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
+  const { t } = useTranslation(['dialogs', 'common'])
   const store = useGuestStore()
   const announce = useAnnounce()
   const textId = useId()
@@ -56,6 +44,20 @@ export function ImportGradesDialog({
   const rows = useMemo(() => (text.trim() ? parseGradeImport(text, plan) : []), [text, plan])
   const relevant = rows.filter((row) => row.status !== 'no_result')
   const skipped = rows.length - relevant.length
+
+  const describeResult = (result: ResultEntry | null): string => {
+    if (!result) return '–'
+    switch (result.kind) {
+      case 'graded':
+        return formatGrade(result.grade)
+      case 'passed':
+        return t('importGrades.passed')
+      case 'failed':
+        return t('importGrades.failed')
+      case 'open':
+        return '–'
+    }
+  }
 
   const moduleCodeFor = (row: ImportRow) => choices[row.line] ?? row.moduleCode ?? ''
   const fittedResult = (row: ImportRow) => {
@@ -88,7 +90,7 @@ export function ImportGradesDialog({
         current,
       ),
     )
-    announce(`${merged.size} ${merged.size === 1 ? 'Ergebnis' : 'Ergebnisse'} importiert`)
+    announce(t('importGrades.announced', { count: merged.size }))
     reset()
     onOpenChange(false)
   }
@@ -110,13 +112,13 @@ export function ImportGradesDialog({
         if (!next) reset()
         onOpenChange(next)
       }}
-      title="Noten importieren"
-      description="Kopiere die Tabelle aus deinem Notenspiegel oder lade eine CSV-Datei. Eine Prüfung pro Zeile, mit Modulname und Note oder „bestanden“. Du siehst alles, bevor etwas übernommen wird."
+      title={t('importGrades.title')}
+      description={t('importGrades.description')}
     >
       <div className="space-y-3">
         <div>
           <label htmlFor={textId} className="block text-sm font-medium">
-            Text aus dem Notenspiegel
+            {t('importGrades.textLabel')}
           </label>
           <textarea
             id={textId}
@@ -126,11 +128,11 @@ export function ImportGradesDialog({
               setChoices({})
               setText(event.target.value)
             }}
-            placeholder={'Grundlagen digitaler Systeme\t2,3\tbestanden\nProgrammieren I\t\tbestanden'}
+            placeholder={t('importGrades.placeholder')}
             className="mt-1 w-full rounded-lg bg-white px-3 py-2 font-mono text-xs ring-1 ring-zinc-300 ring-inset focus-visible:outline-2 focus-visible:outline-indigo-500 dark:bg-zinc-950 dark:ring-zinc-700"
           />
           <label className="mt-1 inline-flex cursor-pointer items-center gap-2 text-xs text-indigo-700 underline-offset-4 hover:underline dark:text-indigo-300">
-            Oder CSV-Datei auswählen
+            {t('importGrades.chooseFile')}
             <input
               type="file"
               accept=".csv,.txt,text/csv,text/plain"
@@ -145,10 +147,10 @@ export function ImportGradesDialog({
             <table className="w-full text-left text-sm">
               <thead className="text-xs text-zinc-600 dark:text-zinc-400">
                 <tr>
-                  <th className="py-1 pr-2 font-medium">Zeile</th>
-                  <th className="py-1 pr-2 font-medium">Modul</th>
-                  <th className="py-1 pr-2 font-medium">Ergebnis</th>
-                  <th className="py-1 font-medium">Status</th>
+                  <th className="py-1 pr-2 font-medium">{t('importGrades.columns.line')}</th>
+                  <th className="py-1 pr-2 font-medium">{t('importGrades.columns.module')}</th>
+                  <th className="py-1 pr-2 font-medium">{t('importGrades.columns.result')}</th>
+                  <th className="py-1 font-medium">{t('importGrades.columns.status')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -156,10 +158,10 @@ export function ImportGradesDialog({
                   const fitted = fittedResult(row)
                   const chosen = moduleCodeFor(row)
                   const status = !chosen
-                    ? 'Bitte Modul wählen'
+                    ? t('importGrades.status.chooseModule')
                     : fitted
-                      ? 'Wird übernommen'
-                      : 'Passt nicht zum Modul'
+                      ? t('importGrades.status.willApply')
+                      : t('importGrades.status.doesNotFit')
                   return (
                     <tr key={row.line} className="border-t border-zinc-200 align-top dark:border-zinc-800">
                       <td className="max-w-[14rem] truncate py-1.5 pr-2 font-mono text-xs" title={row.text}>
@@ -167,16 +169,16 @@ export function ImportGradesDialog({
                       </td>
                       <td className="py-1.5 pr-2">
                         <select
-                          aria-label={`Modul für Zeile ${row.line}`}
+                          aria-label={t('importGrades.moduleForLine', { line: row.line })}
                           value={chosen}
                           onChange={(event) =>
                             setChoices((previous) => ({ ...previous, [row.line]: event.target.value }))
                           }
                           className="h-8 w-full max-w-[16rem] rounded-md bg-white px-2 text-sm ring-1 ring-zinc-300 ring-inset dark:bg-zinc-950 dark:ring-zinc-700"
                         >
-                          <option value="">– ignorieren –</option>
+                          <option value="">{t('importGrades.ignore')}</option>
                           {row.candidates.length > 0 ? (
-                            <optgroup label="Passende Module">
+                            <optgroup label={t('importGrades.matchingModules')}>
                               {row.candidates.map((code) => (
                                 <option key={code} value={code}>
                                   {modules.get(code)?.name ?? code}
@@ -184,7 +186,7 @@ export function ImportGradesDialog({
                               ))}
                             </optgroup>
                           ) : null}
-                          <optgroup label="Alle Module">
+                          <optgroup label={t('importGrades.allModules')}>
                             {sortedModules.map((module) => (
                               <option key={module.code} value={module.code}>
                                 {module.name}
@@ -214,12 +216,9 @@ export function ImportGradesDialog({
 
         {rows.length > 0 ? (
           <p className="text-xs text-zinc-600 dark:text-zinc-400">
-            {skipped > 0 ? `${skipped} ${skipped === 1 ? 'Zeile' : 'Zeilen'} ohne Note übersprungen. ` : ''}
-            Mehrere Zeilen zum selben Modul gelten als Versuche und ersetzen die bisher eingetragenen. Von
-            mehreren bestandenen zählt das beste.
-            {overwrites > 0
-              ? ` ${overwrites} bereits eingetragene ${overwrites === 1 ? 'Ergebnis wird' : 'Ergebnisse werden'} ersetzt.`
-              : ''}
+            {skipped > 0 ? `${t('importGrades.skipped', { count: skipped })} ` : ''}
+            {t('importGrades.attemptsHint')}
+            {overwrites > 0 ? ` ${t('importGrades.overwrites', { count: overwrites })}` : ''}
           </p>
         ) : null}
 
@@ -230,10 +229,10 @@ export function ImportGradesDialog({
               onOpenChange(false)
             }}
           >
-            Abbrechen
+            {t('common:actions.cancel')}
           </Button>
           <Button variant="primary" disabled={merged.size === 0} onClick={apply}>
-            {merged.size === 1 ? '1 Ergebnis übernehmen' : `${merged.size} Ergebnisse übernehmen`}
+            {t('importGrades.apply', { count: merged.size })}
           </Button>
         </div>
       </div>

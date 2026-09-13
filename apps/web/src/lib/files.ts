@@ -10,9 +10,9 @@ export const slugify = (value: string): string =>
     .replace(/^-+|-+$/g, '')
 
 export const exportFilename = (plan: Plan, date: Date): string =>
-  `studienplan-${slugify(plan.name) || 'export'}-${date.toISOString().slice(0, 10)}.json`
+  `study-plan-${slugify(plan.name) || 'export'}-${date.toISOString().slice(0, 10)}.json`
 
-export const calendarFilename = (plan: Plan): string => `termine-${slugify(plan.name) || 'studienplan'}.ics`
+export const calendarFilename = (plan: Plan): string => `exam-dates-${slugify(plan.name) || 'study-plan'}.ics`
 
 /** Triggers a browser download of text content. */
 export function downloadFile(filename: string, content: string, type: string): void {

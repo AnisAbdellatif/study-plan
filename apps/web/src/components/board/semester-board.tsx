@@ -1,5 +1,7 @@
-import type { Plan, PlanModule, PlanSummary } from '@study-plan/shared'
+import { addTerms, formatTerm, type Plan, type PlanModule, type PlanSummary } from '@study-plan/shared'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
+import i18n, { currentLocale } from '../../i18n/index.ts'
 import { cn } from '../../lib/cn.ts'
 import type { MoveHandler } from '../../lib/dnd.ts'
 import type { IssueText } from '../../lib/issues.ts'
@@ -16,8 +18,8 @@ export interface SemesterBoardProps {
 }
 
 export const columnTitle = (plan: Plan, columnId: string | null): string => {
-  if (columnId === null) return 'Nicht eingeplant'
-  return `${plan.semesters.findIndex((s) => s.id === columnId) + 1}. Semester`
+  if (columnId === null) return i18n.t('board:columns.backlog')
+  return i18n.t('board:columns.semester', { number: plan.semesters.findIndex((s) => s.id === columnId) + 1 })
 }
 
 export function SemesterBoard({
@@ -28,6 +30,8 @@ export function SemesterBoard({
   onGrade,
   notesByCode,
 }: SemesterBoardProps) {
+  const { t } = useTranslation('board')
+  const locale = currentLocale()
   const elements = useRef(new Map<string | null, HTMLElement>())
   const registerElement = useCallback((id: string | null, element: HTMLElement | null) => {
     if (element) elements.current.set(id, element)
@@ -45,8 +49,9 @@ export function SemesterBoard({
         const info = summary.semesters[index]
         return {
           id: semester.id,
-          title: `${index + 1}. Semester`,
-          subtitle: info?.label ?? null,
+          title: t('columns.semester', { number: index + 1 }),
+          // The summary labels its terms in German, so the term is formatted here for the current language.
+          subtitle: info ? formatTerm(addTerms(plan.startTerm, index), locale) : null,
           credits: info?.credits ?? 0,
           load: info?.load ?? null,
           isCurrent: index === currentIndex,
@@ -55,7 +60,7 @@ export function SemesterBoard({
       }),
       {
         id: null,
-        title: 'Nicht eingeplant',
+        title: t('columns.backlog'),
         subtitle: null,
         credits,
         load: null,
@@ -63,7 +68,7 @@ export function SemesterBoard({
         modules: resolve(plan.backlog),
       },
     ]
-  }, [plan, summary, currentIndex])
+  }, [plan, summary, currentIndex, t, locale])
 
   const destinations: Destination[] = useMemo(
     () =>
@@ -89,7 +94,7 @@ export function SemesterBoard({
   return (
     <div className="space-y-2">
       <nav
-        aria-label="Semester springen"
+        aria-label={t('columns.jumpTo')}
         className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 sm:hidden print:hidden"
       >
         {columns.map((column) => (
@@ -102,7 +107,11 @@ export function SemesterBoard({
               column.isCurrent && 'bg-indigo-600 text-white ring-indigo-600',
             )}
           >
-            {column.id === null ? 'Offen' : column.title.replace('. Semester', '.')}
+            {column.id === null
+              ? t('columns.backlogShort')
+              : t('columns.semesterShort', {
+                  number: plan.semesters.findIndex((s) => s.id === column.id) + 1,
+                })}
           </button>
         ))}
       </nav>

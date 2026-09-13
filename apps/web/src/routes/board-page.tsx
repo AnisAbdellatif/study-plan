@@ -17,6 +17,7 @@ import {
 } from '@study-plan/shared'
 import { Navigate } from '@tanstack/react-router'
 import { useCallback, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { AccountSyncBanner } from '../components/account-sync.tsx'
 import { useAnnounce } from '../components/announcer.tsx'
 import { AppHeader } from '../components/app-header.tsx'
@@ -26,6 +27,7 @@ import { PresetUpdateBanner } from '../components/board/preset-update-banner.tsx
 import { columnTitle, SemesterBoard } from '../components/board/semester-board.tsx'
 import { SummaryPanel } from '../components/board/summary-panel.tsx'
 import { StorageNotice } from '../components/storage-notice.tsx'
+import i18n from '../i18n/index.ts'
 import { useModuleDropMonitor } from '../lib/dnd.ts'
 import { calendarFilename, downloadFile } from '../lib/files.ts'
 import { formatGrade } from '../lib/format.ts'
@@ -43,24 +45,22 @@ export function BoardPage() {
 
 function describeAttempts(entries: readonly AttemptEntry[]): string {
   const latest = entries.at(-1)
-  if (!latest) return 'Ergebnis entfernt'
+  if (!latest) return i18n.t('board:announce.resultRemoved')
   switch (latest.kind) {
     case 'graded':
-      return `Note ${formatGrade(latest.grade)} eingetragen`
+      return i18n.t('board:announce.graded', { grade: formatGrade(latest.grade) })
     case 'passed':
-      return 'als bestanden eingetragen'
     case 'failed':
-      return 'als nicht bestanden eingetragen'
     case 'registered':
-      return 'als angemeldet eingetragen'
     case 'absent':
-      return 'als nicht erschienen eingetragen'
     case 'withdrawn':
-      return 'Abmeldung eingetragen'
+      return i18n.t(`board:announce.${latest.kind}`)
   }
 }
 
 function Board({ plan }: { plan: Plan }) {
+  const { t, i18n: instance } = useTranslation('board')
+  const language = instance.resolvedLanguage
   const store = useGuestStore()
   const announce = useAnnounce()
   const [gradingCode, setGradingCode] = useState<string | null>(null)
@@ -68,7 +68,9 @@ function Board({ plan }: { plan: Plan }) {
 
   const summary = useMemo(() => summarizePlan(plan), [plan])
   const currentIndex = useMemo(() => semesterIndexAt(plan.startTerm, new Date()), [plan.startTerm])
-  const issues = useMemo(() => describeIssues(plan, validatePlan(plan)), [plan])
+  // Issue texts are worded in the current language, so they are rebuilt when it changes.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: language is a deliberate extra dependency
+  const issues = useMemo(() => describeIssues(plan, validatePlan(plan)), [plan, language])
   const whatIf = useMemo(() => analyzeWhatIf(plan, plan.targetGrade), [plan])
   const requirements = useMemo(() => creditRequirements(plan).filter((item) => !item.passed), [plan])
   const allDeadlines = useMemo(() => planDeadlines(plan), [plan])
@@ -78,9 +80,9 @@ function Board({ plan }: { plan: Plan }) {
     (code: string, targetColumnId: string | null, targetIndex?: number) => {
       const name = plan.modules.find((m) => m.code === code)?.name ?? code
       store.updatePlan((current) => moveModule(current, code, targetColumnId, targetIndex))
-      announce(`${name} nach ${columnTitle(plan, targetColumnId)} verschoben`)
+      announce(t('announce.moved', { name, column: columnTitle(plan, targetColumnId) }))
     },
-    [plan, store, announce],
+    [plan, store, announce, t],
   )
   useModuleDropMonitor(move)
 
@@ -97,10 +99,12 @@ function Board({ plan }: { plan: Plan }) {
 
   const exportCalendar = () => {
     const content = createIcs(allDeadlines, {
-      calendarName: `${plan.name}: Prüfungstermine`,
+      calendarName: t('deadlines.calendarName', { name: plan.name }),
       now: new Date(),
       summarize: (event) =>
-        `${event.kind === 'exam' ? 'Prüfung' : 'Letzter Tag zur Abmeldung'}: ${event.moduleName}`,
+        event.kind === 'exam'
+          ? t('deadlines.calendarExam', { module: event.moduleName })
+          : t('deadlines.calendarWithdrawal', { module: event.moduleName }),
     })
     downloadFile(calendarFilename(plan), content, 'text/calendar')
   }

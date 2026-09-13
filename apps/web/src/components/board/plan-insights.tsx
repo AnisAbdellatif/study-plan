@@ -10,6 +10,8 @@ import {
 } from '@study-plan/shared'
 import { CalendarPlus, GraduationCap, Info, TriangleAlert } from 'lucide-react'
 import { useId } from 'react'
+import { useTranslation } from 'react-i18next'
+import { currentLocale } from '../../i18n/index.ts'
 import { cn } from '../../lib/cn.ts'
 import {
   formatCredits,
@@ -25,15 +27,16 @@ const cardClass = 'rounded-xl bg-white p-4 ring-1 ring-zinc-200 dark:bg-zinc-900
 const headingClass = 'text-sm text-zinc-600 dark:text-zinc-400'
 
 function HintsCard({ hints }: { hints: readonly IssueText[] }) {
+  const { t } = useTranslation('board')
   const headingId = useId()
   const warnings = hints.filter((hint) => hint.severity === 'warning').length
   return (
     <section aria-labelledby={headingId} className={cardClass}>
       <h2 id={headingId} className={headingClass}>
-        Hinweise zum Plan
+        {t('hints.title')}
       </h2>
       <p className="mt-1 text-lg font-semibold">
-        {warnings === 0 ? 'Keine Warnungen' : warnings === 1 ? '1 Warnung' : `${warnings} Warnungen`}
+        {warnings === 0 ? t('hints.noWarnings') : t('hints.warnings', { count: warnings })}
       </p>
       {hints.length > 0 ? (
         <ul className="mt-2 max-h-56 space-y-1.5 overflow-y-auto text-sm">
@@ -57,9 +60,7 @@ function HintsCard({ hints }: { hints: readonly IssueText[] }) {
           ))}
         </ul>
       ) : (
-        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-          Semester, Voraussetzungen und Bereiche passen.
-        </p>
+        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">{t('hints.allGood')}</p>
       )}
     </section>
   )
@@ -74,6 +75,7 @@ function WhatIfCard({
   analysis: WhatIfAnalysis
   onTargetChange: (grade: number | null) => void
 }) {
+  const { t } = useTranslation('board')
   const headingId = useId()
   const selectId = useId()
   const steps = (plan.rules.standardGrades ?? plan.rules.allowedValues)
@@ -84,30 +86,30 @@ function WhatIfCard({
   const show = (value: string | null) => (value === null ? '–' : formatGradeString(value))
   const { target } = analysis
 
-  let targetText = 'Wähle einen Zielschnitt, um zu sehen, welche Noten du dafür brauchst.'
+  let targetText = t('whatIf.pickTarget')
   if (target) {
     const goal = formatGrade(target.grade)
     if (analysis.openCredits === 0) {
       targetText = target.reachable
-        ? `Dein aktueller Schnitt erreicht ${goal}.`
-        : `Ohne weitere eingeplante benotete Module bleibt ${goal} außer Reichweite.`
+        ? t('whatIf.reachedAlready', { goal })
+        : t('whatIf.outOfReachNoModules', { goal })
     } else if (!target.reachable || target.requiredGrade === null) {
-      targetText = `${goal} ist mit den eingeplanten Modulen nicht mehr erreichbar.`
+      targetText = t('whatIf.unreachable', { goal })
     } else if (target.requiredGrade === worstStep) {
-      targetText = `${goal} erreichst du sogar mit ${formatGrade(target.requiredGrade)} in allen offenen Modulen.`
+      targetText = t('whatIf.reachableWithWorst', { goal, grade: formatGrade(target.requiredGrade) })
     } else {
-      targetText = `Für ${goal} brauchst du in den offenen Modulen im Schnitt ${formatGrade(target.requiredGrade)} oder besser.`
+      targetText = t('whatIf.required', { goal, grade: formatGrade(target.requiredGrade) })
     }
   }
 
   return (
     <section aria-labelledby={headingId} className={cardClass}>
       <h2 id={headingId} className={headingClass}>
-        Was wäre, wenn
+        {t('whatIf.title')}
       </h2>
       <div className="mt-1 flex items-center gap-2">
         <label htmlFor={selectId} className="text-sm font-medium">
-          Zielschnitt
+          {t('whatIf.target')}
         </label>
         <select
           id={selectId}
@@ -128,8 +130,15 @@ function WhatIfCard({
       </p>
       <p className="mt-2 text-xs text-zinc-600 dark:text-zinc-400">
         {analysis.openCredits === 0 || bestStep === undefined || worstStep === undefined
-          ? 'Keine offenen benoteten Module eingeplant.'
-          : `Offen: ${formatCredits(analysis.openCredits)} ${plan.preset.creditLabel}. Mit ${formatGrade(bestStep)} überall: ${show(analysis.bestCase)}, mit ${formatGrade(worstStep)} überall: ${show(analysis.worstCase)}. Annahme: dieselbe Note in allen offenen, eingeplanten Modulen.`}
+          ? t('whatIf.noOpenModules')
+          : t('whatIf.range', {
+              credits: formatCredits(analysis.openCredits),
+              label: plan.preset.creditLabel,
+              best: formatGrade(bestStep),
+              bestCase: show(analysis.bestCase),
+              worst: formatGrade(worstStep),
+              worstCase: show(analysis.worstCase),
+            })}
       </p>
     </section>
   )
@@ -148,17 +157,18 @@ function DeadlinesCard({
   canExport: boolean
   onExport: () => void
 }) {
+  const { t } = useTranslation('board')
   const headingId = useId()
   const withdrawalDays = plan.preset.withdrawalDaysBeforeExam
   return (
     <section aria-labelledby={headingId} className={cardClass}>
       <div className="flex items-start justify-between gap-2">
         <h2 id={headingId} className={headingClass}>
-          Nächste Termine
+          {t('deadlines.title')}
         </h2>
         <Button size="sm" variant="ghost" onClick={onExport} disabled={!canExport} className="-mt-1 -mr-1">
           <CalendarPlus aria-hidden className="size-4" />
-          Kalender (.ics)
+          {t('deadlines.calendar')}
         </Button>
       </div>
       {upcoming.length > 0 ? (
@@ -174,7 +184,7 @@ function DeadlinesCard({
                       : 'bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200',
                   )}
                 >
-                  {event.kind === 'exam' ? 'Prüfung' : 'Abmeldeschluss'}
+                  {event.kind === 'exam' ? t('deadlines.exam') : t('deadlines.withdrawal')}
                 </span>
                 {event.moduleName}
               </span>
@@ -187,14 +197,12 @@ function DeadlinesCard({
         </ul>
       ) : (
         <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-          Trag im Notendialog einen Prüfungstermin ein, dann erscheinen hier Prüfungen
-          {withdrawalDays === undefined ? '' : ' und Abmeldefristen'} der nächsten Wochen.
+          {withdrawalDays === undefined ? t('deadlines.empty') : t('deadlines.emptyWithWithdrawal')}
         </p>
       )}
       {withdrawalDays !== undefined ? (
         <p className="mt-2 text-xs text-zinc-600 dark:text-zinc-400">
-          Abmeldung bis {withdrawalDays} Tage vor der Prüfung laut Prüfungsordnung. Prüfe die Frist für
-          mündliche Prüfungen und Sonderformen.
+          {t('deadlines.withdrawalRule', { count: withdrawalDays })}
         </p>
       ) : null}
     </section>
@@ -202,23 +210,29 @@ function DeadlinesCard({
 }
 
 function RequirementCard({ plan, requirement }: { plan: Plan; requirement: CreditRequirement }) {
+  const { t } = useTranslation('board')
   const headingId = useId()
   const label = plan.preset.creditLabel
   const credits = (value: number) => `${formatCredits(value)} ${label}`
-  const semester = (index: number) =>
-    `${index + 1}. Semesters (${formatTerm(addTerms(plan.startTerm, index))})`
+  const semester = (index: number) => ({
+    number: index + 1,
+    term: formatTerm(addTerms(plan.startTerm, index), currentLocale()),
+  })
   const names = new Map(plan.modules.map((module) => [module.code, module.name]))
   const { eligibleFromIndex, plannedIndex } = requirement
   const percent = Math.min(100, Math.round((requirement.earnedCredits / requirement.requiredCredits) * 100))
 
   let forecast: string
-  if (requirement.eligibleNow) forecast = 'Die Leistungspunkte für die Zulassung hast du schon.'
+  if (requirement.eligibleNow) forecast = t('requirement.eligibleNow')
   else if (eligibleFromIndex === null) {
-    forecast = `Mit den eingeplanten Modulen kommst du nicht auf ${credits(requirement.requiredCredits)}.`
+    forecast = t('requirement.notEnough', { credits: credits(requirement.requiredCredits) })
   } else if (eligibleFromIndex >= plan.semesters.length) {
-    forecast = `Laut Plan erreichst du ${credits(requirement.requiredCredits)} erst nach dem letzten Semester.`
+    forecast = t('requirement.afterLastSemester', { credits: credits(requirement.requiredCredits) })
   } else {
-    forecast = `Laut Plan erreichst du ${credits(requirement.requiredCredits)} zu Beginn des ${semester(eligibleFromIndex)}.`
+    forecast = t('requirement.atStartOf', {
+      credits: credits(requirement.requiredCredits),
+      ...semester(eligibleFromIndex),
+    })
   }
   const tooEarly =
     !requirement.eligibleNow &&
@@ -229,15 +243,18 @@ function RequirementCard({ plan, requirement }: { plan: Plan; requirement: Credi
     <section aria-labelledby={headingId} className={cardClass}>
       <h2 id={headingId} className={cn(headingClass, 'flex items-center gap-1.5')}>
         <GraduationCap aria-hidden className="size-4" />
-        Zulassung: {requirement.name}
+        {t('requirement.title', { name: requirement.name })}
       </h2>
       <p className="mt-1 text-lg font-semibold tabular-nums">
-        {formatCredits(requirement.earnedCredits)} von {credits(requirement.requiredCredits)}
+        {t('requirement.progress', {
+          earned: formatCredits(requirement.earnedCredits),
+          required: credits(requirement.requiredCredits),
+        })}
       </p>
       <div
         className="mt-2 h-1.5 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800"
         role="progressbar"
-        aria-label={`Leistungspunkte für die Zulassung: ${requirement.name}`}
+        aria-label={t('requirement.progressLabel', { name: requirement.name })}
         aria-valuemin={0}
         aria-valuemax={requirement.requiredCredits}
         aria-valuenow={requirement.earnedCredits}
@@ -249,20 +266,20 @@ function RequirementCard({ plan, requirement }: { plan: Plan; requirement: Credi
       </p>
       {tooEarly && plannedIndex !== null ? (
         <p className="mt-1 text-sm text-amber-800 dark:text-amber-300">
-          Eingeplant ist sie im {semester(plannedIndex).replace('Semesters', 'Semester')}.
+          {t('requirement.plannedIn', semester(plannedIndex))}
         </p>
       ) : null}
       {requirement.openPrerequisites.length > 0 ? (
         <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
-          Außerdem nötig:{' '}
-          {requirement.openPrerequisites
-            .map((item) =>
-              prerequisiteCodes(item)
-                .map((code) => names.get(code) ?? code)
-                .join(' oder '),
-            )
-            .join(', ')}
-          .
+          {t('requirement.alsoNeeded', {
+            list: requirement.openPrerequisites
+              .map((item) =>
+                prerequisiteCodes(item)
+                  .map((code) => names.get(code) ?? code)
+                  .join(t('requirement.or')),
+              )
+              .join(', '),
+          })}
         </p>
       ) : null}
     </section>

@@ -10,6 +10,7 @@ import {
 } from '@study-plan/shared'
 import { Plus, X } from 'lucide-react'
 import { type FormEvent, useId, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { formatCredits, formatGrade } from '../../lib/format.ts'
 import { Button } from '../ui/button.tsx'
 import { Dialog } from '../ui/dialog.tsx'
@@ -28,16 +29,18 @@ function decode(value: string, date: string | undefined): AttemptEntry | null {
 }
 
 function GradeOption({ grade, passThreshold }: { grade: number; passThreshold: number }) {
+  const { t } = useTranslation(['dialogs', 'common'])
   return (
     <option value={`grade:${grade}`}>
       {formatGrade(grade)}
-      {grade > passThreshold ? ' (nicht bestanden)' : ''}
+      {grade > passThreshold ? ` ${t('grade.failedSuffix')}` : ''}
     </option>
   )
 }
 
 /** Standard exam grade steps first; composite module grades (e.g. 1,2 from weighted parts) in their own group. */
 function GradeOptions({ rules }: { rules: GradeRules }) {
+  const { t } = useTranslation(['dialogs', 'common'])
   const option = (grade: number) => (
     <GradeOption key={grade} grade={grade} passThreshold={rules.passThreshold} />
   )
@@ -46,9 +49,9 @@ function GradeOptions({ rules }: { rules: GradeRules }) {
   const composite = rules.allowedValues.filter((grade) => !standard.includes(grade))
   return (
     <>
-      <optgroup label="Notenstufen">{standard.map(option)}</optgroup>
+      <optgroup label={t('grade.standardGrades')}>{standard.map(option)}</optgroup>
       {composite.length > 0 ? (
-        <optgroup label="Zusammengesetzte Modulnoten">{composite.map(option)}</optgroup>
+        <optgroup label={t('grade.compositeGrades')}>{composite.map(option)}</optgroup>
       ) : null}
     </>
   )
@@ -73,6 +76,7 @@ function AttemptSummary({
   plan: Plan
   entries: AttemptEntry[]
 }) {
+  const { t } = useTranslation(['dialogs', 'common'])
   const status = useMemo(() => {
     const next = setModuleAttempts(plan, module.code, entries)
     return attemptStatus(findModule(next, module.code), next)
@@ -81,22 +85,26 @@ function AttemptSummary({
   const lines: { text: string; warning: boolean }[] = []
   if (status.maxAttempts !== null && !status.passed) {
     if (status.exhausted) {
-      lines.push({ text: `Alle ${status.maxAttempts} Versuche sind verbraucht.`, warning: true })
+      lines.push({ text: t('attempts.exhausted', { count: status.maxAttempts }), warning: true })
     } else {
-      const used = `${status.used} von ${status.maxAttempts} Versuchen verbraucht.`
+      const used = t('attempts.used', { used: status.used, count: status.maxAttempts })
+      const supplementary = plan.preset.supplementaryExamOnLastAttempt
+        ? ` ${
+            module.grading === 'graded'
+              ? t('attempts.supplementaryGraded', { grade: formatGrade(4) })
+              : t('attempts.supplementaryPassFail')
+          }`
+        : ''
       lines.push(
         status.lastAttempt
-          ? {
-              text: `${used} Der nächste Versuch ist der letzte.${plan.preset.supplementaryExamOnLastAttempt ? ` Bei einer Klausur gibt es vor dem Nichtbestehen eine Ergänzungsprüfung, danach ${module.grading === 'graded' ? 'höchstens 4,0' : 'nur „bestanden“'}.` : ''}`,
-              warning: true,
-            }
+          ? { text: `${t('attempts.lastAttempt', { used })}${supplementary}`, warning: true }
           : { text: used, warning: false },
       )
     }
   }
   if (status.retakenAfterPass) {
     lines.push({
-      text: 'Nach dem Bestehen ist noch ein Versuch eingetragen. Laut Prüfungsordnung lassen sich bestandene Prüfungen nicht wiederholen.',
+      text: t('attempts.retakenAfterPass'),
       warning: true,
     })
   }
@@ -123,6 +131,7 @@ interface GradeFormProps {
 }
 
 function GradeForm({ module, plan, onSave, onCancel }: GradeFormProps) {
+  const { t } = useTranslation(['dialogs', 'common'])
   const baseId = useId()
   const dateId = useId()
   const [rows, setRows] = useState<Row[]>(() => {
@@ -134,7 +143,7 @@ function GradeForm({ module, plan, onSave, onCancel }: GradeFormProps) {
   const [examDate, setExamDate] = useState(module.examDate ?? '')
   const entries = useMemo(() => rows.flatMap((row) => decode(row.value, row.date) ?? []), [rows])
   const graded = module.grading === 'graded'
-  const base = graded ? 'Note' : 'Ergebnis'
+  const base = graded ? t('grade.grade') : t('grade.result')
   const showCode = plan.preset.codesAreOfficial ?? true
 
   const submit = (event: FormEvent) => {
@@ -153,12 +162,15 @@ function GradeForm({ module, plan, onSave, onCancel }: GradeFormProps) {
       <p className="text-sm text-zinc-600 dark:text-zinc-400">
         {showCode ? `${module.code} · ` : ''}
         {formatCredits(module.credits)} {plan.preset.creditLabel}
-        {module.countsTowardAverage ? '' : ' · zählt nicht zum Schnitt'}
+        {module.countsTowardAverage ? '' : ` · ${t('grade.notCounted')}`}
       </p>
       <ol className="mt-4 space-y-3">
         {rows.map((row, index) => {
           const id = `${baseId}-${row.key}`
-          const label = rows.length === 1 ? base : `${base} im ${index + 1}. Versuch`
+          const label =
+            rows.length === 1
+              ? base
+              : t(graded ? 'grade.gradeInAttempt' : 'grade.resultInAttempt', { number: index + 1 })
           return (
             <li key={row.key}>
               <label htmlFor={id} className="block text-sm font-medium">
@@ -171,19 +183,19 @@ function GradeForm({ module, plan, onSave, onCancel }: GradeFormProps) {
                   onChange={(event) => update(row.key, event.target.value)}
                   className={inputClass}
                 >
-                  <option value="open">Noch offen</option>
+                  <option value="open">{t('grade.open')}</option>
                   {graded ? (
                     <GradeOptions rules={plan.rules} />
                   ) : (
                     <>
-                      <option value="passed">Bestanden</option>
-                      <option value="failed">Nicht bestanden</option>
+                      <option value="passed">{t('grade.passed')}</option>
+                      <option value="failed">{t('grade.failed')}</option>
                     </>
                   )}
-                  <optgroup label="Ohne Ergebnis">
-                    <option value="registered">Angemeldet</option>
-                    <option value="absent">Nicht erschienen</option>
-                    <option value="withdrawn">Abgemeldet oder zurückgetreten</option>
+                  <optgroup label={t('grade.withoutResult')}>
+                    <option value="registered">{t('grade.registered')}</option>
+                    <option value="absent">{t('grade.absent')}</option>
+                    <option value="withdrawn">{t('grade.withdrawn')}</option>
                   </optgroup>
                 </select>
                 {rows.length > 1 ? (
@@ -191,7 +203,7 @@ function GradeForm({ module, plan, onSave, onCancel }: GradeFormProps) {
                     variant="ghost"
                     size="icon"
                     className="shrink-0 self-center"
-                    aria-label={`${index + 1}. Versuch entfernen`}
+                    aria-label={t('grade.removeAttempt', { number: index + 1 })}
                     onClick={() => removeRow(row.key)}
                   >
                     <X aria-hidden className="size-4" />
@@ -210,11 +222,12 @@ function GradeForm({ module, plan, onSave, onCancel }: GradeFormProps) {
         onClick={addRow}
       >
         <Plus aria-hidden className="size-4" />
-        Weiteren Versuch eintragen
+        {t('grade.addAttempt')}
       </Button>
       <AttemptSummary module={module} plan={plan} entries={entries} />
       <label htmlFor={dateId} className="mt-4 block text-sm font-medium">
-        Prüfungstermin <span className="font-normal text-zinc-500 dark:text-zinc-400">(optional)</span>
+        {t('grade.examDate')}{' '}
+        <span className="font-normal text-zinc-500 dark:text-zinc-400">{t('grade.optional')}</span>
       </label>
       <input
         id={dateId}
@@ -225,10 +238,10 @@ function GradeForm({ module, plan, onSave, onCancel }: GradeFormProps) {
       />
       <div className="mt-5 flex justify-end gap-2">
         <Button variant="secondary" onClick={onCancel}>
-          Abbrechen
+          {t('common:actions.cancel')}
         </Button>
         <Button variant="primary" type="submit">
-          Speichern
+          {t('common:actions.save')}
         </Button>
       </div>
     </form>

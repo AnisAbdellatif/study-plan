@@ -1,6 +1,7 @@
 import { currentResult, type PlanModule } from '@study-plan/shared'
 import { EllipsisVertical, Info, TriangleAlert } from 'lucide-react'
 import { useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '../../lib/cn.ts'
 import { type MoveHandler, useDraggableModule } from '../../lib/dnd.ts'
 import { formatCredits, formatGrade, formatShortDate } from '../../lib/format.ts'
@@ -37,6 +38,7 @@ export interface ModuleCardProps {
 }
 
 function ResultBadge({ module, passThreshold }: { module: PlanModule; passThreshold: number }) {
+  const { t } = useTranslation('board')
   const result = currentResult(module)
   const base = 'rounded px-1.5 py-0.5 font-medium tabular-nums'
   const passed = 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200'
@@ -46,14 +48,14 @@ function ResultBadge({ module, passThreshold }: { module: PlanModule; passThresh
     case 'graded':
       return (
         <span className={cn(base, result.grade <= passThreshold ? passed : failed)}>
-          <span className="sr-only">Note </span>
+          <span className="sr-only">{t('card.gradeSr')} </span>
           {formatGrade(result.grade)}
         </span>
       )
     case 'passed':
-      return <span className={cn(base, passed)}>bestanden</span>
+      return <span className={cn(base, passed)}>{t('card.passed')}</span>
     case 'failed':
-      return <span className={cn(base, failed)}>nicht bestanden</span>
+      return <span className={cn(base, failed)}>{t('card.failed')}</span>
     case 'open':
       return null
   }
@@ -71,6 +73,7 @@ export function ModuleCard({
   onGrade,
   notes,
 }: ModuleCardProps) {
+  const { t } = useTranslation('board')
   const ref = useRef<HTMLLIElement>(null)
   const { isDragging, closestEdge } = useDraggableModule(ref, { code: module.code, columnId, index })
 
@@ -104,18 +107,20 @@ export function ModuleCard({
             <span className="tabular-nums">
               {formatCredits(module.credits)} {creditLabel}
             </span>
-            {module.countsTowardAverage ? null : <span>· zählt nicht zum Schnitt</span>}
-            {module.retired ? <span>· nicht mehr in der Prüfungsordnung</span> : null}
+            {module.countsTowardAverage ? null : <span>· {t('card.notCounted')}</span>}
+            {module.retired ? <span>· {t('card.retired')}</span> : null}
             <ResultBadge module={module} passThreshold={passThreshold} />
             {module.attempts.length > 1 ? (
-              <span className="tabular-nums">{module.attempts.length}. Versuch</span>
+              <span className="tabular-nums">{t('card.attempt', { number: module.attempts.length })}</span>
             ) : null}
             {module.attempts.at(-1)?.result === 'registered' ? (
-              <span className="rounded bg-zinc-100 px-1.5 py-0.5 dark:bg-zinc-800">angemeldet</span>
+              <span className="rounded bg-zinc-100 px-1.5 py-0.5 dark:bg-zinc-800">
+                {t('card.registered')}
+              </span>
             ) : null}
             {module.examDate ? (
               <span className="rounded bg-zinc-100 px-1.5 py-0.5 tabular-nums dark:bg-zinc-800">
-                Prüfung {formatShortDate(module.examDate)}
+                {t('card.exam', { date: formatShortDate(module.examDate) })}
               </span>
             ) : null}
           </p>
@@ -149,7 +154,7 @@ export function ModuleCard({
                 variant="ghost"
                 size="icon"
                 className="-mt-1 -mr-1 print:hidden"
-                aria-label={`Aktionen für ${module.name}`}
+                aria-label={t('card.actionsFor', { name: module.name })}
               />
             }
           >
@@ -157,11 +162,11 @@ export function ModuleCard({
           </MenuTrigger>
           <MenuContent>
             <MenuItem onClick={() => onGrade(module.code)}>
-              {module.grading === 'graded' ? 'Note eintragen…' : 'Ergebnis eintragen…'}
+              {module.grading === 'graded' ? t('card.enterGrade') : t('card.enterResult')}
             </MenuItem>
             <MenuSeparator />
             <MenuGroup>
-              <MenuGroupLabel>Verschieben nach</MenuGroupLabel>
+              <MenuGroupLabel>{t('card.moveTo')}</MenuGroupLabel>
               {destinations.map((destination) => (
                 <MenuItem
                   key={destination.id ?? 'backlog'}

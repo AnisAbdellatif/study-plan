@@ -1,9 +1,11 @@
-import { forkPlan, type Plan, planSchema, summarizePlan } from '@study-plan/shared'
+import { forkPlan, formatTerm, type Plan, planSchema, summarizePlan } from '@study-plan/shared'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { formatDateTime, useAccountSync } from '../components/account-sync.tsx'
 import { Button } from '../components/ui/button.tsx'
 import { ConfirmDialog } from '../components/ui/dialog.tsx'
+import { currentLocale } from '../i18n/index.ts'
 import { ApiError, type SharedPlanResponse, shareApi } from '../lib/api.ts'
 import { formatCredits, newId } from '../lib/format.ts'
 import { useGuestState, useGuestStore } from '../store/guest-store.ts'
@@ -14,6 +16,8 @@ type LoadState =
   | { kind: 'ready'; response: SharedPlanResponse; plan: Plan }
 
 function SharedPlanView({ response, plan }: { response: SharedPlanResponse; plan: Plan }) {
+  const { t } = useTranslation('sharedPlan')
+  const locale = currentLocale()
   const store = useGuestStore()
   const navigate = useNavigate()
   const { plan: localPlan } = useGuestState()
@@ -29,14 +33,17 @@ function SharedPlanView({ response, plan }: { response: SharedPlanResponse; plan
   }
 
   const columns = [
-    ...plan.semesters.map((semester, index) => ({
-      key: semester.id,
-      title: `${index + 1}. Semester`,
-      subtitle: `${summary.semesters[index]?.label ?? ''} · ${formatCredits(summary.semesters[index]?.credits ?? 0)} ${label}`,
-      codes: semester.moduleCodes,
-    })),
+    ...plan.semesters.map((semester, index) => {
+      const term = summary.semesters[index]?.term
+      return {
+        key: semester.id,
+        title: t('semester', { number: index + 1 }),
+        subtitle: `${term ? formatTerm(term, locale) : ''} · ${formatCredits(summary.semesters[index]?.credits ?? 0)} ${label}`,
+        codes: semester.moduleCodes,
+      }
+    }),
     ...(plan.backlog.length > 0
-      ? [{ key: 'backlog', title: 'Nicht eingeplant', subtitle: '', codes: plan.backlog }]
+      ? [{ key: 'backlog', title: t('backlog'), subtitle: '', codes: plan.backlog }]
       : []),
   ]
 
@@ -45,20 +52,19 @@ function SharedPlanView({ response, plan }: { response: SharedPlanResponse; plan
       <header className="flex flex-wrap items-start gap-3">
         <div className="min-w-0 flex-1">
           <p className="text-xs font-medium tracking-wide text-indigo-600 uppercase dark:text-indigo-400">
-            Geteilter Studienplan
+            {t('eyebrow')}
           </p>
           <h1 className="text-xl font-semibold">{response.name}</h1>
           <p className="text-sm text-zinc-600 dark:text-zinc-400">
             {plan.preset.programmeName} · {plan.preset.universityName} · {plan.preset.poVersion}
           </p>
           <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
-            Zuletzt geändert {formatDateTime(response.updatedAt)}. Ohne Noten, Prüfungstermine und
-            Zielschnitt.
+            {t('lastChanged', { time: formatDateTime(response.updatedAt) })}
           </p>
         </div>
         <div className="flex flex-wrap gap-2 print:hidden">
           <Button variant="primary" onClick={() => (localPlan ? setConfirm(true) : adopt())}>
-            Als eigenen Plan übernehmen
+            {t('adopt')}
           </Button>
         </div>
       </header>
@@ -98,11 +104,11 @@ function SharedPlanView({ response, plan }: { response: SharedPlanResponse; plan
       <ConfirmDialog
         open={confirm}
         onOpenChange={setConfirm}
-        title="Deinen Plan ersetzen?"
-        description={`„${response.name}“ ersetzt deinen Plan in diesem Browser${
-          sync.linkedPlanId() ? ' und in deinem Konto' : ''
-        }, samt eingetragener Noten. Exportiere deinen Plan vorher, wenn du ihn behalten willst.`}
-        confirmLabel="Ersetzen"
+        title={t('replace.title')}
+        description={t(sync.linkedPlanId() ? 'replace.descriptionLinked' : 'replace.description', {
+          name: response.name,
+        })}
+        confirmLabel={t('replace.confirm')}
         destructive
         onConfirm={adopt}
       />
@@ -111,6 +117,7 @@ function SharedPlanView({ response, plan }: { response: SharedPlanResponse; plan
 }
 
 export function SharedPlanPage() {
+  const { t } = useTranslation('sharedPlan')
   const params = useParams({ strict: false }) as { token?: string }
   const token = params.token ?? ''
   const [state, setState] = useState<LoadState>({ kind: 'loading' })
@@ -150,19 +157,15 @@ export function SharedPlanPage() {
 
   return (
     <main className="mx-auto flex min-h-[70dvh] max-w-md flex-col justify-center px-4 py-10">
-      <h1 className="text-2xl font-semibold">
-        {state.kind === 'loading' ? 'Plan wird geladen…' : 'Link nicht verfügbar'}
-      </h1>
+      <h1 className="text-2xl font-semibold">{state.kind === 'loading' ? t('loading') : t('unavailable')}</h1>
       {state.kind === 'error' ? (
         <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-          {state.notFound
-            ? 'Dieser Link wurde deaktiviert oder existiert nicht.'
-            : 'Der Plan konnte gerade nicht geladen werden. Bitte versuche es später noch einmal.'}{' '}
+          {state.notFound ? t('notFound') : t('loadFailed')}{' '}
           <Link
             to="/start"
             className="font-medium text-indigo-700 underline-offset-4 hover:underline dark:text-indigo-300"
           >
-            Eigenen Plan anlegen
+            {t('createOwn')}
           </Link>
         </p>
       ) : null}

@@ -16,6 +16,7 @@ export function accountRoutes(db: Database) {
         name: user.name,
         email: user.email,
         emailVerified: user.emailVerified,
+        locale: user.locale,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
       })

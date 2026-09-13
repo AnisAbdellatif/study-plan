@@ -15,7 +15,8 @@ export function SiteFooter() {
       <Link to="/privacy" className={linkClass}>
         {t('footer.privacy')}
       </Link>
-      <div role="group" aria-label={t('language.label')} className="ml-auto flex gap-1">
+      <fieldset className="ml-auto flex gap-1">
+        <legend className="sr-only">{t('language.label')}</legend>
         {LOCALES.map((locale) => {
           const active = i18n.resolvedLanguage === locale
           return (
@@ -34,7 +35,7 @@ export function SiteFooter() {
             </button>
           )
         })}
-      </div>
+      </fieldset>
     </footer>
   )
 }

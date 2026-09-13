@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react'
 import { createContext, useContext, useEffect, useState, useSyncExternalStore } from 'react'
+import { useTranslation } from 'react-i18next'
+import i18n, { currentIntlLocale } from '../i18n/index.ts'
 import { planApi } from '../lib/api.ts'
 import { authClient } from '../lib/auth-client.ts'
 import { PlanSync, type SyncState } from '../lib/plan-sync.ts'
@@ -29,10 +31,19 @@ function browserStorage(): StorageLike | null {
   }
 }
 
-const dateTimeFormat = new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', timeStyle: 'short' })
-export const formatDateTime = (iso: string): string => dateTimeFormat.format(new Date(iso))
+const dateTimeFormats = new Map<string, Intl.DateTimeFormat>()
+export function formatDateTime(iso: string): string {
+  const locale = currentIntlLocale()
+  let format = dateTimeFormats.get(locale)
+  if (!format) {
+    format = new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' })
+    dateTimeFormats.set(locale, format)
+  }
+  return format.format(new Date(iso))
+}
 
 function ChoosePlanDialog({ sync, state }: { sync: PlanSync; state: SyncState }) {
+  const { t } = useTranslation('auth')
   const { plan } = useGuestState()
   const [busy, setBusy] = useState(false)
   if (state.kind !== 'choose') return null
@@ -40,14 +51,12 @@ function ChoosePlanDialog({ sync, state }: { sync: PlanSync; state: SyncState })
     <Dialog
       open
       onOpenChange={() => {}}
-      title="Welchen Plan möchtest du behalten?"
-      description={
-        <>
-          In deinem Konto liegt „{state.remote.name}“, zuletzt gespeichert am{' '}
-          {formatDateTime(state.remote.updatedAt)}. In diesem Browser gibt es „{plan?.name ?? 'einen Plan'}“.
-          Der andere Plan wird ersetzt.
-        </>
-      }
+      title={t('sync.choosePlan.title')}
+      description={t('sync.choosePlan.description', {
+        remote: state.remote.name,
+        time: formatDateTime(state.remote.updatedAt),
+        local: plan?.name ?? t('sync.choosePlan.fallbackName'),
+      })}
     >
       <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
         <Button
@@ -58,10 +67,10 @@ function ChoosePlanDialog({ sync, state }: { sync: PlanSync; state: SyncState })
             setBusy(false)
           }}
         >
-          Plan aus diesem Browser behalten
+          {t('sync.choosePlan.keepBrowser')}
         </Button>
         <Button variant="primary" disabled={busy} onClick={() => sync.loadAccountPlan()}>
-          Plan aus dem Konto laden
+          {t('sync.choosePlan.loadAccount')}
         </Button>
       </div>
     </Dialog>
@@ -104,26 +113,27 @@ export function useAccountSync(): AccountSyncValue {
 
 /** One short line about where the plan is saved. */
 export function describeSyncState(state: SyncState, signedIn: boolean): string {
-  if (!signedIn) return 'Nur in diesem Browser gespeichert'
+  if (!signedIn) return i18n.t('auth:sync.browserOnly')
   switch (state.kind) {
     case 'signed_out':
     case 'loading':
-      return 'Verbinde mit dem Konto…'
+      return i18n.t('auth:sync.connecting')
     case 'no_account_plan':
-      return 'Noch nicht im Konto gesichert'
+      return i18n.t('auth:sync.notInAccount')
     case 'choose':
-      return 'Plan auswählen'
+      return i18n.t('auth:sync.choose')
     case 'saving':
-      return 'Wird gespeichert…'
+      return i18n.t('auth:sync.saving')
     case 'synced':
-      return `Im Konto gespeichert, ${formatDateTime(state.savedAt)}`
+      return i18n.t('auth:sync.synced', { time: formatDateTime(state.savedAt) })
     case 'error':
-      return 'Speichern im Konto fehlgeschlagen'
+      return i18n.t('auth:sync.failed')
   }
 }
 
 /** Banner on the board for the moments that need a decision or an explanation. */
 export function AccountSyncBanner() {
+  const { t } = useTranslation('auth')
   const { sync, state, user } = useAccountSync()
   const { plan } = useGuestState()
   const [dismissedNotice, setDismissedNotice] = useState<string | null>(null)
@@ -135,11 +145,9 @@ export function AccountSyncBanner() {
   if (state.kind === 'no_account_plan') {
     return (
       <div role="status" className={box}>
-        <p className="flex-1">
-          Sichere deinen Plan im Konto, dann ist er auf allen deinen Geräten verfügbar.
-        </p>
+        <p className="flex-1">{t('sync.banner.uploadText')}</p>
         <Button size="sm" variant="primary" onClick={() => void sync.uploadLocal()}>
-          Im Konto sichern
+          {t('sync.banner.upload')}
         </Button>
       </div>
     )
@@ -147,11 +155,9 @@ export function AccountSyncBanner() {
   if (state.kind === 'error') {
     return (
       <div role="alert" className={box}>
-        <p className="flex-1">
-          Dein Plan konnte gerade nicht im Konto gespeichert werden. Die Änderungen bleiben in diesem Browser.
-        </p>
+        <p className="flex-1">{t('sync.banner.errorText')}</p>
         <Button size="sm" onClick={() => void sync.retry()}>
-          Erneut versuchen
+          {t('sync.banner.retry')}
         </Button>
       </div>
     )
@@ -159,12 +165,9 @@ export function AccountSyncBanner() {
   if (state.kind === 'synced' && state.notice === 'remote_newer' && dismissedNotice !== state.savedAt) {
     return (
       <div role="status" className={box}>
-        <p className="flex-1">
-          Dein Plan wurde inzwischen auf einem anderen Gerät geändert. Die neuere Version aus dem Konto ist
-          geladen, deine letzte Änderung hier wurde nicht übernommen.
-        </p>
+        <p className="flex-1">{t('sync.banner.remoteNewerText')}</p>
         <Button size="sm" variant="ghost" onClick={() => setDismissedNotice(state.savedAt)}>
-          Verstanden
+          {t('sync.banner.dismiss')}
         </Button>
       </div>
     )

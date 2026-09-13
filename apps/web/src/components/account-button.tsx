@@ -1,11 +1,13 @@
 import { Link } from '@tanstack/react-router'
 import { CloudCheck, CloudOff, LogIn, RefreshCw, UserRound } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { describeSyncState, useAccountSync } from './account-sync.tsx'
 
 const linkClass =
   'inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-white px-3.5 text-sm font-medium text-zinc-900 ring-1 ring-zinc-300 ring-inset hover:bg-zinc-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 dark:bg-zinc-900 dark:text-zinc-100 dark:ring-zinc-700 dark:hover:bg-zinc-800'
 
 export function AccountButton() {
+  const { t } = useTranslation('auth')
   const { user, state, sessionPending } = useAccountSync()
   if (sessionPending) return null
 
@@ -13,7 +15,7 @@ export function AccountButton() {
     return (
       <Link to="/sign-in" className={linkClass}>
         <LogIn aria-hidden className="size-4" />
-        <span className="sr-only sm:not-sr-only">Anmelden</span>
+        <span className="sr-only sm:not-sr-only">{t('button.signIn')}</span>
       </Link>
     )
   }
@@ -30,7 +32,7 @@ export function AccountButton() {
   return (
     <Link to="/account" className={linkClass} title={status}>
       <Icon aria-hidden className="size-4" />
-      <span className="sr-only sm:not-sr-only">Konto</span>
+      <span className="sr-only sm:not-sr-only">{t('button.account')}</span>
       <span className="sr-only">: {status}</span>
     </Link>
   )

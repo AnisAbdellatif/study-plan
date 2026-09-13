@@ -3,7 +3,7 @@ import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import type { Config } from './config.ts'
 import type { Database } from './db/connection.ts'
 import { account, rateLimit, session, user, verification } from './db/schema.ts'
-import { type Mailer, passwordResetMail, verificationMail } from './mail.ts'
+import { type Mailer, mailLocale, passwordResetMail, verificationMail } from './mail.ts'
 import { hashPassword, verifyPassword } from './password.ts'
 
 const HOUR = 60 * 60
@@ -35,7 +35,7 @@ export function createAuth({ config, db, mailer }: AuthDependencies) {
       resetPasswordTokenExpiresIn: HOUR,
       password: { hash: hashPassword, verify: verifyPassword },
       sendResetPassword: async ({ user: recipient, url }) => {
-        await mailer.send(passwordResetMail(recipient.email, url))
+        await mailer.send(passwordResetMail(recipient.email, url, mailLocale(recipient)))
       },
     },
     emailVerification: {
@@ -43,10 +43,16 @@ export function createAuth({ config, db, mailer }: AuthDependencies) {
       autoSignInAfterVerification: true,
       expiresIn: HOUR,
       sendVerificationEmail: async ({ user: recipient, url }) => {
-        await mailer.send(verificationMail(recipient.email, url))
+        await mailer.send(verificationMail(recipient.email, url, mailLocale(recipient)))
       },
     },
-    user: { deleteUser: { enabled: true } },
+    user: {
+      deleteUser: { enabled: true },
+      additionalFields: {
+        /** The web app sends its UI language at sign-up and when the student switches; e-mails use it. */
+        locale: { type: 'string', required: false, defaultValue: 'de', input: true },
+      },
+    },
     session: {
       // Sessions last 30 days and are extended at most once a day while in use.
       expiresIn: 30 * DAY,

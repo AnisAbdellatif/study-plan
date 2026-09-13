@@ -28,6 +28,8 @@ export const user = pgTable('user', {
   email: text('email').notNull().unique(),
   emailVerified: boolean('email_verified').notNull().default(false),
   image: text('image'),
+  /** UI language for e-mails, 'de' or 'en'. A Better Auth additional field, see auth.ts. */
+  locale: text('locale').notNull().default('de'),
   ...timestamps(),
 })
 

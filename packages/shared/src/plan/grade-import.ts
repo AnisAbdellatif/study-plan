@@ -36,7 +36,8 @@ const tokensOf = (value: string): Set<string> => new Set(normalize(value).split(
 
 /** A grade like 1,3 or 2.0 that is not part of a longer number, a date, or a credit value like "8,0 LP". */
 const GRADE = /(?<![\d.,])([1-5])[.,](\d)(?![\d.,])(?!\s*(?:lp|ects|cp|kp|credits?)\b)/gi
-const FAILED = /\b(nicht\s+bestanden|nb|failed|fail)\b/i
+// Checked before PASSED, so "not passed" and "did not pass" count as failed.
+const FAILED = /\b(nicht\s+bestanden|nb|not\s+passed|did\s+not\s+pass|failed|fail)\b/i
 const PASSED = /\b(bestanden|be|bst|passed|pass)\b/i
 
 type RawResult = { kind: 'grade'; grade: number } | { kind: 'passed' } | { kind: 'failed' }

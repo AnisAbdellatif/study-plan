@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { useEffect, useId, useState } from 'react'
+import { Trans, useTranslation } from 'react-i18next'
 import { type CreatedShare, type ShareStatus, shareApi } from '../../lib/api.ts'
 import { formatDateTime, useAccountSync } from '../account-sync.tsx'
 import { Button } from '../ui/button.tsx'
@@ -14,6 +15,7 @@ export function ShareDialog({
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
+  const { t } = useTranslation(['dialogs', 'common'])
   const { sync, user, state } = useAccountSync()
   const planId = user && state.kind !== 'loading' ? sync.linkedPlanId() : null
   const inputId = useId()
@@ -31,8 +33,8 @@ export function ShareDialog({
     shareApi
       .status(planId)
       .then(setStatus)
-      .catch(() => setError('Der Status des Links konnte nicht geladen werden.'))
-  }, [open, planId])
+      .catch(() => setError(t('share.statusError')))
+  }, [open, planId, t])
 
   const run = async (action: () => Promise<void>) => {
     setBusy(true)
@@ -40,7 +42,7 @@ export function ShareDialog({
     try {
       await action()
     } catch {
-      setError('Das hat nicht geklappt. Bitte versuche es noch einmal.')
+      setError(t('share.genericError'))
     } finally {
       setBusy(false)
     }
@@ -76,24 +78,23 @@ export function ShareDialog({
   if (!user) {
     body = (
       <p className="text-sm">
-        Zum Teilen brauchst du ein Konto, in dem dein Plan gespeichert ist.{' '}
-        <Link to="/sign-in" className={linkClass}>
-          Melde dich an
-        </Link>{' '}
-        oder{' '}
-        <Link to="/sign-up" className={linkClass}>
-          erstelle ein Konto
-        </Link>
-        .
+        <Trans
+          t={t}
+          i18nKey="share.signedOut"
+          components={{
+            signIn: <Link to="/sign-in" className={linkClass} />,
+            signUp: <Link to="/sign-up" className={linkClass} />,
+          }}
+        />
       </p>
     )
   } else if (!planId) {
     body = (
       <div className="space-y-3 text-sm">
-        <p>Sichere deinen Plan zuerst im Konto, dann kannst du einen Link erstellen.</p>
+        <p>{t('share.saveFirst')}</p>
         {state.kind === 'no_account_plan' ? (
           <Button variant="primary" onClick={() => void sync.uploadLocal()}>
-            Im Konto sichern
+            {t('share.saveToAccount')}
           </Button>
         ) : null}
       </div>
@@ -101,10 +102,7 @@ export function ShareDialog({
   } else {
     body = (
       <div className="space-y-4 text-sm">
-        <p className="text-zinc-600 dark:text-zinc-400">
-          Wer den Link kennt, sieht deine Semester und Module, aber keine Noten, Prüfungstermine und keinen
-          Zielschnitt. Der Link zeigt immer den aktuellen Stand und lässt sich jederzeit deaktivieren.
-        </p>
+        <p className="text-zinc-600 dark:text-zinc-400">{t('share.explanation')}</p>
         {error ? (
           <p role="alert" className="text-red-700 dark:text-red-400">
             {error}
@@ -113,7 +111,7 @@ export function ShareDialog({
         {created ? (
           <div className="space-y-2">
             <label htmlFor={inputId} className="block font-medium">
-              Link zum Teilen
+              {t('share.linkLabel')}
             </label>
             <div className="flex gap-2">
               <input
@@ -123,25 +121,26 @@ export function ShareDialog({
                 onFocus={(event) => event.target.select()}
                 className="h-10 min-w-0 flex-1 rounded-lg bg-white px-3 text-sm ring-1 ring-zinc-300 ring-inset dark:bg-zinc-950 dark:ring-zinc-700"
               />
-              <Button onClick={copy}>{copied ? 'Kopiert' : 'Kopieren'}</Button>
+              <Button onClick={copy}>{copied ? t('share.copied') : t('share.copy')}</Button>
             </div>
-            <p className="text-xs text-zinc-600 dark:text-zinc-400">
-              Der Link wird nur jetzt angezeigt. Erstellst du später einen neuen, funktioniert dieser nicht
-              mehr.
-            </p>
+            <p className="text-xs text-zinc-600 dark:text-zinc-400">{t('share.shownOnce')}</p>
           </div>
         ) : status?.active ? (
-          <p>Ein Link ist aktiv{status.createdAt ? ` seit ${formatDateTime(status.createdAt)}` : ''}.</p>
+          <p>
+            {status.createdAt
+              ? t('share.activeSince', { date: formatDateTime(status.createdAt) })
+              : t('share.active')}
+          </p>
         ) : status ? (
-          <p>Für diesen Plan gibt es keinen aktiven Link.</p>
+          <p>{t('share.noLink')}</p>
         ) : null}
         <div className="flex flex-wrap gap-2">
           <Button variant="primary" disabled={busy || status === null} onClick={() => void createLink()}>
-            {status?.active ? 'Neuen Link erstellen' : 'Link erstellen'}
+            {status?.active ? t('share.createNew') : t('share.create')}
           </Button>
           {status?.active ? (
             <Button variant="danger" disabled={busy} onClick={() => void revokeLink()}>
-              Link deaktivieren
+              {t('share.revoke')}
             </Button>
           ) : null}
         </div>
@@ -150,10 +149,10 @@ export function ShareDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange} title="Plan teilen">
+    <Dialog open={open} onOpenChange={onOpenChange} title={t('share.title')}>
       {body}
       <div className="mt-5 flex justify-end">
-        <Button onClick={() => onOpenChange(false)}>Schließen</Button>
+        <Button onClick={() => onOpenChange(false)}>{t('common:actions.close')}</Button>
       </div>
     </Dialog>
   )

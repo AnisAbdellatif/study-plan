@@ -4,7 +4,7 @@ import { and, eq, inArray, lt } from 'drizzle-orm'
 import type { Config } from './config.ts'
 import type { Database } from './db/connection.ts'
 import { notificationSetting, plan, reminderDelivery, user } from './db/schema.ts'
-import { type Mailer, type ReminderItem, reminderMail } from './mail.ts'
+import { type Mailer, mailLocale, type ReminderItem, reminderMail } from './mail.ts'
 
 /** Delivery records are kept this many days after the deadline, then purged. */
 const DELIVERY_RETENTION_DAYS = 30
@@ -63,21 +63,27 @@ export async function runReminders(
     .where(lt(reminderDelivery.eventDate, addDays(today, -DELIVERY_RETENTION_DAYS)))
 
   const rows = await db
-    .select({ userId: user.id, email: user.email, planId: plan.id, document: plan.document })
+    .select({
+      userId: user.id,
+      email: user.email,
+      locale: user.locale,
+      planId: plan.id,
+      document: plan.document,
+    })
     .from(notificationSetting)
     .innerJoin(user, eq(notificationSetting.userId, user.id))
     .innerJoin(plan, eq(plan.userId, user.id))
     .where(and(eq(notificationSetting.examReminders, true), eq(user.emailVerified, true)))
 
-  const byUser = new Map<string, { email: string; plans: typeof rows }>()
+  const byUser = new Map<string, { email: string; locale: string; plans: typeof rows }>()
   for (const row of rows) {
-    const entry = byUser.get(row.userId) ?? { email: row.email, plans: [] }
+    const entry = byUser.get(row.userId) ?? { email: row.email, locale: row.locale, plans: [] }
     entry.plans.push(row)
     byUser.set(row.userId, entry)
   }
 
   const run: ReminderRun = { mailsSent: 0, failures: 0 }
-  for (const [userId, { email, plans }] of byUser) {
+  for (const [userId, { email, locale, plans }] of byUser) {
     const claimed: string[] = []
     const items = new Map<string, ReminderItem>()
     for (const row of plans) {
@@ -104,11 +110,16 @@ export async function runReminders(
     const token = encodeURIComponent(unsubscribeToken(config.authSecret, userId))
     try {
       await mailer.send(
-        reminderMail(email, [...items.values()], {
-          settingsUrl: `${config.publicUrl}/account`,
-          unsubscribeUrl: `${config.publicUrl}/unsubscribe?token=${token}`,
-          oneClickUrl: `${config.publicUrl}${UNSUBSCRIBE_PATH}?token=${token}`,
-        }),
+        reminderMail(
+          email,
+          [...items.values()],
+          {
+            settingsUrl: `${config.publicUrl}/account`,
+            unsubscribeUrl: `${config.publicUrl}/unsubscribe?token=${token}`,
+            oneClickUrl: `${config.publicUrl}${UNSUBSCRIBE_PATH}?token=${token}`,
+          },
+          mailLocale({ locale }),
+        ),
       )
       run.mailsSent++
     } catch (error) {

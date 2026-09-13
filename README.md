@@ -66,6 +66,18 @@ Before publishing:
 2. Conclude data processing agreements (Art. 28 DSGVO) with the hosting provider and the mail provider.
 3. Make sure the web server's own logs match the retention stated in the Datenschutzerklärung.
 
+## Languages
+
+The web app is available in German and English; e-mails follow the language of the account.
+
+- Language: the choice saved in the browser, otherwise the browser language (German for German browsers, English for all others). The footer switches it. Signed-in students' choice is stored on the account (`user.locale`) and used for verification, password reset and reminder e-mails.
+- Messages live in `apps/web/src/i18n/locales/<locale>/<namespace>.ts`. German is the reference; each English file is typed `satisfies Messages<typeof de>`, so a missing or extra key fails `bun run typecheck`. Keys are type-checked in `t(...)`.
+- Every new page or component takes its text from these files, including aria labels, announcements and error messages. Numbers, grades and dates go through `apps/web/src/lib/format.ts`.
+- Preset data (module names, areas, PO versions) stays in the language of the official documents.
+- The German Impressum and Datenschutzerklärung are binding; the English versions are courtesy translations.
+- Routes and query parameters are English (`/sign-in`, `/account?verified=1`, `/shared/$token`, `/unsubscribe`, ...).
+- Web tests render German by default; switch with `await i18n.changeLanguage('en')`.
+
 ## How grades are computed
 
 Grade rules are data in each preset, not code. The engine in `packages/shared/src/engine/compute.ts` supports:

@@ -1,7 +1,9 @@
 import { Link } from '@tanstack/react-router'
 import { type FormEvent, useCallback, useEffect, useId, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '../components/ui/button.tsx'
 import { ConfirmDialog } from '../components/ui/dialog.tsx'
+import { currentIntlLocale } from '../i18n/index.ts'
 import {
   type AdminAction,
   type AdminAuditEntry,
@@ -12,16 +14,26 @@ import {
 } from '../lib/api.ts'
 
 const cardClass = 'rounded-xl bg-white p-4 ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800'
-const numberFormat = new Intl.NumberFormat('de-DE')
-const dateFormat = new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium' })
-const dateTimeFormat = new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', timeStyle: 'short' })
 
-const ACTION_LABEL: Record<AdminAction, string> = {
-  send_verification_email: 'Bestätigungs-E-Mail gesendet',
-  revoke_shares: 'Geteilte Links deaktiviert',
-  sign_out: 'Überall abgemeldet',
-  delete_user: 'Konto gelöscht',
+// Formatters are looked up per call so they follow language changes; each locale builds them once.
+const formatters = new Map<
+  string,
+  { number: Intl.NumberFormat; date: Intl.DateTimeFormat; dateTime: Intl.DateTimeFormat }
+>()
+function format() {
+  const locale = currentIntlLocale()
+  let entry = formatters.get(locale)
+  if (!entry) {
+    entry = {
+      number: new Intl.NumberFormat(locale),
+      date: new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }),
+      dateTime: new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }),
+    }
+    formatters.set(locale, entry)
+  }
+  return entry
 }
+const formatNumber = (value: number) => format().number.format(value)
 
 type Access = 'checking' | 'allowed' | 'denied' | 'error'
 
@@ -29,49 +41,51 @@ function Stat({ label, value, detail }: { label: string; value: number; detail?:
   return (
     <div className={cardClass}>
       <p className="text-sm text-zinc-600 dark:text-zinc-400">{label}</p>
-      <p className="mt-1 text-2xl font-semibold tabular-nums">{numberFormat.format(value)}</p>
+      <p className="mt-1 text-2xl font-semibold tabular-nums">{formatNumber(value)}</p>
       {detail ? <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">{detail}</p> : null}
     </div>
   )
 }
 
 function Overview({ stats }: { stats: AdminStats }) {
+  const { t } = useTranslation('admin')
   return (
     <section aria-labelledby="admin-overview" className="space-y-3">
       <h2 id="admin-overview" className="text-lg font-semibold">
-        Überblick
+        {t('overview.heading')}
       </h2>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Stat
-          label="Konten"
+          label={t('overview.accounts')}
           value={stats.users.total}
-          detail={`${numberFormat.format(stats.users.verified)} bestätigt, ${numberFormat.format(stats.users.newLast30Days)} neu in 30 Tagen`}
+          detail={t('overview.accountsDetail', {
+            verified: formatNumber(stats.users.verified),
+            newAccounts: formatNumber(stats.users.newLast30Days),
+          })}
         />
-        <Stat label="Aktiv in 30 Tagen" value={stats.users.activeLast30Days} />
+        <Stat label={t('overview.active')} value={stats.users.activeLast30Days} />
         <Stat
-          label="Pläne im Konto"
+          label={t('overview.plans')}
           value={stats.plans.total}
-          detail={`${numberFormat.format(stats.shares.active)} davon mit aktivem Link geteilt`}
+          detail={t('overview.plansDetail', { shared: formatNumber(stats.shares.active) })}
         />
         <Stat
-          label="Erinnerungen eingeschaltet"
+          label={t('overview.reminders')}
           value={stats.reminders.enabled}
-          detail={`${numberFormat.format(stats.reminders.sentLast30Days)} Erinnerungen in 30 Tagen verschickt`}
+          detail={t('overview.remindersDetail', { sent: formatNumber(stats.reminders.sentLast30Days) })}
         />
       </div>
       <div className={`${cardClass} overflow-x-auto`}>
-        <h3 className="text-sm font-semibold">Pläne je Vorlage</h3>
+        <h3 className="text-sm font-semibold">{t('overview.byPreset')}</h3>
         {stats.plans.byPreset.length === 0 ? (
-          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-            Noch keine Pläne im Konto gespeichert.
-          </p>
+          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">{t('overview.byPresetEmpty')}</p>
         ) : (
           <table className="mt-2 w-full text-left text-sm">
             <thead className="text-zinc-600 dark:text-zinc-400">
               <tr>
-                <th className="py-1 pr-4 font-medium">Studiengang</th>
-                <th className="py-1 pr-4 font-medium">Prüfungsordnung</th>
-                <th className="py-1 text-right font-medium">Pläne</th>
+                <th className="py-1 pr-4 font-medium">{t('overview.programme')}</th>
+                <th className="py-1 pr-4 font-medium">{t('overview.regulations')}</th>
+                <th className="py-1 text-right font-medium">{t('overview.plansColumn')}</th>
               </tr>
             </thead>
             <tbody>
@@ -87,7 +101,7 @@ function Overview({ stats }: { stats: AdminStats }) {
                     </span>
                   </td>
                   <td className="py-1.5 pr-4">{row.poVersion}</td>
-                  <td className="py-1.5 text-right tabular-nums">{numberFormat.format(row.plans)}</td>
+                  <td className="py-1.5 text-right tabular-nums">{formatNumber(row.plans)}</td>
                 </tr>
               ))}
             </tbody>
@@ -103,45 +117,24 @@ interface PendingAction {
   action: AdminAction
 }
 
-const CONFIRM: Record<AdminAction, { title: string; description: (email: string) => string; label: string }> =
-  {
-    send_verification_email: {
-      title: 'Bestätigungs-E-Mail senden?',
-      description: (email) => `${email} bekommt einen neuen Link zur Bestätigung der E-Mail-Adresse.`,
-      label: 'Senden',
-    },
-    revoke_shares: {
-      title: 'Geteilte Links deaktivieren?',
-      description: (email) => `Alle aktiven Links von ${email} funktionieren danach nicht mehr.`,
-      label: 'Deaktivieren',
-    },
-    sign_out: {
-      title: 'Überall abmelden?',
-      description: (email) => `${email} wird auf allen Geräten abgemeldet und muss sich neu anmelden.`,
-      label: 'Abmelden',
-    },
-    delete_user: {
-      title: 'Konto endgültig löschen?',
-      description: (email) =>
-        `Das Konto ${email} wird mit allen Plänen, Links und Einstellungen gelöscht. Das lässt sich nicht rückgängig machen.`,
-      label: 'Endgültig löschen',
-    },
-  }
-
 function Accounts({ selfEmail, onChanged }: { selfEmail: string; onChanged: () => void }) {
   const searchId = useId()
   const [query, setQuery] = useState('')
   const [users, setUsers] = useState<AdminUser[] | null>(null)
   const [message, setMessage] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null)
   const [pending, setPending] = useState<PendingAction | null>(null)
+  const { t } = useTranslation('admin')
 
-  const load = useCallback(async (value: string) => {
-    try {
-      setUsers(await adminApi.users(value))
-    } catch {
-      setMessage({ tone: 'error', text: 'Die Konten ließen sich nicht laden.' })
-    }
-  }, [])
+  const load = useCallback(
+    async (value: string) => {
+      try {
+        setUsers(await adminApi.users(value))
+      } catch {
+        setMessage({ tone: 'error', text: t('accounts.loadError') })
+      }
+    },
+    [t],
+  )
 
   useEffect(() => {
     void load('')
@@ -159,13 +152,13 @@ function Accounts({ selfEmail, onChanged }: { selfEmail: string; onChanged: () =
       switch (action) {
         case 'send_verification_email':
           await adminApi.sendVerificationEmail(user.id)
-          setMessage({ tone: 'ok', text: `Bestätigungs-E-Mail an ${user.email} gesendet.` })
+          setMessage({ tone: 'ok', text: t('messages.verificationSent', { email: user.email }) })
           break
         case 'revoke_shares': {
           const { revoked } = await adminApi.revokeShares(user.id)
           setMessage({
             tone: 'ok',
-            text: `${revoked} ${revoked === 1 ? 'Link' : 'Links'} von ${user.email} deaktiviert.`,
+            text: t('messages.revoked', { count: revoked, email: user.email }),
           })
           break
         }
@@ -173,13 +166,13 @@ function Accounts({ selfEmail, onChanged }: { selfEmail: string; onChanged: () =
           const { sessions } = await adminApi.signOut(user.id)
           setMessage({
             tone: 'ok',
-            text: `${user.email} auf ${sessions} ${sessions === 1 ? 'Gerät' : 'Geräten'} abgemeldet.`,
+            text: t('messages.signedOut', { count: sessions, email: user.email }),
           })
           break
         }
         case 'delete_user':
           await adminApi.deleteUser(user.id)
-          setMessage({ tone: 'ok', text: `Konto ${user.email} gelöscht.` })
+          setMessage({ tone: 'ok', text: t('messages.deleted', { email: user.email }) })
           break
       }
     } catch (error) {
@@ -188,10 +181,10 @@ function Accounts({ selfEmail, onChanged }: { selfEmail: string; onChanged: () =
         tone: 'error',
         text:
           code === 'cannot_modify_self'
-            ? 'Dein eigenes Konto verwaltest du auf der Kontoseite.'
+            ? t('messages.cannotModifySelf')
             : code === 'already_verified'
-              ? 'Die E-Mail-Adresse ist schon bestätigt.'
-              : 'Das hat nicht geklappt. Bitte versuche es noch einmal.',
+              ? t('messages.alreadyVerified')
+              : t('messages.failed'),
       })
     }
     await load(query.trim())
@@ -201,12 +194,12 @@ function Accounts({ selfEmail, onChanged }: { selfEmail: string; onChanged: () =
   return (
     <section aria-labelledby="admin-accounts" className="space-y-3">
       <h2 id="admin-accounts" className="text-lg font-semibold">
-        Konten
+        {t('accounts.heading')}
       </h2>
       <form onSubmit={search} className="flex flex-wrap items-end gap-2">
         <div className="min-w-64 flex-1">
           <label htmlFor={searchId} className="block text-sm font-medium">
-            E-Mail-Adresse enthält
+            {t('accounts.search')}
           </label>
           <input
             id={searchId}
@@ -216,7 +209,7 @@ function Accounts({ selfEmail, onChanged }: { selfEmail: string; onChanged: () =
             className="mt-1 h-10 w-full rounded-lg bg-white px-3 text-sm ring-1 ring-zinc-300 ring-inset focus-visible:outline-2 focus-visible:outline-indigo-500 dark:bg-zinc-950 dark:ring-zinc-700"
           />
         </div>
-        <Button type="submit">Suchen</Button>
+        <Button type="submit">{t('accounts.submit')}</Button>
       </form>
       {message ? (
         <p
@@ -232,19 +225,19 @@ function Accounts({ selfEmail, onChanged }: { selfEmail: string; onChanged: () =
       ) : null}
       <div className={`${cardClass} overflow-x-auto p-0`}>
         {users === null ? (
-          <p className="p-4 text-sm">Wird geladen…</p>
+          <p className="p-4 text-sm">{t('loading', { ns: 'common' })}</p>
         ) : users.length === 0 ? (
-          <p className="p-4 text-sm text-zinc-600 dark:text-zinc-400">Keine Konten gefunden.</p>
+          <p className="p-4 text-sm text-zinc-600 dark:text-zinc-400">{t('accounts.empty')}</p>
         ) : (
           <table className="w-full min-w-[48rem] text-left text-sm">
             <thead className="text-zinc-600 dark:text-zinc-400">
               <tr>
-                <th className="px-4 py-2 font-medium">E-Mail-Adresse</th>
-                <th className="px-2 py-2 font-medium">Angelegt</th>
-                <th className="px-2 py-2 font-medium">Zuletzt aktiv</th>
-                <th className="px-2 py-2 text-right font-medium">Pläne</th>
-                <th className="px-2 py-2 text-right font-medium">Links</th>
-                <th className="px-4 py-2 font-medium">Aktionen</th>
+                <th className="px-4 py-2 font-medium">{t('accounts.columns.email')}</th>
+                <th className="px-2 py-2 font-medium">{t('accounts.columns.created')}</th>
+                <th className="px-2 py-2 font-medium">{t('accounts.columns.lastActive')}</th>
+                <th className="px-2 py-2 text-right font-medium">{t('accounts.columns.plans')}</th>
+                <th className="px-2 py-2 text-right font-medium">{t('accounts.columns.links')}</th>
+                <th className="px-4 py-2 font-medium">{t('accounts.columns.actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -255,20 +248,24 @@ function Accounts({ selfEmail, onChanged }: { selfEmail: string; onChanged: () =
                     <td className="px-4 py-2">
                       <span className="font-medium break-all">{user.email}</span>
                       <span className="block text-xs text-zinc-600 dark:text-zinc-400">
-                        {user.emailVerified ? 'bestätigt' : 'nicht bestätigt'}
-                        {user.reminders ? ' · Erinnerungen an' : ''}
-                        {self ? ' · du' : ''}
+                        {user.emailVerified ? t('accounts.verified') : t('accounts.unverified')}
+                        {user.reminders ? ` · ${t('accounts.remindersOn')}` : ''}
+                        {self ? ` · ${t('accounts.self')}` : ''}
                       </span>
                     </td>
-                    <td className="px-2 py-2 tabular-nums">{dateFormat.format(new Date(user.createdAt))}</td>
                     <td className="px-2 py-2 tabular-nums">
-                      {user.lastActiveAt ? dateFormat.format(new Date(user.lastActiveAt)) : '–'}
+                      {format().date.format(new Date(user.createdAt))}
+                    </td>
+                    <td className="px-2 py-2 tabular-nums">
+                      {user.lastActiveAt ? format().date.format(new Date(user.lastActiveAt)) : '–'}
                     </td>
                     <td className="px-2 py-2 text-right tabular-nums">{user.plans}</td>
                     <td className="px-2 py-2 text-right tabular-nums">{user.activeShares}</td>
                     <td className="px-4 py-2">
                       {self ? (
-                        <span className="text-xs text-zinc-600 dark:text-zinc-400">über die Kontoseite</span>
+                        <span className="text-xs text-zinc-600 dark:text-zinc-400">
+                          {t('accounts.selfActions')}
+                        </span>
                       ) : (
                         <div className="flex flex-wrap gap-1">
                           {user.emailVerified ? null : (
@@ -277,7 +274,7 @@ function Accounts({ selfEmail, onChanged }: { selfEmail: string; onChanged: () =
                               variant="ghost"
                               onClick={() => setPending({ user, action: 'send_verification_email' })}
                             >
-                              Bestätigung senden
+                              {t('accounts.actions.sendVerification')}
                             </Button>
                           )}
                           {user.activeShares > 0 ? (
@@ -286,7 +283,7 @@ function Accounts({ selfEmail, onChanged }: { selfEmail: string; onChanged: () =
                               variant="ghost"
                               onClick={() => setPending({ user, action: 'revoke_shares' })}
                             >
-                              Links deaktivieren
+                              {t('accounts.actions.revokeShares')}
                             </Button>
                           ) : null}
                           <Button
@@ -294,7 +291,7 @@ function Accounts({ selfEmail, onChanged }: { selfEmail: string; onChanged: () =
                             variant="ghost"
                             onClick={() => setPending({ user, action: 'sign_out' })}
                           >
-                            Abmelden
+                            {t('accounts.actions.signOut')}
                           </Button>
                           <Button
                             size="sm"
@@ -302,7 +299,7 @@ function Accounts({ selfEmail, onChanged }: { selfEmail: string; onChanged: () =
                             className="text-red-700 dark:text-red-400"
                             onClick={() => setPending({ user, action: 'delete_user' })}
                           >
-                            Löschen…
+                            {t('accounts.actions.delete')}
                           </Button>
                         </div>
                       )}
@@ -314,17 +311,15 @@ function Accounts({ selfEmail, onChanged }: { selfEmail: string; onChanged: () =
           </table>
         )}
       </div>
-      <p className="text-xs text-zinc-600 dark:text-zinc-400">
-        Zeigt die 25 neuesten passenden Konten. Noten und Planinhalte sind hier bewusst nicht einsehbar.
-      </p>
+      <p className="text-xs text-zinc-600 dark:text-zinc-400">{t('accounts.footnote')}</p>
       <ConfirmDialog
         open={pending !== null}
         onOpenChange={(open) => {
           if (!open) setPending(null)
         }}
-        title={pending ? CONFIRM[pending.action].title : ''}
-        description={pending ? CONFIRM[pending.action].description(pending.user.email) : ''}
-        confirmLabel={pending ? CONFIRM[pending.action].label : ''}
+        title={pending ? t(`confirm.${pending.action}.title`) : ''}
+        description={pending ? t(`confirm.${pending.action}.description`, { email: pending.user.email }) : ''}
+        confirmLabel={pending ? t(`confirm.${pending.action}.label`) : ''}
         destructive={pending?.action === 'delete_user'}
         onConfirm={() => {
           if (pending) void run(pending)
@@ -336,38 +331,40 @@ function Accounts({ selfEmail, onChanged }: { selfEmail: string; onChanged: () =
 }
 
 function AuditLog({ entries }: { entries: AdminAuditEntry[] }) {
+  const { t } = useTranslation('admin')
   return (
     <section aria-labelledby="admin-audit" className="space-y-3">
       <h2 id="admin-audit" className="text-lg font-semibold">
-        Protokoll
+        {t('audit.heading')}
       </h2>
       <div className={cardClass}>
         {entries.length === 0 ? (
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">Noch keine Aktionen.</p>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">{t('audit.empty')}</p>
         ) : (
           <ul className="space-y-1.5 text-sm">
             {entries.map((entry) => (
               <li key={entry.id} className="flex flex-wrap justify-between gap-x-4">
                 <span>
-                  {ACTION_LABEL[entry.action]}{' '}
-                  <span className="text-zinc-600 dark:text-zinc-400">· Konto {entry.targetUserId}</span>
+                  {t(`audit.actions.${entry.action}`)}{' '}
+                  <span className="text-zinc-600 dark:text-zinc-400">
+                    · {t('audit.account', { id: entry.targetUserId })}
+                  </span>
                 </span>
                 <span className="text-xs text-zinc-600 tabular-nums dark:text-zinc-400">
-                  {entry.adminEmail}, {dateTimeFormat.format(new Date(entry.createdAt))}
+                  {entry.adminEmail}, {format().dateTime.format(new Date(entry.createdAt))}
                 </span>
               </li>
             ))}
           </ul>
         )}
-        <p className="mt-3 text-xs text-zinc-600 dark:text-zinc-400">
-          Die letzten 50 Aktionen. Einträge werden nach einem Jahr gelöscht.
-        </p>
+        <p className="mt-3 text-xs text-zinc-600 dark:text-zinc-400">{t('audit.footnote')}</p>
       </div>
     </section>
   )
 }
 
 export function AdminPage() {
+  const { t } = useTranslation('admin')
   const [access, setAccess] = useState<Access>('checking')
   const [selfEmail, setSelfEmail] = useState('')
   const [stats, setStats] = useState<AdminStats | null>(null)
@@ -404,16 +401,20 @@ export function AdminPage() {
     return (
       <main className="mx-auto max-w-md space-y-3 px-4 py-10">
         <h1 className="text-xl font-semibold">
-          {access === 'checking' ? 'Wird geladen…' : access === 'denied' ? 'Seite nicht gefunden' : 'Fehler'}
+          {access === 'checking'
+            ? t('loading', { ns: 'common' })
+            : access === 'denied'
+              ? t('access.notFound')
+              : t('access.error')}
         </h1>
         {access === 'denied' ? (
-          <p className="text-sm">Diese Seite gibt es nicht oder du hast keinen Zugriff.</p>
+          <p className="text-sm">{t('access.notFoundBody')}</p>
         ) : access === 'error' ? (
-          <p className="text-sm">Die Verwaltung ist gerade nicht erreichbar.</p>
+          <p className="text-sm">{t('access.errorBody')}</p>
         ) : null}
         {access !== 'checking' ? (
           <Link to="/" className="text-sm font-medium text-indigo-700 dark:text-indigo-300">
-            Zur Startseite
+            {t('access.home')}
           </Link>
         ) : null}
       </main>
@@ -424,12 +425,12 @@ export function AdminPage() {
     <main className="mx-auto max-w-6xl space-y-8 px-4 py-6 sm:px-6">
       <header>
         <p className="text-xs font-medium tracking-wide text-indigo-600 uppercase dark:text-indigo-400">
-          Studienplaner
+          {t('brand', { ns: 'common' })}
         </p>
-        <h1 className="text-xl font-semibold">Verwaltung</h1>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">Angemeldet als {selfEmail}</p>
+        <h1 className="text-xl font-semibold">{t('title')}</h1>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">{t('signedInAs', { email: selfEmail })}</p>
       </header>
-      {stats ? <Overview stats={stats} /> : <p className="text-sm">Zahlen werden geladen…</p>}
+      {stats ? <Overview stats={stats} /> : <p className="text-sm">{t('loadingStats')}</p>}
       <Accounts selfEmail={selfEmail} onChanged={() => void refresh().catch(() => {})} />
       <AuditLog entries={audit} />
     </main>

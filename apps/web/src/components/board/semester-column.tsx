@@ -1,6 +1,7 @@
 import type { PlanModule, SemesterLoad } from '@study-plan/shared'
 import { TriangleAlert } from 'lucide-react'
 import { useId, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '../../lib/cn.ts'
 import { type MoveHandler, useColumnDropTarget } from '../../lib/dnd.ts'
 import { formatCredits } from '../../lib/format.ts'
@@ -42,6 +43,7 @@ export function SemesterColumn({
   onGrade,
   registerElement,
 }: SemesterColumnProps) {
+  const { t } = useTranslation('board')
   const headingId = useId()
   const ref = useRef<HTMLElement>(null)
   const { isOver } = useColumnDropTarget(ref, column.id)
@@ -67,7 +69,7 @@ export function SemesterColumn({
           </h2>
           {column.isCurrent ? (
             <span className="rounded-full bg-indigo-600 px-2 py-0.5 text-[11px] font-medium text-white">
-              aktuell
+              {t('columns.current')}
             </span>
           ) : null}
         </div>
@@ -80,13 +82,16 @@ export function SemesterColumn({
           {column.load === 'high' ? (
             <span className="inline-flex items-center gap-1 font-medium text-red-700 dark:text-red-400">
               <TriangleAlert aria-hidden className="size-3" />
-              hohe Last
+              {t('columns.highLoad')}
             </span>
           ) : null}
         </p>
       </header>
 
-      <ul aria-label={`Module in ${column.title}`} className="flex min-h-24 flex-1 flex-col gap-2">
+      <ul
+        aria-label={t('columns.modulesIn', { column: column.title })}
+        className="flex min-h-24 flex-1 flex-col gap-2"
+      >
         {column.modules.map((module, index) => (
           <ModuleCard
             key={module.code}
@@ -104,9 +109,7 @@ export function SemesterColumn({
         ))}
         {column.modules.length === 0 ? (
           <li className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-zinc-300 p-4 text-center text-xs text-zinc-500 dark:border-zinc-700">
-            {column.id === null
-              ? 'Hier landen Module, die du noch nicht eingeplant hast'
-              : 'Module hierher ziehen oder über das Kartenmenü verschieben'}
+            {column.id === null ? t('columns.emptyBacklog') : t('columns.emptySemester')}
           </li>
         ) : null}
       </ul>
