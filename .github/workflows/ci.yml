@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  bun:
+    name: Lint, typecheck, test (Bun)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.2
+      - run: bun ci
+      - run: bun run lint
+      - run: bun run typecheck
+      - run: bun run presets:validate
+      - name: Preset JSON Schema is up to date
+        run: bun run presets:schema && git diff --exit-code presets/preset.schema.json
+      - run: bun run test
+      - run: bun audit --audit-level=high --prod
+
+  node:
+    name: Test on Node 24 (runtime fallback)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.2
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - run: bun ci
+      - run: npx --no-install vitest run
+      - run: node packages/shared/scripts/validate-presets.ts

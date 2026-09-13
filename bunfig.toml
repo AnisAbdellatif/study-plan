@@ -1,0 +1,4 @@
+[install]
+# Supply-chain guard: refuse package versions published less than 7 days ago (value in seconds).
+minimumReleaseAge = 604800
+minimumReleaseAgeExcludes = ["@types/node", "typescript"]
