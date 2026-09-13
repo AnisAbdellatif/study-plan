@@ -81,6 +81,15 @@ export const auth = {
     title: 'Dein Konto',
     verified: 'Deine E-Mail-Adresse ist bestätigt. Willkommen!',
     adminLink: 'Zur Verwaltung',
+    password: {
+      title: 'Passwort ändern',
+      intro:
+        'Aus Sicherheitsgründen änderst du dein Passwort über einen Link, den wir dir per E-Mail schicken. Er ist eine Stunde gültig und funktioniert nur einmal.',
+      submit: 'Link zum Ändern senden',
+      pending: 'Wird gesendet…',
+      resend: 'Link erneut senden',
+      sent: 'Wir haben dir einen Link an <strong>{{email}}</strong> geschickt. Nach dem Ändern wirst du auf allen Geräten abgemeldet und meldest dich mit dem neuen Passwort wieder an.',
+    },
     plan: {
       title: 'Plan',
       signedInAs: 'Angemeldet als <strong>{{email}}</strong>.',

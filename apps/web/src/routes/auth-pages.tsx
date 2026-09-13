@@ -451,6 +451,59 @@ function ReminderSettings() {
 }
 
 /** Shown only to accounts listed in ADMIN_EMAILS; everyone else gets a 404 from the check. */
+/**
+ * Changing the password goes through the same one-time e-mail link as a forgotten password: it proves access to
+ * the address, the link works once and expires after an hour, and using it signs out every session.
+ */
+export function ChangePasswordSection({ email }: { email: string }) {
+  const { t } = useTranslation('auth')
+  const [pending, setPending] = useState(false)
+  const [sent, setSent] = useState(false)
+  const [error, setError] = useState<AuthError | null>(null)
+
+  const send = async () => {
+    setPending(true)
+    setError(null)
+    const result = await authClient.requestPasswordReset({ email, redirectTo: '/reset-password' })
+    setPending(false)
+    if (result.error) {
+      setError(result.error)
+      setSent(false)
+    } else {
+      setSent(true)
+    }
+  }
+
+  return (
+    <section className={cardClass} aria-labelledby="konto-passwort">
+      <h2 id="konto-passwort" className="font-semibold">
+        {t('account.password.title')}
+      </h2>
+      <p className="text-sm text-zinc-600 dark:text-zinc-400">{t('account.password.intro')}</p>
+      {error ? <Alert>{describeAuthError(error)}</Alert> : null}
+      {sent ? (
+        <Alert tone="success">
+          <Trans
+            t={t}
+            i18nKey="account.password.sent"
+            values={{ email }}
+            components={{ strong: <strong /> }}
+          />
+        </Alert>
+      ) : null}
+      <div>
+        <Button onClick={() => void send()} disabled={pending}>
+          {pending
+            ? t('account.password.pending')
+            : sent
+              ? t('account.password.resend')
+              : t('account.password.submit')}
+        </Button>
+      </div>
+    </section>
+  )
+}
+
 function AdminLink() {
   const { t } = useTranslation('auth')
   const [allowed, setAllowed] = useState(false)
@@ -603,6 +656,7 @@ export function AccountPage() {
         </div>
       </section>
 
+      <ChangePasswordSection email={user.email} />
       <ReminderSettings />
       <AdminLink />
 
