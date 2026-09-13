@@ -3,12 +3,14 @@
  * Pragmatic drag and drop (for example with dnd-kit, if touch dragging disappoints on real phones)
  * only touches this file. Dragging is an enhancement: every move is also available from the card menu.
  */
+
 import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine'
 import {
   draggable,
   dropTargetForElements,
   monitorForElements,
 } from '@atlaskit/pragmatic-drag-and-drop/element/adapter'
+import { autoScrollForElements } from '@atlaskit/pragmatic-drag-and-drop-auto-scroll/element'
 import {
   attachClosestEdge,
   type Edge,
@@ -149,4 +151,16 @@ export function useModuleDropMonitor(onMove: MoveHandler): void {
       }),
     [],
   )
+}
+
+/** Scrolls a module list while a module is dragged near its top or bottom edge. */
+export function useListAutoScroll(ref: RefObject<HTMLElement | null>): void {
+  useEffect(() => {
+    const element = ref.current
+    if (!element) return
+    return autoScrollForElements({
+      element,
+      canScroll: ({ source }) => source.data.type === MODULE,
+    })
+  }, [ref])
 }

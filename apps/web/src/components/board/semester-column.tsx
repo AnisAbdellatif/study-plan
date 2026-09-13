@@ -3,7 +3,7 @@ import { Search, TriangleAlert, X } from 'lucide-react'
 import { useId, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../lib/cn.ts'
-import { type MoveHandler, useColumnDropTarget } from '../../lib/dnd.ts'
+import { type MoveHandler, useColumnDropTarget, useListAutoScroll } from '../../lib/dnd.ts'
 import { formatCredits } from '../../lib/format.ts'
 import type { IssueText } from '../../lib/issues.ts'
 import { moduleMatchesQuery } from '../../lib/module-search.ts'
@@ -49,6 +49,8 @@ export function SemesterColumn({
   const { t } = useTranslation('board')
   const headingId = useId()
   const ref = useRef<HTMLElement>(null)
+  const listRef = useRef<HTMLUListElement>(null)
+  useListAutoScroll(listRef)
   const { isOver } = useColumnDropTarget(ref, column.id)
   const searchId = useId()
   const [query, setQuery] = useState('')
@@ -67,7 +69,7 @@ export function SemesterColumn({
       }}
       aria-labelledby={headingId}
       className={cn(
-        'print:w-[calc(33.333%-0.5rem)]! print:max-w-none! print:break-inside-avoid flex w-[85vw] max-w-sm shrink-0 snap-start flex-col rounded-xl bg-zinc-200/60 p-2 ring-2 ring-transparent transition-colors sm:w-[calc((100%-0.75rem)/2)] md:w-[calc((100%-1.5rem)/3)] xl:w-72 dark:bg-zinc-900/70',
+        'print:w-[calc(33.333%-0.5rem)]! print:max-w-none! print:max-h-none print:break-inside-avoid flex max-h-[calc(100dvh-2rem)] w-[85vw] max-w-sm shrink-0 snap-start flex-col rounded-xl bg-zinc-200/60 p-2 ring-2 ring-transparent transition-colors sm:w-[calc((100%-0.75rem)/2)] md:w-[calc((100%-1.5rem)/3)] xl:w-72 dark:bg-zinc-900/70',
         column.id === null && 'bg-zinc-200/30 dark:bg-zinc-900/30',
         column.isCurrent && 'ring-indigo-500/50',
         isOver && 'bg-indigo-50 ring-indigo-400 dark:bg-indigo-950/40',
@@ -144,7 +146,8 @@ export function SemesterColumn({
 
       <ul
         aria-label={t('columns.modulesIn', { column: column.title })}
-        className="flex min-h-24 flex-1 flex-col gap-2"
+        ref={listRef}
+        className="-mx-1 flex min-h-24 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain px-1 py-1 print:overflow-visible"
       >
         {visible.map(({ module, index }) => (
           <ModuleCard
