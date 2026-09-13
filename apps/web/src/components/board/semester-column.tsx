@@ -1,11 +1,12 @@
 import type { PlanModule, SemesterLoad } from '@study-plan/shared'
-import { TriangleAlert } from 'lucide-react'
-import { useId, useRef } from 'react'
+import { Search, TriangleAlert, X } from 'lucide-react'
+import { useId, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../lib/cn.ts'
 import { type MoveHandler, useColumnDropTarget } from '../../lib/dnd.ts'
 import { formatCredits } from '../../lib/format.ts'
 import type { IssueText } from '../../lib/issues.ts'
+import { moduleMatchesQuery } from '../../lib/module-search.ts'
 import { type Destination, ModuleCard } from './module-card.tsx'
 
 const NO_NOTES: readonly IssueText[] = []
@@ -49,6 +50,14 @@ export function SemesterColumn({
   const headingId = useId()
   const ref = useRef<HTMLElement>(null)
   const { isOver } = useColumnDropTarget(ref, column.id)
+  const searchId = useId()
+  const [query, setQuery] = useState('')
+  const searchable = column.id === null && column.modules.length > 0
+  const filtering = searchable && query.trim() !== ''
+  // Cards keep their position in the full list, so drag and drop still lands next to the card it was dropped on.
+  const visible = column.modules
+    .map((module, index) => ({ module, index }))
+    .filter(({ module }) => !filtering || moduleMatchesQuery(module, query, showCode))
 
   return (
     <section
@@ -90,11 +99,54 @@ export function SemesterColumn({
         </p>
       </header>
 
+      {searchable ? (
+        <div className="px-1 pb-2">
+          <label htmlFor={searchId} className="sr-only">
+            {t('columns.searchLabel')}
+          </label>
+          <div className="relative">
+            <Search
+              aria-hidden
+              className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-zinc-500"
+            />
+            <input
+              id={searchId}
+              type="search"
+              value={query}
+              placeholder={t('columns.searchPlaceholder')}
+              onChange={(event) => setQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Escape' && query !== '') {
+                  event.preventDefault()
+                  setQuery('')
+                }
+              }}
+              className="h-8 w-full rounded-lg bg-white pr-8 pl-8 text-sm ring-1 ring-zinc-300 ring-inset [&::-webkit-search-cancel-button]:hidden focus-visible:outline-2 focus-visible:outline-indigo-500 dark:bg-zinc-950 dark:ring-zinc-700"
+            />
+            {query !== '' ? (
+              <button
+                type="button"
+                aria-label={t('columns.clearSearch')}
+                onClick={() => setQuery('')}
+                className="absolute top-1/2 right-1.5 -translate-y-1/2 rounded p-1 text-zinc-500 hover:text-zinc-900 focus-visible:outline-2 focus-visible:outline-indigo-500 dark:hover:text-zinc-100"
+              >
+                <X aria-hidden className="size-3.5" />
+              </button>
+            ) : null}
+          </div>
+          {filtering ? (
+            <p role="status" className="mt-1 px-0.5 text-xs text-zinc-600 dark:text-zinc-400">
+              {t('columns.searchCount', { shown: visible.length, total: column.modules.length })}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
       <ul
         aria-label={t('columns.modulesIn', { column: column.title })}
         className="flex min-h-24 flex-1 flex-col gap-2"
       >
-        {column.modules.map((module, index) => (
+        {visible.map(({ module, index }) => (
           <ModuleCard
             key={module.code}
             module={module}
@@ -110,6 +162,11 @@ export function SemesterColumn({
             onDetails={onDetails}
           />
         ))}
+        {filtering && visible.length === 0 ? (
+          <li className="rounded-lg border border-dashed border-zinc-300 p-4 text-center text-xs text-zinc-500 dark:border-zinc-700">
+            {t('columns.searchEmpty', { query: query.trim() })}
+          </li>
+        ) : null}
         {column.modules.length === 0 ? (
           <li className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-zinc-300 p-4 text-center text-xs text-zinc-500 dark:border-zinc-700">
             {column.id === null ? t('columns.emptyBacklog') : t('columns.emptySemester')}
