@@ -9,6 +9,8 @@ import {
 import { Link, useNavigate } from '@tanstack/react-router'
 import { type FormEvent, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useAccountSync } from '../components/account-sync.tsx'
+import { BrandMark } from '../components/brand-logo.tsx'
 import { ImportPlanButton } from '../components/import-plan-button.tsx'
 import { AnswerPanel } from '../components/programme-extraction/answer-panel.tsx'
 import { DescribeForm } from '../components/programme-extraction/describe-form.tsx'
@@ -65,6 +67,7 @@ export function StartPage() {
   const { t } = useTranslation(['start', 'customPreset', 'common'])
   const store = useGuestStore()
   const { plan, loadError } = useGuestState()
+  const { user, sessionPending } = useAccountSync()
   const navigate = useNavigate()
   const extraction = useProgrammeExtraction({
     draftKey: DRAFT_KEY,
@@ -104,9 +107,7 @@ export function StartPage() {
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-10">
-      <p className="text-xs font-medium tracking-wide text-indigo-600 uppercase dark:text-indigo-400">
-        {t('common:brand')}
-      </p>
+      <BrandMark size="lg" className="mb-4" />
       <h1 className="mt-1 text-2xl font-semibold">{t('title')}</h1>
       <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">{t('intro')}</p>
 
@@ -132,9 +133,12 @@ export function StartPage() {
           <p className={hintClass}>{t('importNote')}</p>
         </div>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <Link to="/sign-in" className={linkClass}>
-            {t('haveAccount')}
-          </Link>
+          {/* Hidden while the session loads too, so signed-in students never see it flash. */}
+          {user || sessionPending ? null : (
+            <Link to="/sign-in" className={linkClass}>
+              {t('haveAccount')}
+            </Link>
+          )}
           {plan ? (
             <Link to="/" className={linkClass}>
               {t('backToPlan')}

@@ -13,6 +13,7 @@ import {
   session,
   user,
 } from '../db/schema.ts'
+import { type MonitoredMailer, testMail } from '../mail.ts'
 import { createPasswordAccount, isAdminRole } from '../roles.ts'
 import type { AppEnv } from '../types.ts'
 
@@ -73,7 +74,7 @@ const presetField = (field: 'id' | 'programmeName' | 'universityName' | 'poVersi
   sql<string>`${plan.document}->'plan'->'preset'->>${sql.raw(`'${field}'`)}`
 
 /** Operator tools. Shows account metadata and counts, never grades or plan contents. */
-export function adminRoutes(db: Database, auth: Auth) {
+export function adminRoutes(db: Database, auth: Auth, mailer: MonitoredMailer, publicUrl: string) {
   const routes = new Hono<AppEnv>()
 
   const audit = async (c: Context<AppEnv>, action: AdminAction, targetUserId: string) => {
@@ -284,6 +285,28 @@ export function adminRoutes(db: Database, auth: Auth) {
     })
     await audit(c, 'create_admin', id)
     return c.json({ id, email, role: 'admin' }, 201)
+  })
+
+  /** Mail delivery since the last start: transport, server (no password), last success and failure. */
+  routes.get('/mail', (c) => {
+    c.header('Cache-Control', 'no-store')
+    return c.json(mailer.status())
+  })
+
+  /** Connects and logs in to the mail server without sending. */
+  routes.post('/mail/verify', async (c) => c.json(await mailer.verify()))
+
+  /** Sends a test e-mail to the signed-in admin's own address. */
+  routes.post('/mail/test', async (c) => {
+    const self = c.get('user')
+    try {
+      await mailer.send(testMail(self.email, publicUrl))
+    } catch (error) {
+      return c.json({ ok: false, error: error instanceof Error ? error.message : String(error) })
+    } finally {
+      await audit(c, 'send_test_email', self.id)
+    }
+    return c.json({ ok: true, to: self.email })
   })
 
   routes.get('/audit', async (c) => {

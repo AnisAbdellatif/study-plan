@@ -5,6 +5,7 @@ import { createRoot } from 'react-dom/client'
 import { applyTheme } from './lib/theme.ts'
 import { createAppRouter } from './router.tsx'
 import { guestStore, STORAGE_KEY } from './store/guest-store.ts'
+import '@fontsource-variable/outfit'
 import './styles.css'
 
 applyTheme()

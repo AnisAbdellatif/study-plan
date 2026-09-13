@@ -33,7 +33,7 @@ export const auth = {
       'Afterwards you can save the plan from this browser to your account. All we need is your email address and a password.',
     passwordHint:
       'At least {{min}} characters. A long sentence is easier to remember than a short, complicated password.',
-    privacy: 'Our <privacyLink>privacy policy</privacyLink> explains which data we store.',
+    privacyConsent: 'I have read and accept the <privacyLink>privacy policy</privacyLink>.',
     submit: 'Create account',
     pending: 'Creating account…',
     haveAccount: 'Already have an account? Sign in',
@@ -81,6 +81,17 @@ export const auth = {
     title: 'Your account',
     verified: 'Your email address is confirmed. Welcome!',
     adminLink: 'Go to the admin dashboard',
+    backToPlan: 'Back to your plan',
+    backHome: 'Go to the home page',
+    password: {
+      title: 'Change password',
+      intro:
+        'For security, you change your password through a link we email you. It is valid for one hour and works only once.',
+      submit: 'Send change link',
+      pending: 'Sending…',
+      resend: 'Send link again',
+      sent: 'We’ve sent a link to <strong>{{email}}</strong>. After changing your password you’ll be signed out on all devices and sign in again with the new password.',
+    },
     plan: {
       title: 'Plan',
       signedInAs: 'Signed in as <strong>{{email}}</strong>.',
@@ -115,6 +126,8 @@ export const auth = {
   button: {
     signIn: 'Sign in',
     account: 'Account',
+    manageAccount: 'Manage account',
+    signOut: 'Sign out',
   },
   sync: {
     browserOnly: 'Only saved in this browser',

@@ -4,8 +4,16 @@
 # study-plan-proxy network, so the production stack must be running.
 name: study-plan-dev
 
+# Rotated container logs, as in compose.yaml.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   app:
+    logging: *logging
     # The deploy job tags the image it deployed as dev on the VPS, so manual `docker compose up -d` needs no pull.
     image: ${APP_IMAGE:?set APP_IMAGE}:${APP_TAG:-dev}
     pull_policy: missing
@@ -33,6 +41,7 @@ services:
 
   postgres:
     image: postgres:18-alpine
+    logging: *logging
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-studyplan}

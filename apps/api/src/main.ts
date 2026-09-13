@@ -26,6 +26,7 @@ const app = createApp({
   config,
   db: database.db,
   auth,
+  mailer,
   staticFiles: config.webDist
     ? {
         assets: serveStatic({ root: config.webDist }),

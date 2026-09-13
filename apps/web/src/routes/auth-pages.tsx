@@ -1,7 +1,9 @@
 import { Link, Navigate, useNavigate, useSearch } from '@tanstack/react-router'
+import { ArrowLeft } from 'lucide-react'
 import { type FormEvent, type ReactNode, useEffect, useId, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import { describeSyncState, useAccountSync } from '../components/account-sync.tsx'
+import { BrandMark } from '../components/brand-logo.tsx'
 import { Button } from '../components/ui/button.tsx'
 import { ConfirmDialog } from '../components/ui/dialog.tsx'
 import i18n, { currentLocale } from '../i18n/index.ts'
@@ -41,15 +43,34 @@ export function describeAuthError(error: AuthError): string {
   }
 }
 
-function AuthLayout({ title, intro, children }: { title: string; intro?: ReactNode; children: ReactNode }) {
-  const { t } = useTranslation()
+function AuthLayout({
+  title,
+  intro,
+  back,
+  children,
+}: {
+  title: string
+  intro?: ReactNode
+  /** A labelled way back, shown above everything else. */
+  back?: { to: '/' | '/start'; label: string }
+  children: ReactNode
+}) {
   return (
     <main className="mx-auto flex min-h-[80dvh] max-w-md flex-col justify-center px-4 py-10">
+      {back ? (
+        <Link
+          to={back.to}
+          className="mb-6 inline-flex w-fit items-center gap-1.5 rounded-lg px-2 py-1.5 -ml-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50 focus-visible:outline-2 focus-visible:outline-indigo-500 dark:text-indigo-300 dark:hover:bg-indigo-950/40"
+        >
+          <ArrowLeft aria-hidden className="size-4" />
+          {back.label}
+        </Link>
+      ) : null}
       <Link
         to="/"
-        className="text-xs font-medium tracking-wide text-indigo-600 uppercase dark:text-indigo-400"
+        className="w-fit rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
       >
-        {t('brand')}
+        <BrandMark />
       </Link>
       <h1 className="mt-1 text-2xl font-semibold">{title}</h1>
       {intro ? <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">{intro}</p> : null}
@@ -167,9 +188,13 @@ export function SignUpPage() {
   const [error, setError] = useState<AuthError | null>(null)
   const [sentTo, setSentTo] = useState<string | null>(null)
   const [resent, setResent] = useState(false)
+  const [acceptedPrivacy, setAcceptedPrivacy] = useState(false)
+  const privacyId = useId()
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
+    // The checkbox is required, so browsers block the submit; this also covers ones that skip validation.
+    if (!acceptedPrivacy) return
     setPending(true)
     setError(null)
     const result = await authClient.signUp.email({
@@ -238,13 +263,26 @@ export function SignUpPage() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
-        <p className="text-xs text-zinc-600 dark:text-zinc-400">
-          <Trans
-            t={t}
-            i18nKey="signUp.privacy"
-            components={{ privacyLink: <Link to="/privacy" className={linkClass} /> }}
+        <div className="flex items-start gap-2.5">
+          <input
+            id={privacyId}
+            type="checkbox"
+            required
+            checked={acceptedPrivacy}
+            onChange={(event) => setAcceptedPrivacy(event.target.checked)}
+            className="mt-0.5 size-4 shrink-0 accent-indigo-600"
           />
-        </p>
+          <label htmlFor={privacyId} className="text-sm text-zinc-700 dark:text-zinc-300">
+            <Trans
+              t={t}
+              i18nKey="signUp.privacyConsent"
+              components={{
+                // A new tab keeps the half-filled form.
+                privacyLink: <Link to="/privacy" target="_blank" rel="noopener" className={linkClass} />,
+              }}
+            />
+          </label>
+        </div>
         <Button type="submit" variant="primary" className="w-full" disabled={pending}>
           {pending ? t('signUp.pending') : t('signUp.submit')}
         </Button>
@@ -449,6 +487,59 @@ function ReminderSettings() {
 }
 
 /** Shown only to accounts listed in ADMIN_EMAILS; everyone else gets a 404 from the check. */
+/**
+ * Changing the password goes through the same one-time e-mail link as a forgotten password: it proves access to
+ * the address, the link works once and expires after an hour, and using it signs out every session.
+ */
+export function ChangePasswordSection({ email }: { email: string }) {
+  const { t } = useTranslation('auth')
+  const [pending, setPending] = useState(false)
+  const [sent, setSent] = useState(false)
+  const [error, setError] = useState<AuthError | null>(null)
+
+  const send = async () => {
+    setPending(true)
+    setError(null)
+    const result = await authClient.requestPasswordReset({ email, redirectTo: '/reset-password' })
+    setPending(false)
+    if (result.error) {
+      setError(result.error)
+      setSent(false)
+    } else {
+      setSent(true)
+    }
+  }
+
+  return (
+    <section className={cardClass} aria-labelledby="konto-passwort">
+      <h2 id="konto-passwort" className="font-semibold">
+        {t('account.password.title')}
+      </h2>
+      <p className="text-sm text-zinc-600 dark:text-zinc-400">{t('account.password.intro')}</p>
+      {error ? <Alert>{describeAuthError(error)}</Alert> : null}
+      {sent ? (
+        <Alert tone="success">
+          <Trans
+            t={t}
+            i18nKey="account.password.sent"
+            values={{ email }}
+            components={{ strong: <strong /> }}
+          />
+        </Alert>
+      ) : null}
+      <div>
+        <Button onClick={() => void send()} disabled={pending}>
+          {pending
+            ? t('account.password.pending')
+            : sent
+              ? t('account.password.resend')
+              : t('account.password.submit')}
+        </Button>
+      </div>
+    </section>
+  )
+}
+
 function AdminLink() {
   const { t } = useTranslation('auth')
   const [allowed, setAllowed] = useState(false)
@@ -570,7 +661,12 @@ export function AccountPage() {
   }
 
   return (
-    <AuthLayout title={t('account.title')}>
+    <AuthLayout
+      title={t('account.title')}
+      back={
+        plan ? { to: '/', label: t('account.backToPlan') } : { to: '/start', label: t('account.backHome') }
+      }
+    >
       {search.verified ? <Alert tone="success">{t('account.verified')}</Alert> : null}
 
       <section className={cardClass} aria-labelledby="konto-plan">
@@ -601,6 +697,7 @@ export function AccountPage() {
         </div>
       </section>
 
+      <ChangePasswordSection email={user.email} />
       <ReminderSettings />
       <AdminLink />
 

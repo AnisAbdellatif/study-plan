@@ -19,7 +19,7 @@ export interface AuthDependencies {
 
 export function createAuth({ config, db, mailer }: AuthDependencies) {
   return betterAuth({
-    appName: 'Studienplaner',
+    appName: 'Study Plan',
     baseURL: config.publicUrl,
     basePath: '/api/auth',
     secret: config.authSecret,

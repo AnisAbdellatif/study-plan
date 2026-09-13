@@ -1,98 +1,128 @@
 import { Link } from '@tanstack/react-router'
+import { Check } from 'lucide-react'
 import { Trans, useTranslation } from 'react-i18next'
-import { LegalPage, OperatorField } from './legal-page.tsx'
+import { LegalPage, LegalSection, OperatorField } from './legal-page.tsx'
 
+const SECTIONS = [
+  'controller',
+  'summary',
+  'website',
+  'guest',
+  'account',
+  'sharing',
+  'emails',
+  'abuse',
+  'cookies',
+  'rights',
+  'misc',
+] as const
 const SUMMARY_ITEMS = ['guest', 'account', 'noTracking', 'cookie', 'sharing', 'selfService'] as const
 const ACCOUNT_ITEMS = ['identity', 'password', 'plans', 'reminders', 'language', 'sessions'] as const
 
 /**
- * Describes what this app actually processes. Keep it in sync with apps/api (schema, auth, logging)
- * and the browser storage keys in apps/web whenever those change. The texts live in the `legal` namespace;
- * change the German original first, then the English courtesy translation.
+ * Describes what this app actually processes. Keep it in sync with apps/api (schema, auth, logging), the
+ * container logging in deploy/ and the browser storage keys in apps/web whenever those change. The texts live in
+ * the `legal` namespace; change the German original first, then the English courtesy translation.
  */
 export function DatenschutzPage() {
   const { t } = useTranslation('legal')
+  const heading = (id: (typeof SECTIONS)[number]) => t(`privacy.${id}.heading`)
   return (
-    <LegalPage title={t('privacy.title')}>
-      <h2>{t('privacy.controller.heading')}</h2>
-      <p>
-        <OperatorField field="name" />
-        <br />
-        <OperatorField field="street" />
-        <br />
-        <OperatorField field="postalCity" />
-        <br />
-        {t('labels.email')} <OperatorField field="email" />
-      </p>
+    <LegalPage
+      title={t('privacy.title')}
+      updated={t('privacy.updated')}
+      sections={SECTIONS.map((id) => ({ id, heading: heading(id) }))}
+    >
+      <LegalSection id="controller" heading={heading('controller')}>
+        <p>
+          <OperatorField field="name" />
+          <br />
+          <OperatorField field="street" />
+          <br />
+          <OperatorField field="postalCity" />
+          <br />
+          {t('labels.email')} <OperatorField field="email" />
+        </p>
+      </LegalSection>
 
-      <h2>{t('privacy.summary.heading')}</h2>
-      <ul>
-        {SUMMARY_ITEMS.map((item) => (
-          <li key={item}>{t(`privacy.summary.${item}`)}</li>
-        ))}
-      </ul>
+      <LegalSection id="summary" heading={heading('summary')}>
+        <ul className="list-none! rounded-xl bg-indigo-50/70 py-4 pr-4 ring-1 ring-indigo-100 dark:bg-indigo-950/30 dark:ring-indigo-900/60">
+          {SUMMARY_ITEMS.map((item) => (
+            <li key={item} className="flex gap-3">
+              <Check aria-hidden className="mt-1.5 size-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
+              <span>{t(`privacy.summary.${item}`)}</span>
+            </li>
+          ))}
+        </ul>
+      </LegalSection>
 
-      <h2>{t('privacy.website.heading')}</h2>
-      <p>
-        <Trans
-          t={t}
-          i18nKey="privacy.website.serverLogs"
-          components={{ retention: <OperatorField field="serverLogRetention" /> }}
-        />
-      </p>
-      <p>{t('privacy.website.appLogs')}</p>
-      <p>
-        <Trans
-          t={t}
-          i18nKey="privacy.website.hosting"
-          components={{ hosting: <OperatorField field="hostingProvider" /> }}
-        />
-      </p>
+      <LegalSection id="website" heading={heading('website')}>
+        <p>{t('privacy.website.serverLogs')}</p>
+        <p>{t('privacy.website.appLogs')}</p>
+        <p>
+          <Trans
+            t={t}
+            i18nKey="privacy.website.hosting"
+            components={{ hosting: <OperatorField field="hostingProvider" /> }}
+          />
+        </p>
+      </LegalSection>
 
-      <h2>{t('privacy.guest.heading')}</h2>
-      <p>{t('privacy.guest.storage')}</p>
+      <LegalSection id="guest" heading={heading('guest')}>
+        <p>{t('privacy.guest.storage')}</p>
+      </LegalSection>
 
-      <h2>{t('privacy.account.heading')}</h2>
-      <p>{t('privacy.account.intro')}</p>
-      <ul>
-        {ACCOUNT_ITEMS.map((item) => (
-          <li key={item}>{t(`privacy.account.${item}`)}</li>
-        ))}
-      </ul>
-      <p>{t('privacy.account.legalBasis')}</p>
-      <p>{t('privacy.account.adminView')}</p>
-      <p>{t('privacy.account.grades')}</p>
+      <LegalSection id="account" heading={heading('account')}>
+        <p>{t('privacy.account.intro')}</p>
+        <ul>
+          {ACCOUNT_ITEMS.map((item) => (
+            <li key={item}>{t(`privacy.account.${item}`)}</li>
+          ))}
+        </ul>
+        <p>{t('privacy.account.legalBasis')}</p>
+        <p>{t('privacy.account.adminView')}</p>
+        <p>{t('privacy.account.grades')}</p>
+      </LegalSection>
 
-      <h2>{t('privacy.sharing.heading')}</h2>
-      <p>{t('privacy.sharing.body')}</p>
+      <LegalSection id="sharing" heading={heading('sharing')}>
+        <p>{t('privacy.sharing.body')}</p>
+      </LegalSection>
 
-      <h2>{t('privacy.emails.heading')}</h2>
-      <p>{t('privacy.emails.account')}</p>
-      <p>{t('privacy.emails.reminders')}</p>
-      <p>
-        <Trans
-          t={t}
-          i18nKey="privacy.emails.provider"
-          components={{ mail: <OperatorField field="mailProvider" /> }}
-        />
-      </p>
+      <LegalSection id="emails" heading={heading('emails')}>
+        <p>{t('privacy.emails.account')}</p>
+        <p>{t('privacy.emails.reminders')}</p>
+        <p>
+          <Trans
+            t={t}
+            i18nKey="privacy.emails.provider"
+            components={{ mail: <OperatorField field="mailProvider" /> }}
+          />
+        </p>
+      </LegalSection>
 
-      <h2>{t('privacy.abuse.heading')}</h2>
-      <p>{t('privacy.abuse.body')}</p>
+      <LegalSection id="abuse" heading={heading('abuse')}>
+        <p>{t('privacy.abuse.body')}</p>
+      </LegalSection>
 
-      <h2>{t('privacy.cookies.heading')}</h2>
-      <p>{t('privacy.cookies.body')}</p>
+      <LegalSection id="cookies" heading={heading('cookies')}>
+        <p>{t('privacy.cookies.body')}</p>
+      </LegalSection>
 
-      <h2>{t('privacy.rights.heading')}</h2>
-      <p>{t('privacy.rights.list')}</p>
-      <p>
-        <Trans t={t} i18nKey="privacy.rights.selfService" components={{ account: <Link to="/account" /> }} />
-      </p>
-      <p>{t('privacy.rights.complaint')}</p>
+      <LegalSection id="rights" heading={heading('rights')}>
+        <p>{t('privacy.rights.list')}</p>
+        <p>
+          <Trans
+            t={t}
+            i18nKey="privacy.rights.selfService"
+            components={{ account: <Link to="/account" /> }}
+          />
+        </p>
+        <p>{t('privacy.rights.complaint')}</p>
+      </LegalSection>
 
-      <h2>{t('privacy.misc.heading')}</h2>
-      <p>{t('privacy.misc.body')}</p>
-      <p>{t('privacy.updated')}</p>
+      <LegalSection id="misc" heading={heading('misc')}>
+        <p>{t('privacy.misc.body')}</p>
+      </LegalSection>
     </LegalPage>
   )
 }

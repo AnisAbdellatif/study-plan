@@ -65,7 +65,7 @@ function SharedPlanView({ response, plan }: { response: SharedPlanResponse; plan
   ]
 
   return (
-    <main className="mx-auto max-w-[96rem] space-y-4 px-4 py-6 sm:px-6">
+    <main className="mx-auto max-w-[240rem] space-y-4 px-4 py-6 sm:px-6">
       <header className="flex flex-wrap items-start gap-3">
         <div className="min-w-0 flex-1">
           <p className="text-xs font-medium tracking-wide text-indigo-600 uppercase dark:text-indigo-400">

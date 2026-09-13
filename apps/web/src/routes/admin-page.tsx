@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { type FormEvent, type ReactNode, useCallback, useEffect, useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { BrandMark } from '../components/brand-logo.tsx'
 import { Button } from '../components/ui/button.tsx'
 import { ConfirmDialog } from '../components/ui/dialog.tsx'
 import { currentIntlLocale } from '../i18n/index.ts'
@@ -13,6 +14,7 @@ import {
   adminApi,
   type UserRole,
 } from '../lib/api.ts'
+import { MailSection } from './admin-mail-section.tsx'
 
 const cardClass = 'rounded-xl bg-white p-4 ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800'
 const inputClass =
@@ -695,9 +697,7 @@ export function AdminPage() {
   return (
     <main className="mx-auto max-w-6xl space-y-8 px-4 py-6 sm:px-6">
       <header>
-        <p className="text-xs font-medium tracking-wide text-indigo-600 uppercase dark:text-indigo-400">
-          {t('brand', { ns: 'common' })}
-        </p>
+        <BrandMark className="mb-1" />
         <h1 className="text-xl font-semibold">{t('title')}</h1>
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
           {t('signedInAs', { email: selfEmail })}
@@ -705,6 +705,7 @@ export function AdminPage() {
         </p>
       </header>
       {stats ? <Overview stats={stats} /> : <p className="text-sm">{t('loadingStats')}</p>}
+      <MailSection onChanged={changed} />
       {viewer === 'superadmin' ? <AdminTeam {...sectionProps} /> : null}
       <Accounts {...sectionProps} />
       <AuditLog entries={audit} />

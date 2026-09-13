@@ -5,9 +5,11 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useGuestStore } from '../store/guest-store.ts'
 import { AccountButton } from './account-button.tsx'
+import { AdminButton } from './admin-button.tsx'
 import { useAnnounce } from './announcer.tsx'
 import { ImportGradesDialog } from './board/import-grades-dialog.tsx'
 import { ShareDialog } from './board/share-dialog.tsx'
+import { BrandMark } from './brand-logo.tsx'
 import { ImportPlanButton } from './import-plan-button.tsx'
 import { LanguageMenu } from './language-menu.tsx'
 import { ThemeToggle } from './theme-toggle.tsx'
@@ -31,9 +33,7 @@ export function AppHeader({ plan, onAddCustomModule }: { plan: Plan; onAddCustom
   return (
     <header className="flex flex-wrap items-center gap-3">
       <div className="min-w-0 flex-1">
-        <p className="text-xs font-medium tracking-wide text-indigo-600 uppercase dark:text-indigo-400">
-          {t('common:brand')}
-        </p>
+        <BrandMark size="lg" className="mb-2" />
         <h1 className="truncate text-xl font-semibold">{plan.name}</h1>
         <p className="truncate text-sm text-zinc-600 dark:text-zinc-400">
           {plan.preset.universityName} · {plan.preset.poVersion}
@@ -42,6 +42,7 @@ export function AppHeader({ plan, onAddCustomModule }: { plan: Plan; onAddCustom
       <div className="flex items-center gap-2 print:hidden">
         <LanguageMenu />
         <ThemeToggle />
+        <AdminButton labelClassName="sr-only sm:not-sr-only" />
         <AccountButton />
         <Button onClick={() => exportPlan(plan)}>
           <Download aria-hidden className="size-4" />
