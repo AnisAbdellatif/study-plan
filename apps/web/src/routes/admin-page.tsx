@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { type FormEvent, type ReactNode, useCallback, useEffect, useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { BrandLogo } from '../components/brand-logo.tsx'
 import { Button } from '../components/ui/button.tsx'
 import { ConfirmDialog } from '../components/ui/dialog.tsx'
 import { currentIntlLocale } from '../i18n/index.ts'
@@ -696,7 +697,8 @@ export function AdminPage() {
   return (
     <main className="mx-auto max-w-6xl space-y-8 px-4 py-6 sm:px-6">
       <header>
-        <p className="text-xs font-medium tracking-wide text-indigo-600 uppercase dark:text-indigo-400">
+        <p className="flex items-center gap-1.5 text-xs font-medium tracking-wide text-indigo-600 uppercase dark:text-indigo-400">
+          <BrandLogo />
           {t('brand', { ns: 'common' })}
         </p>
         <h1 className="text-xl font-semibold">{t('title')}</h1>

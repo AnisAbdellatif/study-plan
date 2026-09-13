@@ -9,6 +9,7 @@ import { AdminButton } from './admin-button.tsx'
 import { useAnnounce } from './announcer.tsx'
 import { ImportGradesDialog } from './board/import-grades-dialog.tsx'
 import { ShareDialog } from './board/share-dialog.tsx'
+import { BrandLogo } from './brand-logo.tsx'
 import { ImportPlanButton } from './import-plan-button.tsx'
 import { LanguageMenu } from './language-menu.tsx'
 import { ThemeToggle } from './theme-toggle.tsx'
@@ -32,7 +33,8 @@ export function AppHeader({ plan, onAddCustomModule }: { plan: Plan; onAddCustom
   return (
     <header className="flex flex-wrap items-center gap-3">
       <div className="min-w-0 flex-1">
-        <p className="text-xs font-medium tracking-wide text-indigo-600 uppercase dark:text-indigo-400">
+        <p className="flex items-center gap-1.5 text-xs font-medium tracking-wide text-indigo-600 uppercase dark:text-indigo-400">
+          <BrandLogo />
           {t('common:brand')}
         </p>
         <h1 className="truncate text-xl font-semibold">{plan.name}</h1>
