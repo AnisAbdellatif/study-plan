@@ -130,6 +130,8 @@ export const planShare = pgTable(
       .notNull()
       .references(() => plan.id, { onDelete: 'cascade' }),
     tokenHash: text('token_hash').notNull().unique(),
+    /** The owner chose to show results and grades through this link. Exam dates and the target grade never show. */
+    includeGrades: boolean('include_grades').notNull().default(false),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     revokedAt: timestamp('revoked_at', { withTimezone: true }),
   },

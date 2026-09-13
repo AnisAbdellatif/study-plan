@@ -1,6 +1,9 @@
 export const sharedPlan = {
   eyebrow: 'Geteilter Studienplan',
   lastChanged: 'Zuletzt geändert {{time}}. Ohne Noten, Prüfungstermine und Zielschnitt.',
+  lastChangedWithGrades: 'Zuletzt geändert {{time}}. Mit Noten, ohne Prüfungstermine und Zielschnitt.',
+  average: 'Schnitt',
+  adoptWithoutGrades: 'Beim Übernehmen kommen keine Noten mit.',
   adopt: 'Als eigenen Plan übernehmen',
   semester: '{{number}}. Semester',
   backlog: 'Nicht eingeplant',

@@ -419,6 +419,7 @@ describe('sharing', () => {
     expect(await json(await call(`/api/plans/${planId}/share`, { cookie }))).toEqual({
       active: false,
       createdAt: null,
+      includeGrades: false,
     })
 
     const created = await call(`/api/plans/${planId}/share`, { method: 'POST', cookie })
@@ -472,7 +473,45 @@ describe('sharing', () => {
     expect(await json(await call(`/api/plans/${planId}/share`, { cookie }))).toEqual({
       active: false,
       createdAt: null,
+      includeGrades: false,
     })
+  })
+
+  it('shares results only when the owner chooses grades, and never exam dates or the target grade', async () => {
+    const created = await call(`/api/plans/${planId}/share`, {
+      method: 'POST',
+      cookie,
+      body: { includeGrades: true },
+    })
+    expect(created.status).toBe(201)
+    const { token } = await json<Created & { includeGrades: boolean }>(created)
+    expect(await json(await call(`/api/plans/${planId}/share`, { cookie }))).toMatchObject({
+      active: true,
+      includeGrades: true,
+    })
+
+    const text = await (await call(`/api/share/${token}`)).text()
+    expect(text).not.toContain('2027-07-20')
+    const body = JSON.parse(text) as SharedResponse & { includeGrades: boolean }
+    expect(body.includeGrades).toBe(true)
+    expect(body.plan.modules.some((module) => module.attempts.length > 0)).toBe(true)
+    expect(body.plan.modules.every((module) => module.examDate === undefined)).toBe(true)
+    expect(body.plan.targetGrade).toBeUndefined()
+
+    // A new link without the option goes back to no grades.
+    const plain = await json<Created>(await call(`/api/plans/${planId}/share`, { method: 'POST', cookie }))
+    const plainBody = await json<SharedResponse & { includeGrades: boolean }>(
+      await call(`/api/share/${plain.token}`),
+    )
+    expect(plainBody.includeGrades).toBe(false)
+    expect(plainBody.plan.modules.every((module) => module.attempts.length === 0)).toBe(true)
+
+    const invalid = await call(`/api/plans/${planId}/share`, {
+      method: 'POST',
+      cookie,
+      body: { includeGrades: 'yes' },
+    })
+    expect(invalid.status).toBe(400)
   })
 
   it('does not let anyone else manage the link', async () => {

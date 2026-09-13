@@ -24,6 +24,9 @@ export function ShareDialog({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  // Without grades unless the owner picks otherwise; an active link preselects what it shows.
+  const [includeGrades, setIncludeGrades] = useState(false)
+  const visibilityName = useId()
 
   useEffect(() => {
     if (!open || !planId) return
@@ -32,7 +35,10 @@ export function ShareDialog({
     setError(null)
     shareApi
       .status(planId)
-      .then(setStatus)
+      .then((next) => {
+        setStatus(next)
+        setIncludeGrades(next.active && next.includeGrades)
+      })
       .catch(() => setError(t('share.statusError')))
   }, [open, planId, t])
 
@@ -51,9 +57,9 @@ export function ShareDialog({
   const createLink = () =>
     run(async () => {
       if (!planId) return
-      const share = await shareApi.create(planId)
+      const share = await shareApi.create(planId, { includeGrades })
       setCreated(share)
-      setStatus({ active: true, createdAt: share.createdAt })
+      setStatus({ active: true, createdAt: share.createdAt, includeGrades: share.includeGrades })
     })
 
   const revokeLink = () =>
@@ -61,7 +67,7 @@ export function ShareDialog({
       if (!planId) return
       await shareApi.revoke(planId)
       setCreated(null)
-      setStatus({ active: false, createdAt: null })
+      setStatus({ active: false, createdAt: null, includeGrades: false })
     })
 
   const copy = async () => {
@@ -129,10 +135,41 @@ export function ShareDialog({
           <p>
             {status.createdAt
               ? t('share.activeSince', { date: formatDateTime(status.createdAt) })
-              : t('share.active')}
+              : t('share.active')}{' '}
+            {status.includeGrades ? t('share.activeWithGrades') : t('share.activeWithoutGrades')}
           </p>
         ) : status ? (
           <p>{t('share.noLink')}</p>
+        ) : null}
+        {status ? (
+          <fieldset className="space-y-2">
+            <legend className="mb-1 font-medium">{t('share.visibility')}</legend>
+            {([false, true] as const).map((withGrades) => (
+              <label
+                key={String(withGrades)}
+                className="flex cursor-pointer items-start gap-2.5 rounded-lg p-2.5 ring-1 ring-zinc-200 ring-inset has-[:checked]:bg-indigo-50 has-[:checked]:ring-2 has-[:checked]:ring-indigo-500 dark:ring-zinc-700 dark:has-[:checked]:bg-indigo-950/40"
+              >
+                <input
+                  type="radio"
+                  name={visibilityName}
+                  checked={includeGrades === withGrades}
+                  onChange={() => setIncludeGrades(withGrades)}
+                  className="mt-1 accent-indigo-600"
+                />
+                <span>
+                  <span className="block font-medium">
+                    {withGrades ? t('share.withGrades') : t('share.withoutGrades')}
+                  </span>
+                  <span className="block text-xs text-zinc-600 dark:text-zinc-400">
+                    {withGrades ? t('share.withGradesHint') : t('share.withoutGradesHint')}
+                  </span>
+                </span>
+              </label>
+            ))}
+            {status.active && !created && includeGrades !== status.includeGrades ? (
+              <p className="text-xs text-amber-800 dark:text-amber-300">{t('share.changeHint')}</p>
+            ) : null}
+          </fieldset>
         ) : null}
         <div className="flex flex-wrap gap-2">
           <Button variant="primary" disabled={busy || status === null} onClick={() => void createLink()}>

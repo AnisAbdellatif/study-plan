@@ -42,12 +42,14 @@ export interface ModuleCardProps {
   tone?: AreaTone
 }
 
-function ResultBadge({ module, passThreshold }: { module: PlanModule; passThreshold: number }) {
+/** A module's current result as a solid badge; also used on shared plans that include grades. */
+export function ResultBadge({ module, passThreshold }: { module: PlanModule; passThreshold: number }) {
   const { t } = useTranslation('board')
   const result = currentResult(module)
-  const base = 'rounded px-1.5 py-0.5 font-medium tabular-nums'
-  const passed = 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200'
-  const failed = 'bg-red-100 text-red-900 dark:bg-red-950 dark:text-red-200'
+  // Solid badges: the cards are tinted by area now, so light result colours would blend into them.
+  const base = 'rounded px-1.5 py-0.5 font-semibold tabular-nums shadow-sm'
+  const passed = 'bg-emerald-600 text-white dark:bg-emerald-500 dark:text-emerald-950'
+  const failed = 'bg-red-600 text-white dark:bg-red-500 dark:text-red-950'
 
   switch (result.kind) {
     case 'graded':

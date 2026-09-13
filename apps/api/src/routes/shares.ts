@@ -10,6 +10,7 @@ import { clientKey, createRateLimiter } from '../rate-limit.ts'
 import type { AppEnv } from '../types.ts'
 
 const idSchema = z.uuid()
+const createOptionsSchema = z.object({ includeGrades: z.boolean().optional() })
 /** 18 random bytes, base64url: 144 bits, 24 characters. */
 const TOKEN_FORMAT = /^[A-Za-z0-9_-]{24}$/
 
@@ -40,24 +41,38 @@ export function planShareRoutes(db: Database, config: Config) {
     const planId = await ownedPlanId(c)
     if (!planId) return c.json({ error: 'not_found' }, 404)
     const [share] = await db
-      .select({ createdAt: planShare.createdAt })
+      .select({ createdAt: planShare.createdAt, includeGrades: planShare.includeGrades })
       .from(planShare)
       .where(and(eq(planShare.planId, planId), isNull(planShare.revokedAt)))
-    return c.json({ active: share !== undefined, createdAt: share?.createdAt ?? null })
+    return c.json({
+      active: share !== undefined,
+      createdAt: share?.createdAt ?? null,
+      includeGrades: share?.includeGrades ?? false,
+    })
   })
 
   routes.post('/:id/share', async (c) => {
     const planId = await ownedPlanId(c)
     if (!planId) return c.json({ error: 'not_found' }, 404)
+    // The body is optional; without it the link shares no grades.
+    const raw: unknown = await c.req.json().catch(() => ({}))
+    const options = createOptionsSchema.safeParse(raw ?? {})
+    if (!options.success) return c.json({ error: 'invalid_request' }, 400)
+    const includeGrades = options.data.includeGrades ?? false
     await revokeActive(planId)
     const token = createToken()
     const [share] = await db
       .insert(planShare)
-      .values({ planId, tokenHash: hashShareToken(token) })
+      .values({ planId, tokenHash: hashShareToken(token), includeGrades })
       .returning({ createdAt: planShare.createdAt })
     c.header('Cache-Control', 'no-store')
     return c.json(
-      { token, url: `${config.publicUrl}/shared/${token}`, createdAt: share?.createdAt ?? null },
+      {
+        token,
+        url: `${config.publicUrl}/shared/${token}`,
+        createdAt: share?.createdAt ?? null,
+        includeGrades,
+      },
       201,
     )
   })
@@ -72,7 +87,10 @@ export function planShareRoutes(db: Database, config: Config) {
   return routes
 }
 
-/** Public: the structure of a shared plan. Results, exam dates and the target grade never leave the server. */
+/**
+ * Public: the structure of a shared plan, plus results when the owner chose "with grades" for this link. Exam
+ * dates and the target grade never leave the server.
+ */
 export function publicShareRoutes(db: Database, config: Config) {
   const routes = new Hono<AppEnv>()
   const limiter = createRateLimiter({ limit: 60, windowMs: 60_000 })
@@ -91,6 +109,7 @@ export function publicShareRoutes(db: Database, config: Config) {
         name: plan.name,
         updatedAt: plan.updatedAt,
         sharedAt: planShare.createdAt,
+        includeGrades: planShare.includeGrades,
         document: plan.document,
       })
       .from(planShare)
@@ -102,7 +121,8 @@ export function publicShareRoutes(db: Database, config: Config) {
       name: row.name,
       updatedAt: row.updatedAt,
       sharedAt: row.sharedAt,
-      plan: toSharedPlan(row.document.plan),
+      includeGrades: row.includeGrades,
+      plan: toSharedPlan(row.document.plan, { includeGrades: row.includeGrades }),
     })
   })
 

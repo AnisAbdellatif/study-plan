@@ -11,13 +11,14 @@ import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { formatDateTime, useAccountSync } from '../components/account-sync.tsx'
+import { ResultBadge } from '../components/board/module-card.tsx'
 import { Button } from '../components/ui/button.tsx'
 import { ConfirmDialog } from '../components/ui/dialog.tsx'
 import { currentLocale } from '../i18n/index.ts'
 import { ApiError, type SharedPlanResponse, shareApi } from '../lib/api.ts'
 import { areaTone, moduleTone } from '../lib/area-colors.ts'
 import { cn } from '../lib/cn.ts'
-import { formatCredits, newId } from '../lib/format.ts'
+import { formatCredits, formatGradeString, newId } from '../lib/format.ts'
 import { useGuestState, useGuestStore } from '../store/guest-store.ts'
 
 type LoadState =
@@ -39,6 +40,7 @@ function SharedPlanView({ response, plan }: { response: SharedPlanResponse; plan
   const areaNames = new Map(plan.areas.map((area) => [area.id, area.name]))
   const placeholderAreas = new Map((plan.placeholders ?? []).map((item) => [item.id, item.areaId]))
   const label = plan.preset.creditLabel
+  const withGrades = response.includeGrades === true
 
   const adopt = () => {
     store.replacePlan(forkPlan(plan, { id: newId(), now: new Date() }))
@@ -78,13 +80,26 @@ function SharedPlanView({ response, plan }: { response: SharedPlanResponse; plan
             {plan.preset.programmeName} · {plan.preset.universityName} · {plan.preset.poVersion}
           </p>
           <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
-            {t('lastChanged', { time: formatDateTime(response.updatedAt) })}
+            {withGrades
+              ? t('lastChangedWithGrades', { time: formatDateTime(response.updatedAt) })
+              : t('lastChanged', { time: formatDateTime(response.updatedAt) })}
           </p>
+          {withGrades && summary.overall.value !== null ? (
+            <p className="mt-2 inline-flex items-baseline gap-2 rounded-lg bg-indigo-50 px-3 py-1.5 text-sm ring-1 ring-indigo-200 dark:bg-indigo-950/40 dark:ring-indigo-900">
+              {t('average')}
+              <span className="text-lg font-semibold tabular-nums" data-testid="shared-average">
+                {formatGradeString(summary.overall.value)}
+              </span>
+            </p>
+          ) : null}
         </div>
-        <div className="flex flex-wrap gap-2 print:hidden">
+        <div className="flex flex-col items-end gap-1 print:hidden">
           <Button variant="primary" onClick={() => (localPlan ? setConfirm(true) : adopt())}>
             {t('adopt')}
           </Button>
+          {withGrades ? (
+            <p className="text-xs text-zinc-600 dark:text-zinc-400">{t('adoptWithoutGrades')}</p>
+          ) : null}
         </div>
       </header>
 
@@ -162,9 +177,14 @@ function SharedPlanView({ response, plan }: { response: SharedPlanResponse; plan
                     )}
                   >
                     <span className="block leading-snug font-medium">{module?.name ?? code}</span>
-                    <span className="text-xs text-zinc-600 dark:text-zinc-400">
-                      {formatCredits(module?.credits ?? 0)} {label}
-                      {category ? ` · ${category}` : ''}
+                    <span className="flex flex-wrap items-center gap-1.5 text-xs text-zinc-600 dark:text-zinc-400">
+                      {withGrades && module ? (
+                        <ResultBadge module={module} passThreshold={plan.rules.passThreshold} />
+                      ) : null}
+                      <span>
+                        {formatCredits(module?.credits ?? 0)} {label}
+                        {category ? ` · ${category}` : ''}
+                      </span>
                     </span>
                   </li>
                 )

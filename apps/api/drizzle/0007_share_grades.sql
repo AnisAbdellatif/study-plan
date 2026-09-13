@@ -1,0 +1,1 @@
+ALTER TABLE "plan_share" ADD COLUMN "include_grades" boolean DEFAULT false NOT NULL;

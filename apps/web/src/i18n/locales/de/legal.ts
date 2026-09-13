@@ -46,7 +46,8 @@ export const legal = {
       noTracking:
         'Es gibt keine Werbung, kein Tracking, keine Analyse-Werkzeuge und keine eingebundenen Inhalte von Drittanbietern wie Schriften oder Skripte.',
       cookie: 'Wir setzen nur ein technisch notwendiges Cookie, und zwar erst, wenn du dich anmeldest.',
-      sharing: 'Teilst du einen Plan per Link, sieht man darüber nur Semester und Module, nie deine Noten.',
+      sharing:
+        'Teilst du einen Plan per Link, sieht man darüber Semester und Module. Deine Noten nur, wenn du beim Erstellen des Links ausdrücklich „Mit Noten“ wählst.',
       selfService: 'Du kannst deine Daten jederzeit selbst herunterladen und dein Konto selbst löschen.',
     },
     website: {
@@ -81,11 +82,11 @@ export const legal = {
       adminView:
         'Zur Betreuung des Dienstes sehen wir in einer Verwaltungsansicht deine E-Mail-Adresse, ob sie bestätigt ist, wann du das Konto angelegt und zuletzt genutzt hast, wie viele Pläne und geteilte Links du hast und ob Erinnerungen eingeschaltet sind, aber keine Noten und keine Planinhalte. Auf Anfrage oder bei Missbrauch können wir dort Bestätigungs-E-Mails senden, Links deaktivieren, Anmeldungen beenden und Konten löschen. Jede solche Aktion protokollieren wir mit der Kontokennung, ohne E-Mail-Adresse, und löschen das Protokoll nach einem Jahr. Rechtsgrundlage ist unser berechtigtes Interesse an einem sicheren und funktionierenden Dienst (Art. 6 Abs. 1 lit. f DSGVO).',
       grades:
-        'Noten gehören nicht zu den besonderen Kategorien personenbezogener Daten nach Art. 9 DSGVO. Wir behandeln sie trotzdem vertraulich: Sie sind nur über dein Konto abrufbar und werden nicht an andere weitergegeben.',
+        'Noten gehören nicht zu den besonderen Kategorien personenbezogener Daten nach Art. 9 DSGVO. Wir behandeln sie trotzdem vertraulich: Sie sind nur über dein Konto abrufbar und werden nur sichtbar, wenn du selbst einen Plan mit Noten teilst.',
     },
     sharing: {
       heading: '6. Geteilte Pläne',
-      body: 'Wenn du einen Plan teilst, erzeugen wir einen zufälligen Link. Wir speichern davon nur einen Prüfwert (Hash), den Zeitpunkt der Erstellung und ob du den Link deaktiviert hast. Wer den Link kennt, sieht den Namen des Plans, Studiengang, Semester und Module, aber keine Noten, Prüfungstermine und keinen Zielschnitt, und kann den Plan als eigene Kopie übernehmen. Du kannst den Link jederzeit deaktivieren; er wird zusammen mit dem Plan oder deinem Konto gelöscht. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO.',
+      body: 'Wenn du einen Plan teilst, erzeugen wir einen zufälligen Link. Wir speichern davon nur einen Prüfwert (Hash), den Zeitpunkt der Erstellung, ob der Link Noten zeigen soll und ob du ihn deaktiviert hast. Wer den Link kennt, sieht den Namen des Plans, Studiengang, Semester und Module und kann den Plan als eigene Kopie ohne Noten übernehmen. Ergebnisse, Noten und den daraus berechneten Schnitt sieht man nur, wenn du beim Erstellen des Links „Mit Noten“ gewählt hast; Prüfungstermine und Zielschnitt sind nie sichtbar. Du kannst den Link jederzeit deaktivieren; er wird zusammen mit dem Plan oder deinem Konto gelöscht. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO.',
     },
     emails: {
       heading: '7. E-Mails',

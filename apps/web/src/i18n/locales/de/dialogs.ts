@@ -75,7 +75,17 @@ export const dialogs = {
     saveFirst: 'Sichere deinen Plan zuerst im Konto, dann kannst du einen Link erstellen.',
     saveToAccount: 'Im Konto sichern',
     explanation:
-      'Wer den Link kennt, sieht deine Semester und Module, aber keine Noten, Prüfungstermine und keinen Zielschnitt. Der Link zeigt immer den aktuellen Stand und lässt sich jederzeit deaktivieren.',
+      'Wer den Link kennt, sieht deine Semester und Module, auf Wunsch auch deine Noten. Prüfungstermine und Zielschnitt bleiben immer privat. Der Link zeigt immer den aktuellen Stand und lässt sich jederzeit deaktivieren.',
+    visibility: 'Was der Link zeigt',
+    withoutGrades: 'Ohne Noten',
+    withoutGradesHint: 'Nur Semester und Module, etwa um deinen Studienverlauf zu zeigen.',
+    withGrades: 'Mit Noten',
+    withGradesHint:
+      'Auch deine Ergebnisse und deinen Schnitt. Wähle das nur, wenn alle mit dem Link deine Noten sehen dürfen.',
+    activeWithGrades: 'Er zeigt auch deine Noten.',
+    activeWithoutGrades: 'Er zeigt keine Noten.',
+    changeHint:
+      'Für eine andere Auswahl erstellst du einen neuen Link. Der bisherige Link funktioniert dann nicht mehr.',
     statusError: 'Der Status des Links konnte nicht geladen werden.',
     genericError: 'Das hat nicht geklappt. Bitte versuche es noch einmal.',
     linkLabel: 'Link zum Teilen',

@@ -47,7 +47,7 @@ export const legal = {
         'There is no advertising, no tracking, no analytics tools and no embedded third-party content such as fonts or scripts.',
       cookie: 'We only set one technically necessary cookie, and only once you sign in.',
       sharing:
-        'If you share a plan via a link, the link only shows semesters and modules, never your grades.',
+        'If you share a plan via a link, the link shows semesters and modules. It only shows your grades if you explicitly choose “With grades” when creating the link.',
       selfService: 'You can download your data and delete your account yourself at any time.',
     },
     website: {
@@ -81,11 +81,11 @@ export const legal = {
       adminView:
         'To support the service, we can see in an admin view your email address, whether it is confirmed, when you created the account and last used it, how many plans and shared links you have and whether reminders are turned on, but no grades and no plan contents. On request or in case of misuse, we can use it to send confirmation emails, deactivate links, end sign-ins and delete accounts. We log every such action with the account ID, without the email address, and delete the log after one year. The legal basis is our legitimate interest in a secure and working service (Art. 6(1)(f) GDPR).',
       grades:
-        'Grades are not among the special categories of personal data under Art. 9 GDPR. We still treat them confidentially: they can only be accessed through your account and are not passed on to others.',
+        'Grades are not among the special categories of personal data under Art. 9 GDPR. We still treat them confidentially: they can only be accessed through your account and only become visible to others if you share a plan with grades yourself.',
     },
     sharing: {
       heading: '6. Shared plans',
-      body: "When you share a plan, we create a random link. Of that link, we only store a check value (hash), when it was created and whether you have deactivated it. Anyone who knows the link can see the plan's name, programme, semesters and modules, but no grades, exam dates or target average, and can take over the plan as their own copy. You can deactivate the link at any time; it is deleted together with the plan or your account. The legal basis is Art. 6(1)(b) GDPR.",
+      body: "When you share a plan, we create a random link. Of that link, we only store a check value (hash), when it was created, whether it should show grades and whether you have deactivated it. Anyone who knows the link can see the plan's name, programme, semesters and modules, and can take over the plan as their own copy without grades. Results, grades and the resulting grade average are only visible if you chose “With grades” when creating the link; exam dates and the target average are never visible. You can deactivate the link at any time; it is deleted together with the plan or your account. The legal basis is Art. 6(1)(b) GDPR.",
     },
     emails: {
       heading: '7. Emails',

@@ -100,27 +100,38 @@ export type PlanApi = typeof planApi
 export interface ShareStatus {
   active: boolean
   createdAt: string | null
+  /** Whether the active link also shows results and grades. */
+  includeGrades: boolean
 }
 
 export interface CreatedShare {
   token: string
   url: string
   createdAt: string | null
+  includeGrades: boolean
 }
 
 export interface SharedPlanResponse {
   name: string
   updatedAt: string
   sharedAt: string
-  /** Structure only: no results, exam dates or target grade. Validate before use. */
+  /** True when the owner shared results and grades too. Missing from older servers means no grades. */
+  includeGrades?: boolean
+  /** Structure, plus results when `includeGrades`; never exam dates or the target grade. Validate before use. */
   plan: Plan
 }
 
 export const shareApi = {
   status: (planId: string): Promise<ShareStatus> =>
     request<ShareStatus>(`/api/plans/${encodeURIComponent(planId)}/share`),
-  create: (planId: string): Promise<CreatedShare> =>
-    request<CreatedShare>(`/api/plans/${encodeURIComponent(planId)}/share`, { method: 'POST' }),
+  create: (
+    planId: string,
+    options: { includeGrades: boolean } = { includeGrades: false },
+  ): Promise<CreatedShare> =>
+    request<CreatedShare>(`/api/plans/${encodeURIComponent(planId)}/share`, {
+      method: 'POST',
+      body: JSON.stringify(options),
+    }),
   revoke: (planId: string): Promise<void> =>
     request<void>(`/api/plans/${encodeURIComponent(planId)}/share`, { method: 'DELETE' }),
   get: (token: string): Promise<SharedPlanResponse> =>
