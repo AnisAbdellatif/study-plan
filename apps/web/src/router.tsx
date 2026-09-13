@@ -24,9 +24,14 @@ const rootRoute = createRootRoute({
   component: () => (
     <AnnouncerProvider>
       <AccountSyncProvider>
-        <SiteHeader />
-        <Outlet />
-        <SiteFooter />
+        {/* At least one screen tall, with the page growing, so the footer sits at the bottom of short pages. */}
+        <div className="flex min-h-dvh flex-col">
+          <SiteHeader />
+          <div className="flex-1">
+            <Outlet />
+          </div>
+          <SiteFooter />
+        </div>
         <LocaleSync />
       </AccountSyncProvider>
     </AnnouncerProvider>

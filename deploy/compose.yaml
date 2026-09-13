@@ -3,8 +3,17 @@
 # Caddy also serves the dev stack (compose.dev.yaml) on DEV_DOMAIN through the shared study-plan-proxy network.
 name: study-plan
 
+# Container logs are rotated at 3 x 10 MB, so they don't grow forever. The app logs no IP addresses and Caddy
+# writes no access log; state the resulting retention in VITE_SERVER_LOG_RETENTION.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   app:
+    logging: *logging
     # The deploy job tags the image it deployed as latest on the VPS, so manual `docker compose up -d` needs no pull.
     image: ${APP_IMAGE:?set APP_IMAGE}:${APP_TAG:-latest}
     pull_policy: missing
@@ -29,6 +38,7 @@ services:
 
   postgres:
     image: postgres:18-alpine
+    logging: *logging
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-studyplan}
@@ -46,6 +56,7 @@ services:
 
   caddy:
     image: caddy:2-alpine
+    logging: *logging
     restart: unless-stopped
     depends_on:
       app:

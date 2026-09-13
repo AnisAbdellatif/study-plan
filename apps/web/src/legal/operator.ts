@@ -1,7 +1,9 @@
 /**
  * Details about whoever runs this instance. They are required by § 5 DDG (Impressum) and Art. 13 DSGVO
  * (Datenschutzerklärung) and must be real, so they come from build-time environment variables instead of code.
- * Set them in apps/web/.env.production.local (not committed), for example:
+ * For the Docker image built by CI, set them as GitHub repository variables (Settings → Secrets and variables →
+ * Actions → Variables); the workflow passes them to the build. For a local production build, put them in
+ * apps/web/.env.production.local (not committed). VITE_OPERATOR_PHONE is optional. For example:
  *
  *   VITE_OPERATOR_NAME="Erika Mustermann"
  *   VITE_OPERATOR_STREET="Musterstraße 1"
