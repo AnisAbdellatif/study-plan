@@ -121,11 +121,15 @@ export function SummaryPanel({ plan, summary }: { plan: Plan; summary: PlanSumma
   return (
     <aside
       aria-label={t('summary.overview')}
-      className="grid grid-cols-2 gap-3 lg:grid-cols-[minmax(0,14rem)_minmax(0,1fr)_minmax(0,1fr)]"
+      // In print the three cards share one compact row, leaving the page to the study plan overview.
+      className="grid grid-cols-2 gap-3 lg:grid-cols-[minmax(0,14rem)_minmax(0,1fr)_minmax(0,1fr)] print:grid-cols-[minmax(0,10rem)_minmax(0,13rem)_minmax(0,1fr)] print:gap-2"
     >
-      <section className="rounded-xl bg-linear-to-br from-indigo-50 to-white p-4 shadow-sm ring-1 ring-indigo-200/70 dark:from-indigo-950/60 dark:to-zinc-900 dark:ring-indigo-900/60">
+      <section className="rounded-xl bg-linear-to-br from-indigo-50 to-white p-4 shadow-sm ring-1 ring-indigo-200/70 dark:from-indigo-950/60 dark:to-zinc-900 dark:ring-indigo-900/60 print:p-2.5 print:shadow-none">
         <CardHeading icon={GraduationCap}>{t('summary.currentAverage')}</CardHeading>
-        <p className="mt-1 text-3xl font-semibold tabular-nums" data-testid="overall-grade">
+        <p
+          className="mt-1 text-3xl font-semibold tabular-nums print:mt-0 print:text-2xl"
+          data-testid="overall-grade"
+        >
           {overall.value !== null ? formatGradeString(overall.value) : '–'}
         </p>
         <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
@@ -139,7 +143,7 @@ export function SummaryPanel({ plan, summary }: { plan: Plan; summary: PlanSumma
         </p>
       </section>
 
-      <section className={cardClass}>
+      <section className={cn(cardClass, 'print:p-2.5 print:shadow-none')}>
         <CardHeading icon={TrendingUp}>{t('summary.progress')}</CardHeading>
         <p className="mt-1 text-lg font-semibold tabular-nums">
           {formatCredits(credits.earned)}{' '}
@@ -160,12 +164,15 @@ export function SummaryPanel({ plan, summary }: { plan: Plan; summary: PlanSumma
         </p>
       </section>
 
-      <section className={cn(cardClass, 'col-span-2 lg:col-span-1')}>
+      <section
+        className={cn(cardClass, 'col-span-2 lg:col-span-1 print:col-span-1 print:p-2.5 print:shadow-none')}
+      >
         <div className="flex items-center justify-between gap-2">
           <CardHeading icon={Layers}>{t('summary.areas')}</CardHeading>
           <span className="text-xs text-zinc-500">{t('summary.areaLegend')}</span>
         </div>
-        <ul className="mt-2 space-y-2.5">
+        {/* Two columns of areas in print keep this card as short as the other two. */}
+        <ul className="mt-2 space-y-2.5 print:mt-1 print:grid print:grid-cols-2 print:gap-x-4 print:gap-y-1 print:space-y-0">
           {summary.areas.map((area) => {
             const planned = area.plannedCredits + area.placeholderCredits
             const hasRange = area.maxCredits !== undefined && area.maxCredits !== area.minCredits
@@ -199,7 +206,7 @@ export function SummaryPanel({ plan, summary }: { plan: Plan; summary: PlanSumma
                     / {plannedText} <span className="text-zinc-500">({target})</span>
                   </span>
                 </div>
-                <div className="mt-1">
+                <div className="mt-1 print:mt-0.5">
                   <CreditBar
                     earned={area.earnedCredits}
                     planned={planned}
