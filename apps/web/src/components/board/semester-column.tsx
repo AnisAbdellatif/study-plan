@@ -101,7 +101,8 @@ export function SemesterColumn({
         // typical plan fits without scrolling; below the minimum width (many semesters) the board scrolls again.
         'print:w-[calc(33.333%-0.5rem)]! print:max-w-none! print:max-h-none print:break-inside-avoid flex max-h-[calc(100dvh-2rem)] w-[85vw] max-w-sm shrink-0 snap-start flex-col rounded-xl bg-zinc-200/60 p-2 ring-2 ring-transparent transition-colors sm:w-[calc((100%-0.75rem)/2)] md:w-[calc((100%-1.5rem)/3)] xl:w-auto xl:max-w-none xl:min-w-40 xl:basis-0 dark:bg-zinc-900/70',
         // cn does not merge Tailwind classes, so each column gets exactly one flex-grow value.
-        isBacklog ? 'bg-zinc-200/30 xl:flex-[1.2] dark:bg-zinc-900/30' : 'xl:flex-1',
+        // The not-planned column is only as tall as its content; semesters stretch so their whole height is a drop zone.
+        isBacklog ? 'bg-zinc-200/30 sm:self-start xl:flex-[1.2] dark:bg-zinc-900/30' : 'xl:flex-1',
         column.isCurrent && 'ring-indigo-500/50',
         isOver && 'bg-indigo-50 ring-indigo-400 dark:bg-indigo-950/40',
       )}
@@ -202,7 +203,10 @@ export function SemesterColumn({
       <ul
         aria-label={t('columns.modulesIn', { column: column.title })}
         ref={listRef}
-        className="-mx-1 flex min-h-24 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain px-1 py-1 print:overflow-visible"
+        className={cn(
+          '-mx-1 flex flex-1 flex-col gap-2 overflow-y-auto overscroll-contain px-1 py-1 print:overflow-visible',
+          isBacklog ? 'min-h-12' : 'min-h-24',
+        )}
       >
         {visible.map((entry) =>
           entry.kind === 'placeholder' ? (
@@ -241,7 +245,12 @@ export function SemesterColumn({
           </li>
         ) : null}
         {column.entries.length === 0 ? (
-          <li className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-zinc-300 p-4 text-center text-xs text-zinc-500 dark:border-zinc-700">
+          <li
+            className={cn(
+              'flex items-center justify-center rounded-lg border border-dashed border-zinc-300 text-center text-xs text-zinc-500 dark:border-zinc-700',
+              isBacklog ? 'px-3 py-2' : 'flex-1 p-4',
+            )}
+          >
             {!isBacklog
               ? t('columns.emptySemester')
               : choices.length > 0

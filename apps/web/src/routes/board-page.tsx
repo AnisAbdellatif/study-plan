@@ -237,7 +237,7 @@ function Board({ plan }: { plan: Plan }) {
   }
 
   return (
-    <main className="mx-auto max-w-[96rem] space-y-4 px-4 py-5 sm:px-6">
+    <main className="mx-auto max-w-[240rem] space-y-4 px-4 py-5 sm:px-6">
       <AppHeader plan={plan} onAddCustomModule={actions.onAddCustom} />
       <div className="space-y-4 empty:hidden print:hidden">
         <StorageNotice plan={plan} />
