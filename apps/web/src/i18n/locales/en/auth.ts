@@ -81,6 +81,8 @@ export const auth = {
     title: 'Your account',
     verified: 'Your email address is confirmed. Welcome!',
     adminLink: 'Go to the admin dashboard',
+    backToPlan: 'Back to your plan',
+    backHome: 'Go to the home page',
     password: {
       title: 'Change password',
       intro:

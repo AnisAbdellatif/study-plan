@@ -1,4 +1,5 @@
 import { Link, Navigate, useNavigate, useSearch } from '@tanstack/react-router'
+import { ArrowLeft } from 'lucide-react'
 import { type FormEvent, type ReactNode, useEffect, useId, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import { describeSyncState, useAccountSync } from '../components/account-sync.tsx'
@@ -42,10 +43,30 @@ export function describeAuthError(error: AuthError): string {
   }
 }
 
-function AuthLayout({ title, intro, children }: { title: string; intro?: ReactNode; children: ReactNode }) {
+function AuthLayout({
+  title,
+  intro,
+  back,
+  children,
+}: {
+  title: string
+  intro?: ReactNode
+  /** A labelled way back, shown above everything else. */
+  back?: { to: '/' | '/start'; label: string }
+  children: ReactNode
+}) {
   const { t } = useTranslation()
   return (
     <main className="mx-auto flex min-h-[80dvh] max-w-md flex-col justify-center px-4 py-10">
+      {back ? (
+        <Link
+          to={back.to}
+          className="mb-6 inline-flex w-fit items-center gap-1.5 rounded-lg px-2 py-1.5 -ml-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50 focus-visible:outline-2 focus-visible:outline-indigo-500 dark:text-indigo-300 dark:hover:bg-indigo-950/40"
+        >
+          <ArrowLeft aria-hidden className="size-4" />
+          {back.label}
+        </Link>
+      ) : null}
       <Link
         to="/"
         className="flex w-fit items-center gap-2 text-xs font-medium tracking-wide text-indigo-600 uppercase dark:text-indigo-400"
@@ -625,7 +646,12 @@ export function AccountPage() {
   }
 
   return (
-    <AuthLayout title={t('account.title')}>
+    <AuthLayout
+      title={t('account.title')}
+      back={
+        plan ? { to: '/', label: t('account.backToPlan') } : { to: '/start', label: t('account.backHome') }
+      }
+    >
       {search.verified ? <Alert tone="success">{t('account.verified')}</Alert> : null}
 
       <section className={cardClass} aria-labelledby="konto-plan">
