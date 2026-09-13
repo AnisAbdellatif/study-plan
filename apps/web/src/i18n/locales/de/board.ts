@@ -150,6 +150,8 @@ export const board = {
   },
   hints: {
     title: 'Hinweise zum Plan',
+    problems_one: '{{count}} Problem',
+    problems_other: '{{count}} Probleme',
     noWarnings: 'Keine Warnungen',
     warnings_one: '{{count}} Warnung',
     warnings_other: '{{count}} Warnungen',

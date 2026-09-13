@@ -71,7 +71,10 @@ function Board({ plan }: { plan: Plan }) {
   const currentIndex = useMemo(() => semesterIndexAt(plan.startTerm, new Date()), [plan.startTerm])
   // Issue texts are worded in the current language, so they are rebuilt when it changes.
   // biome-ignore lint/correctness/useExhaustiveDependencies: language is a deliberate extra dependency
-  const issues = useMemo(() => describeIssues(plan, validatePlan(plan)), [plan, language])
+  const issues = useMemo(
+    () => describeIssues(plan, validatePlan(plan, { currentSemesterIndex: currentIndex })),
+    [plan, language, currentIndex],
+  )
   const whatIf = useMemo(() => analyzeWhatIf(plan, plan.targetGrade), [plan])
   const requirements = useMemo(() => creditRequirements(plan).filter((item) => !item.passed), [plan])
   const allDeadlines = useMemo(() => planDeadlines(plan), [plan])

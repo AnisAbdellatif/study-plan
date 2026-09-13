@@ -12,6 +12,11 @@ export const issues = {
   wrongTermCard: 'Only offered in the {{season}}',
   irregularOffering: '{{name}} is offered irregularly. Check the current course catalogue.',
   irregularOfferingCard: 'Offered irregularly',
+  prerequisiteNotPassed:
+    '{{name}} requires modules that were not passed in time. {{reasons}} Move {{name}} to a later semester, or enter the result if you did pass.',
+  prerequisiteNotPassedCard: 'Prerequisite not passed: {{prerequisites}}',
+  prerequisiteSemesterOver: '{{prerequisite}} was planned for {{term}} and is not passed.',
+  prerequisiteExhausted: '{{prerequisite}} can no longer be passed because all attempts are used.',
   missingPrerequisite: '{{name}} requires {{missing}}. Plan that earlier.',
   missingPrerequisiteCard: 'Missing prerequisite: {{missing}}',
   notEnoughCredits: '{{name}} requires {{required}}, but only {{available}} are planned by then.',

@@ -1,5 +1,5 @@
 import { currentResult, type PlanModule } from '@study-plan/shared'
-import { EllipsisVertical, Info, TriangleAlert } from 'lucide-react'
+import { CircleAlert, EllipsisVertical, Info, TriangleAlert } from 'lucide-react'
 import { useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../lib/cn.ts'
@@ -85,8 +85,10 @@ export function ModuleCard({
       className={cn(
         'relative cursor-grab rounded-lg bg-white p-2.5 shadow-sm ring-1 ring-zinc-200 active:cursor-grabbing dark:bg-zinc-950 dark:ring-zinc-800',
         isDragging && 'opacity-40',
-        notes.some((note) => note.severity === 'warning') &&
-          'outline-2 outline-amber-400/70 dark:outline-amber-500/60',
+        notes.some((note) => note.severity === 'error')
+          ? 'outline-2 outline-red-500/80 dark:outline-red-500/70'
+          : notes.some((note) => note.severity === 'warning') &&
+              'outline-2 outline-amber-400/70 dark:outline-amber-500/60',
       )}
     >
       {closestEdge ? (
@@ -133,12 +135,16 @@ export function ModuleCard({
                   key={note.text}
                   className={cn(
                     'flex items-start gap-1',
-                    note.severity === 'warning'
-                      ? 'text-amber-700 dark:text-amber-400'
-                      : 'text-zinc-500 dark:text-zinc-400',
+                    note.severity === 'error'
+                      ? 'font-medium text-red-700 dark:text-red-400'
+                      : note.severity === 'warning'
+                        ? 'text-amber-700 dark:text-amber-400'
+                        : 'text-zinc-500 dark:text-zinc-400',
                   )}
                 >
-                  {note.severity === 'warning' ? (
+                  {note.severity === 'error' ? (
+                    <CircleAlert aria-hidden className="mt-px size-3 shrink-0" />
+                  ) : note.severity === 'warning' ? (
                     <TriangleAlert aria-hidden className="mt-px size-3 shrink-0" />
                   ) : (
                     <Info aria-hidden className="mt-px size-3 shrink-0" />

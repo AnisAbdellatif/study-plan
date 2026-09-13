@@ -8,7 +8,7 @@ import {
   prerequisiteCodes,
   type WhatIfAnalysis,
 } from '@study-plan/shared'
-import { CalendarPlus, GraduationCap, Info, TriangleAlert } from 'lucide-react'
+import { CalendarPlus, CircleAlert, GraduationCap, Info, TriangleAlert } from 'lucide-react'
 import { useId } from 'react'
 import { useTranslation } from 'react-i18next'
 import { currentLocale } from '../../i18n/index.ts'
@@ -30,13 +30,21 @@ function HintsCard({ hints }: { hints: readonly IssueText[] }) {
   const { t } = useTranslation('board')
   const headingId = useId()
   const warnings = hints.filter((hint) => hint.severity === 'warning').length
+  const errors = hints.filter((hint) => hint.severity === 'error').length
   return (
     <section aria-labelledby={headingId} className={cardClass}>
       <h2 id={headingId} className={headingClass}>
         {t('hints.title')}
       </h2>
       <p className="mt-1 text-lg font-semibold">
-        {warnings === 0 ? t('hints.noWarnings') : t('hints.warnings', { count: warnings })}
+        {errors > 0
+          ? [
+              t('hints.problems', { count: errors }),
+              ...(warnings > 0 ? [t('hints.warnings', { count: warnings })] : []),
+            ].join(' · ')
+          : warnings === 0
+            ? t('hints.noWarnings')
+            : t('hints.warnings', { count: warnings })}
       </p>
       {hints.length > 0 ? (
         <ul className="mt-2 max-h-56 space-y-1.5 overflow-y-auto text-sm">
@@ -45,12 +53,16 @@ function HintsCard({ hints }: { hints: readonly IssueText[] }) {
               key={hint.text}
               className={cn(
                 'flex items-start gap-1.5',
-                hint.severity === 'warning'
-                  ? 'text-amber-800 dark:text-amber-300'
-                  : 'text-zinc-600 dark:text-zinc-400',
+                hint.severity === 'error'
+                  ? 'font-medium text-red-700 dark:text-red-400'
+                  : hint.severity === 'warning'
+                    ? 'text-amber-800 dark:text-amber-300'
+                    : 'text-zinc-600 dark:text-zinc-400',
               )}
             >
-              {hint.severity === 'warning' ? (
+              {hint.severity === 'error' ? (
+                <CircleAlert aria-hidden className="mt-0.5 size-3.5 shrink-0" />
+              ) : hint.severity === 'warning' ? (
                 <TriangleAlert aria-hidden className="mt-0.5 size-3.5 shrink-0" />
               ) : (
                 <Info aria-hidden className="mt-0.5 size-3.5 shrink-0" />

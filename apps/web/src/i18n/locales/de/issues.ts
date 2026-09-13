@@ -9,6 +9,11 @@ export const issues = {
   wrongTermCard: 'Nur im {{season}} angeboten',
   irregularOffering: '{{name}} wird unregelmäßig angeboten. Prüfe das aktuelle Lehrangebot.',
   irregularOfferingCard: 'Wird unregelmäßig angeboten',
+  prerequisiteNotPassed:
+    '{{name}} setzt Module voraus, die nicht rechtzeitig bestanden sind. {{reasons}} Verschiebe {{name}} in ein späteres Semester oder trag das Ergebnis nach, falls du bestanden hast.',
+  prerequisiteNotPassedCard: 'Voraussetzung nicht bestanden: {{prerequisites}}',
+  prerequisiteSemesterOver: '{{prerequisite}} war für {{term}} geplant und ist nicht bestanden.',
+  prerequisiteExhausted: '{{prerequisite}} kann nicht mehr bestanden werden, alle Versuche sind verbraucht.',
   missingPrerequisite: '{{name}} setzt {{missing}} voraus. Plane das vorher ein.',
   missingPrerequisiteCard: 'Voraussetzung fehlt: {{missing}}',
   notEnoughCredits: '{{name}} setzt {{required}} voraus, bis dahin sind {{available}} eingeplant.',

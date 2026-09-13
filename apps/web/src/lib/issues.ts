@@ -1,4 +1,4 @@
-import { formatTerm, type Plan, type PlanIssue, type Prerequisite } from '@study-plan/shared'
+import { addTerms, formatTerm, type Plan, type PlanIssue, type Prerequisite } from '@study-plan/shared'
 import i18n, { currentLocale } from '../i18n/index.ts'
 import { formatCredits, formatGrade } from './format.ts'
 
@@ -55,6 +55,26 @@ export function describeIssues(plan: Plan, issues: readonly PlanIssue[]): Descri
           t('issues:irregularOfferingCard'),
         )
         break
+      case 'prerequisite_not_passed': {
+        const names = issue.blocked.map((item) => nameOf(item.code))
+        const reasons = issue.blocked.map((item) => {
+          const semesterIndex = plan.semesters.findIndex((semester) =>
+            semester.moduleCodes.includes(item.code),
+          )
+          const term =
+            semesterIndex === -1 ? '' : formatTerm(addTerms(plan.startTerm, semesterIndex), currentLocale())
+          return item.reason === 'exhausted'
+            ? t('issues:prerequisiteExhausted', { prerequisite: nameOf(item.code) })
+            : t('issues:prerequisiteSemesterOver', { prerequisite: nameOf(item.code), term })
+        })
+        add(
+          issue.severity,
+          t('issues:prerequisiteNotPassed', { name: nameOf(issue.code), reasons: reasons.join(' ') }),
+          issue.code,
+          t('issues:prerequisiteNotPassedCard', { prerequisites: names.join(', ') }),
+        )
+        break
+      }
       case 'missing_prerequisite': {
         const missing = issue.missing.map(prerequisite)
         add(
@@ -131,6 +151,7 @@ export function describeIssues(plan: Plan, issues: readonly PlanIssue[]): Descri
     }
   }
 
-  list.sort((a, b) => (a.severity === b.severity ? 0 : a.severity === 'warning' ? -1 : 1))
+  const rank = { error: 0, warning: 1, info: 2 } as const
+  list.sort((a, b) => rank[a.severity] - rank[b.severity])
   return { byModule, list }
 }

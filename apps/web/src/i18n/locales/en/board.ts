@@ -152,6 +152,8 @@ export const board = {
   },
   hints: {
     title: 'Plan hints',
+    problems_one: '{{count}} problem',
+    problems_other: '{{count}} problems',
     noWarnings: 'No warnings',
     warnings_one: '{{count}} warning',
     warnings_other: '{{count}} warnings',

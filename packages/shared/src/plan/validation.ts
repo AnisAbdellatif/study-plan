@@ -5,6 +5,17 @@ import { attemptStatus } from './attempts.ts'
 import type { Plan } from './plan.ts'
 import { addTerms, type Term } from './terms.ts'
 
+/** Why a planned prerequisite blocks a module: its semester is over without a pass, or no attempt is left. */
+export type PrerequisiteBlockReason = 'semester_over' | 'exhausted'
+
+export interface ValidationOptions {
+  /**
+   * Zero-based index of the semester running now (see `semesterIndexAt`). Needed to tell that a prerequisite's
+   * semester is over; without it only exhausted attempts are detected.
+   */
+  currentSemesterIndex?: number
+}
+
 /** Something about a plan the student should look at. Warnings need action, infos are expected while planning. */
 export type PlanIssue =
   | {
@@ -43,6 +54,14 @@ export type PlanIssue =
       supplementaryExam: boolean
     }
   | { kind: 'retaken_after_pass'; severity: 'warning'; code: string }
+  | {
+      kind: 'prerequisite_not_passed'
+      severity: 'error'
+      code: string
+      semesterId: string
+      /** Prerequisites planned in an earlier semester that did not end in a pass and no longer can in time. */
+      blocked: { code: string; reason: PrerequisiteBlockReason }[]
+    }
   | { kind: 'area_below_minimum'; severity: 'info'; areaId: string; planned: number; minCredits: number }
   | { kind: 'area_above_maximum'; severity: 'warning'; areaId: string; planned: number; maxCredits: number }
 
@@ -50,7 +69,7 @@ export type PlanIssue =
  * Checks placement rules. Modules that are already passed are never flagged: what happened is a fact,
  * even if it broke a planning rule. Modules in earlier semesters are assumed to be passed by then.
  */
-export function validatePlan(plan: Plan): PlanIssue[] {
+export function validatePlan(plan: Plan, options: ValidationOptions = {}): PlanIssue[] {
   const modules = new Map(plan.modules.map((module) => [module.code, module]))
   const passed = new Set(
     plan.modules.filter((module) => isModulePassed(module, plan.rules)).map((m) => m.code),
@@ -60,6 +79,16 @@ export function validatePlan(plan: Plan): PlanIssue[] {
     for (const code of semester.moduleCodes) semesterOf.set(code, index)
   })
   const issues: PlanIssue[] = []
+  const current = options.currentSemesterIndex
+
+  /** Null while the prerequisite can still be passed before the module's semester. */
+  const blockReason = (code: string): PrerequisiteBlockReason | null => {
+    const prerequisite = modules.get(code)
+    if (!prerequisite) return null
+    if (attemptStatus(prerequisite, plan).exhausted) return 'exhausted'
+    const planned = semesterOf.get(code)
+    return current !== undefined && planned !== undefined && planned < current ? 'semester_over' : null
+  }
 
   plan.semesters.forEach((semester, index) => {
     const term = addTerms(plan.startTerm, index)
@@ -83,9 +112,24 @@ export function validatePlan(plan: Plan): PlanIssue[] {
         issues.push({ kind: 'irregular_offering', severity: 'info', code, semesterId: semester.id })
       }
 
-      const missing = (module.prerequisites ?? []).filter(
-        (prerequisite) => !prerequisiteCodes(prerequisite).some(doneBefore),
-      )
+      const missing: Prerequisite[] = []
+      const blocked: { code: string; reason: PrerequisiteBlockReason }[] = []
+      for (const prerequisite of module.prerequisites ?? []) {
+        const choices = prerequisiteCodes(prerequisite)
+        if (choices.some((choice) => passed.has(choice))) continue
+        const earlier = choices.filter(
+          (choice) => (semesterOf.get(choice) ?? Number.POSITIVE_INFINITY) < index,
+        )
+        if (earlier.length === 0) {
+          missing.push(prerequisite)
+          continue
+        }
+        const reasons = earlier.map((choice) => ({ code: choice, reason: blockReason(choice) }))
+        // Blocked only when every choice planned earlier is out; one that can still be passed is enough.
+        if (reasons.every((item) => item.reason !== null)) {
+          for (const item of reasons) if (item.reason) blocked.push({ code: item.code, reason: item.reason })
+        }
+      }
       if (missing.length > 0) {
         issues.push({
           kind: 'missing_prerequisite',
@@ -93,6 +137,16 @@ export function validatePlan(plan: Plan): PlanIssue[] {
           code,
           semesterId: semester.id,
           missing,
+        })
+      }
+
+      if (blocked.length > 0) {
+        issues.push({
+          kind: 'prerequisite_not_passed',
+          severity: 'error',
+          code,
+          semesterId: semester.id,
+          blocked,
         })
       }
 
