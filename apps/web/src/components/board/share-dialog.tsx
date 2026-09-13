@@ -5,6 +5,7 @@ import { type CreatedShare, type ShareStatus, shareApi } from '../../lib/api.ts'
 import { formatDateTime, useAccountSync } from '../account-sync.tsx'
 import { Button } from '../ui/button.tsx'
 import { Dialog } from '../ui/dialog.tsx'
+import { LoadingText } from '../ui/spinner.tsx'
 
 const linkClass = 'font-medium text-indigo-700 underline-offset-4 hover:underline dark:text-indigo-300'
 
@@ -21,7 +22,7 @@ export function ShareDialog({
   const inputId = useId()
   const [status, setStatus] = useState<ShareStatus | null>(null)
   const [created, setCreated] = useState<CreatedShare | null>(null)
-  const [busy, setBusy] = useState(false)
+  const [busy, setBusy] = useState<'create' | 'revoke' | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   // Without grades unless the owner picks otherwise; an active link preselects what it shows.
@@ -33,6 +34,7 @@ export function ShareDialog({
     setCreated(null)
     setCopied(false)
     setError(null)
+    setStatus(null)
     shareApi
       .status(planId)
       .then((next) => {
@@ -42,20 +44,20 @@ export function ShareDialog({
       .catch(() => setError(t('share.statusError')))
   }, [open, planId, t])
 
-  const run = async (action: () => Promise<void>) => {
-    setBusy(true)
+  const run = async (kind: 'create' | 'revoke', action: () => Promise<void>) => {
+    setBusy(kind)
     setError(null)
     try {
       await action()
     } catch {
       setError(t('share.genericError'))
     } finally {
-      setBusy(false)
+      setBusy(null)
     }
   }
 
   const createLink = () =>
-    run(async () => {
+    run('create', async () => {
       if (!planId) return
       const share = await shareApi.create(planId, { includeGrades })
       setCreated(share)
@@ -63,7 +65,7 @@ export function ShareDialog({
     })
 
   const revokeLink = () =>
-    run(async () => {
+    run('revoke', async () => {
       if (!planId) return
       await shareApi.revoke(planId)
       setCreated(null)
@@ -102,6 +104,9 @@ export function ShareDialog({
           <Button variant="primary" onClick={() => void sync.uploadLocal()}>
             {t('share.saveToAccount')}
           </Button>
+        ) : state.kind === 'saving' ? (
+          // The button goes away once saving starts; the link options appear when the plan is in the account.
+          <LoadingText>{t('common:loading')}</LoadingText>
         ) : null}
       </div>
     )
@@ -140,7 +145,9 @@ export function ShareDialog({
           </p>
         ) : status ? (
           <p>{t('share.noLink')}</p>
-        ) : null}
+        ) : error ? null : (
+          <LoadingText>{t('common:loading')}</LoadingText>
+        )}
         {status ? (
           <fieldset className="space-y-2">
             <legend className="mb-1 font-medium">{t('share.visibility')}</legend>
@@ -172,11 +179,21 @@ export function ShareDialog({
           </fieldset>
         ) : null}
         <div className="flex flex-wrap gap-2">
-          <Button variant="primary" disabled={busy || status === null} onClick={() => void createLink()}>
+          <Button
+            variant="primary"
+            loading={busy === 'create'}
+            disabled={busy !== null || status === null}
+            onClick={() => void createLink()}
+          >
             {status?.active ? t('share.createNew') : t('share.create')}
           </Button>
           {status?.active ? (
-            <Button variant="danger" disabled={busy} onClick={() => void revokeLink()}>
+            <Button
+              variant="danger"
+              loading={busy === 'revoke'}
+              disabled={busy !== null}
+              onClick={() => void revokeLink()}
+            >
               {t('share.revoke')}
             </Button>
           ) : null}

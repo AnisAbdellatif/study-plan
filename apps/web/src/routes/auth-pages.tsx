@@ -6,6 +6,7 @@ import { describeSyncState, useAccountSync } from '../components/account-sync.ts
 import { BrandMark } from '../components/brand-logo.tsx'
 import { Button } from '../components/ui/button.tsx'
 import { ConfirmDialog } from '../components/ui/dialog.tsx'
+import { LoadingText, Spinner } from '../components/ui/spinner.tsx'
 import i18n, { currentLocale } from '../i18n/index.ts'
 import { adminApi, notificationApi } from '../lib/api.ts'
 import { authClient } from '../lib/auth-client.ts'
@@ -119,6 +120,7 @@ export function SignInPage() {
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<AuthError | null>(null)
   const [resent, setResent] = useState(false)
+  const [resending, setResending] = useState(false)
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
@@ -131,8 +133,13 @@ export function SignInPage() {
   }
 
   const resend = async () => {
-    await authClient.sendVerificationEmail({ email, callbackURL: VERIFIED_CALLBACK })
-    setResent(true)
+    setResending(true)
+    try {
+      await authClient.sendVerificationEmail({ email, callbackURL: VERIFIED_CALLBACK })
+      setResent(true)
+    } finally {
+      setResending(false)
+    }
   }
 
   return (
@@ -143,7 +150,7 @@ export function SignInPage() {
           resent ? (
             <Alert tone="success">{t('signIn.verificationResent')}</Alert>
           ) : (
-            <Button size="sm" onClick={resend}>
+            <Button size="sm" loading={resending} onClick={() => void resend()}>
               {t('signIn.resendVerification')}
             </Button>
           )
@@ -164,7 +171,7 @@ export function SignInPage() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
-        <Button type="submit" variant="primary" className="w-full" disabled={pending}>
+        <Button type="submit" variant="primary" className="w-full" loading={pending}>
           {pending ? t('signIn.pending') : t('signIn.submit')}
         </Button>
       </form>
@@ -188,6 +195,7 @@ export function SignUpPage() {
   const [error, setError] = useState<AuthError | null>(null)
   const [sentTo, setSentTo] = useState<string | null>(null)
   const [resent, setResent] = useState(false)
+  const [resending, setResending] = useState(false)
   const [acceptedPrivacy, setAcceptedPrivacy] = useState(false)
   const privacyId = useId()
 
@@ -227,9 +235,15 @@ export function SignUpPage() {
           ) : (
             <Button
               size="sm"
+              loading={resending}
               onClick={async () => {
-                await authClient.sendVerificationEmail({ email: sentTo, callbackURL: VERIFIED_CALLBACK })
-                setResent(true)
+                setResending(true)
+                try {
+                  await authClient.sendVerificationEmail({ email: sentTo, callbackURL: VERIFIED_CALLBACK })
+                  setResent(true)
+                } finally {
+                  setResending(false)
+                }
               }}
             >
               {t('signUp.resend')}
@@ -283,7 +297,7 @@ export function SignUpPage() {
             />
           </label>
         </div>
-        <Button type="submit" variant="primary" className="w-full" disabled={pending}>
+        <Button type="submit" variant="primary" className="w-full" loading={pending}>
           {pending ? t('signUp.pending') : t('signUp.submit')}
         </Button>
       </form>
@@ -330,7 +344,7 @@ export function ForgotPasswordPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
-            <Button type="submit" variant="primary" className="w-full" disabled={pending}>
+            <Button type="submit" variant="primary" className="w-full" loading={pending}>
               {t('forgotPassword.submit')}
             </Button>
           </>
@@ -416,7 +430,7 @@ export function ResetPasswordPage() {
             value={confirmation}
             onChange={(e) => setConfirmation(e.target.value)}
           />
-          <Button type="submit" variant="primary" className="w-full" disabled={pending}>
+          <Button type="submit" variant="primary" className="w-full" loading={pending}>
             {t('resetPassword.submit')}
           </Button>
         </form>
@@ -468,7 +482,7 @@ function ReminderSettings() {
       <p className="text-sm text-zinc-600 dark:text-zinc-400">{t('reminders.intro')}</p>
       {state.status === 'error' ? <Alert>{t('reminders.error')}</Alert> : null}
       {state.status === 'loading' ? (
-        <p className="text-sm">{t('common:loading')}</p>
+        <LoadingText>{t('common:loading')}</LoadingText>
       ) : state.status === 'ready' ? (
         <div className="flex items-start gap-2 text-sm">
           <input
@@ -480,6 +494,7 @@ function ReminderSettings() {
             onChange={(event) => void toggle(event.target.checked)}
           />
           <label htmlFor={checkboxId}>{t('reminders.label')}</label>
+          {saving ? <Spinner className="mt-0.5 text-zinc-500" /> : null}
         </div>
       ) : null}
     </section>
@@ -528,7 +543,7 @@ export function ChangePasswordSection({ email }: { email: string }) {
         </Alert>
       ) : null}
       <div>
-        <Button onClick={() => void send()} disabled={pending}>
+        <Button onClick={() => void send()} loading={pending}>
           {pending
             ? t('account.password.pending')
             : sent
@@ -591,7 +606,7 @@ export function UnsubscribePage() {
         <div className="mt-6 space-y-4">
           {state === 'error' ? <Alert>{t('unsubscribe.invalid')}</Alert> : null}
           <p className="text-sm">{t('unsubscribe.explanation')}</p>
-          <Button variant="primary" disabled={state === 'pending'} onClick={() => void unsubscribe()}>
+          <Button variant="primary" loading={state === 'pending'} onClick={() => void unsubscribe()}>
             {t('unsubscribe.submit')}
           </Button>
         </div>
@@ -615,11 +630,14 @@ export function AccountPage() {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [exportError, setExportError] = useState(false)
+  const [exporting, setExporting] = useState(false)
+  const [signingOut, setSigningOut] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   if (sessionPending) {
     return (
       <AuthLayout title={t('account.loadingTitle')}>
-        <p className="mt-6 text-sm">{t('common:loading')}</p>
+        <LoadingText className="mt-6">{t('common:loading')}</LoadingText>
       </AuthLayout>
     )
   }
@@ -627,6 +645,7 @@ export function AccountPage() {
 
   const exportData = async () => {
     setExportError(false)
+    setExporting(true)
     try {
       const response = await fetch('/api/account/export', { credentials: 'same-origin' })
       if (!response.ok) throw new Error(String(response.status))
@@ -636,10 +655,13 @@ export function AccountPage() {
       downloadFile(filename, await response.text(), 'application/json')
     } catch {
       setExportError(true)
+    } finally {
+      setExporting(false)
     }
   }
 
   const signOut = async () => {
+    setSigningOut(true)
     await authClient.signOut()
     sync.stop()
     void navigate({ to: '/' })
@@ -647,8 +669,10 @@ export function AccountPage() {
 
   const deleteAccount = async () => {
     setDeleteError(null)
+    setDeleting(true)
     const result = await authClient.deleteUser({ password })
     if (result.error) {
+      setDeleting(false)
       setDeleteError(
         result.error.status === 401 || result.error.status === 400
           ? t('errors.wrongPassword')
@@ -684,12 +708,16 @@ export function AccountPage() {
         </p>
         <div className="flex flex-wrap gap-2">
           {state.kind === 'no_account_plan' && plan ? (
+            // Once saving starts this button goes away and the spinner next to the status takes over.
             <Button variant="primary" onClick={() => void sync.uploadLocal()}>
               {t('account.plan.upload')}
             </Button>
           ) : null}
           {state.kind === 'error' ? (
             <Button onClick={() => void sync.retry()}>{t('account.plan.retry')}</Button>
+          ) : null}
+          {state.kind === 'saving' || state.kind === 'loading' ? (
+            <Spinner className="self-center text-zinc-500" />
           ) : null}
           <Link to={plan ? '/' : '/start'} className={`${linkClass} self-center text-sm`}>
             {plan ? t('account.plan.open') : t('account.plan.create')}
@@ -708,8 +736,10 @@ export function AccountPage() {
         <p className="text-sm text-zinc-600 dark:text-zinc-400">{t('account.data.intro')}</p>
         {exportError ? <Alert>{t('account.data.exportError')}</Alert> : null}
         <div className="flex flex-wrap gap-2">
-          <Button onClick={exportData}>{t('account.data.download')}</Button>
-          <Button variant="ghost" onClick={signOut}>
+          <Button loading={exporting} onClick={() => void exportData()}>
+            {t('account.data.download')}
+          </Button>
+          <Button variant="ghost" loading={signingOut} onClick={() => void signOut()}>
             {t('account.data.signOut')}
           </Button>
         </div>
@@ -740,7 +770,7 @@ export function AccountPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
-              <Button type="submit" variant="danger">
+              <Button type="submit" variant="danger" loading={deleting}>
                 {t('account.delete.submit')}
               </Button>
             </form>

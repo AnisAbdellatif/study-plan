@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { type PresetSummary, presetApi } from '../../lib/api.ts'
 import { PresetPreview } from '../programme-extraction/preset-preview.tsx'
 import { hintClass, Section } from '../programme-extraction/section.tsx'
+import { LoadingText } from '../ui/spinner.tsx'
 import { PresetCombobox } from './preset-combobox.tsx'
 
 export interface PresetPickerProps {
@@ -58,9 +59,7 @@ export function PresetPicker({ preset, onPresetChange, children }: PresetPickerP
     <Section heading={t('presets.heading')}>
       <p className="text-sm text-zinc-600 dark:text-zinc-400">{t('presets.intro')}</p>
       {presets === 'loading' ? (
-        <p role="status" className="text-sm">
-          {t('presets.loading')}
-        </p>
+        <LoadingText>{t('presets.loading')}</LoadingText>
       ) : presets === 'error' ? (
         <p className="text-sm text-zinc-700 dark:text-zinc-300">{t('presets.loadError')}</p>
       ) : presets.length === 0 ? (
@@ -69,9 +68,7 @@ export function PresetPicker({ preset, onPresetChange, children }: PresetPickerP
         <PresetCombobox presets={presets} selectedId={selectedId} onSelect={(next) => void select(next)} />
       )}
       {status === 'loading' ? (
-        <p role="status" className="text-sm">
-          {t('presets.loadingPreset')}
-        </p>
+        <LoadingText>{t('presets.loadingPreset')}</LoadingText>
       ) : status === 'error' ? (
         <p className="text-sm text-red-700 dark:text-red-300">{t('presets.presetError')}</p>
       ) : null}

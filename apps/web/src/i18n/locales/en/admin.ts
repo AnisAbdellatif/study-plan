@@ -114,6 +114,7 @@ export const admin = {
     },
   },
   messages: {
+    working: 'Working on {{email}}…',
     verificationSent: 'Confirmation email sent to {{email}}.',
     revoked_one: '{{count}} link from {{email}} deactivated.',
     revoked_other: '{{count}} links from {{email}} deactivated.',

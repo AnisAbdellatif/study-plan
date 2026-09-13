@@ -112,6 +112,7 @@ export const admin = {
     },
   },
   messages: {
+    working: 'Wird für {{email}} ausgeführt…',
     verificationSent: 'Bestätigungs-E-Mail an {{email}} gesendet.',
     revoked_one: '{{count}} Link von {{email}} deaktiviert.',
     revoked_other: '{{count}} Links von {{email}} deaktiviert.',

@@ -14,6 +14,7 @@ import { formatDateTime, useAccountSync } from '../components/account-sync.tsx'
 import { ResultBadge } from '../components/board/module-card.tsx'
 import { Button } from '../components/ui/button.tsx'
 import { ConfirmDialog } from '../components/ui/dialog.tsx'
+import { Spinner } from '../components/ui/spinner.tsx'
 import { currentLocale } from '../i18n/index.ts'
 import { ApiError, type SharedPlanResponse, shareApi } from '../lib/api.ts'
 import { areaTone, moduleTone } from '../lib/area-colors.ts'
@@ -250,7 +251,12 @@ export function SharedPlanPage() {
 
   return (
     <main className="mx-auto flex min-h-[70dvh] max-w-md flex-col justify-center px-4 py-10">
-      <h1 className="text-2xl font-semibold">{state.kind === 'loading' ? t('loading') : t('unavailable')}</h1>
+      <h1 className="flex items-center gap-3 text-2xl font-semibold" aria-busy={state.kind === 'loading'}>
+        {state.kind === 'loading' ? (
+          <Spinner className="size-6 text-indigo-600 dark:text-indigo-400" />
+        ) : null}
+        {state.kind === 'loading' ? t('loading') : t('unavailable')}
+      </h1>
       {state.kind === 'error' ? (
         <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
           {state.notFound ? t('notFound') : t('loadFailed')}{' '}
