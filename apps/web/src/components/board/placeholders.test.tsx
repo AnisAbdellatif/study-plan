@@ -1,4 +1,10 @@
-import { addPlaceholder, choosePlaceholder, createPlanFromPreset, type Plan } from '@study-plan/shared'
+import {
+  addPlaceholder,
+  choiceAreas,
+  choosePlaceholder,
+  createPlanFromPreset,
+  type Plan,
+} from '@study-plan/shared'
 import { createMemoryHistory, RouterProvider } from '@tanstack/react-router'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -89,6 +95,37 @@ describe('choice area tiles', () => {
     expect(
       within(dialog).queryByRole('button', { name: /Artificial Intelligence I/ }),
     ).not.toBeInTheDocument()
+  })
+
+  it('filters the options by the semester they are offered in', async () => {
+    const plan = makePlan()
+    const available = choiceAreas(plan).find((choice) => choice.area.id === AREA)?.available ?? []
+    const { user } = renderBoard(plan)
+    await user.click(await screen.findByRole('button', { name: 'Aktionen für Vertiefung der Informatik' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Optionen ansehen…' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Optionen für Vertiefung der Informatik' })
+    const shown = () =>
+      available
+        .filter((module) => within(dialog).queryByText(module.name, { selector: 'span' }) !== null)
+        .map((module) => module.code)
+
+    expect(shown()).toHaveLength(available.length)
+
+    for (const season of ['summer', 'winter'] as const) {
+      await user.click(
+        within(dialog).getByRole('radio', {
+          name: new RegExp(season === 'summer' ? 'Sommersemester' : 'Wintersemester'),
+        }),
+      )
+      const expected = available
+        .filter((module) => module.offering === season || module.offering === 'both')
+        .map((module) => module.code)
+      expect(expected.length).toBeGreaterThan(0)
+      expect(shown()).toEqual(expected)
+    }
+
+    await user.click(within(dialog).getByRole('radio', { name: /Alle/ }))
+    expect(shown()).toHaveLength(available.length)
   })
 })
 

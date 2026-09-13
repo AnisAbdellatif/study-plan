@@ -27,6 +27,16 @@ describe('presetSchema', () => {
     expect(issues(preset)).toContain(`Duplicate module code "${first?.code}"`)
   })
 
+  it('rejects an alternative group that only one module uses', () => {
+    const preset = clone()
+    const [first, second] = preset.modules
+    if (!first || !second) throw new Error('example needs two modules')
+    first.alternativeGroup = 'praktikum'
+    expect(issues(preset)).toContain('alternativeGroup "praktikum" is used by only one module')
+    second.alternativeGroup = 'praktikum'
+    expect(issues(preset)).toEqual([])
+  })
+
   it('rejects an aggregation that references an unknown module', () => {
     const preset = clone()
     preset.gradeRules.aggregation.children.push({ kind: 'module', code: 'NOPE' })

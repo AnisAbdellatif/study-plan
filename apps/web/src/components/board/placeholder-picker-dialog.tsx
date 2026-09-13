@@ -3,6 +3,7 @@ import { Search } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { currentLocale } from '../../i18n/index.ts'
+import { examKindLabels } from '../../lib/exam-kinds.ts'
 import { formatCredits } from '../../lib/format.ts'
 import { moduleMatchesQuery } from '../../lib/module-search.ts'
 import { Button } from '../ui/button.tsx'
@@ -42,6 +43,7 @@ function OptionFacts({
         <span className="tabular-nums">
           {formatCredits(module.credits)} {creditLabel}
         </span>
+        {examKindLabels(module).length > 0 ? <span>· {examKindLabels(module).join(' / ')}</span> : null}
         {warn && onlyIn !== null ? (
           <span className="font-medium text-amber-700 dark:text-amber-400">
             · {t(`picker.offeredOnly.${onlyIn}`)}
@@ -55,6 +57,13 @@ function OptionFacts({
     </>
   )
 }
+
+const SEASON_FILTERS = ['all', 'summer', 'winter'] as const
+type SeasonFilter = (typeof SEASON_FILTERS)[number]
+
+/** A module can be taken in a season when it is offered only then or every semester. */
+const offeredIn = (module: PlanModule, filter: SeasonFilter): boolean =>
+  filter === 'all' || module.offering === filter || module.offering === 'both'
 
 function PickerBody({
   options,
@@ -75,7 +84,10 @@ function PickerBody({
   const { t } = useTranslation(['board', 'common'])
   const searchId = useId()
   const [query, setQuery] = useState('')
-  const visible = options.filter((module) => moduleMatchesQuery(module, query, showCode))
+  const [seasonFilter, setSeasonFilter] = useState<SeasonFilter>('all')
+  const filterName = useId()
+  const matching = options.filter((module) => moduleMatchesQuery(module, query, showCode))
+  const visible = matching.filter((module) => offeredIn(module, seasonFilter))
 
   return (
     <div>
@@ -97,6 +109,34 @@ function PickerBody({
             className="h-10 w-full rounded-lg bg-white pr-3 pl-8 text-sm ring-1 ring-zinc-300 ring-inset focus-visible:outline-2 focus-visible:outline-indigo-500 dark:bg-zinc-950 dark:ring-zinc-700"
           />
         </div>
+      ) : null}
+      {options.length > 0 ? (
+        // Native radios: arrow keys move between the filters; the label is the visible chip.
+        <fieldset className="mt-2">
+          <legend className="sr-only">{t('picker.offeringFilter')}</legend>
+          <div className="flex flex-wrap gap-1.5">
+            {SEASON_FILTERS.map((filter) => {
+              const count = matching.filter((module) => offeredIn(module, filter)).length
+              return (
+                <label
+                  key={filter}
+                  className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full bg-white px-3 text-sm ring-1 ring-zinc-300 ring-inset has-[:checked]:bg-indigo-600 has-[:checked]:text-white has-[:checked]:ring-indigo-600 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-indigo-500 sm:h-8 dark:bg-zinc-950 dark:ring-zinc-700 dark:has-[:checked]:bg-indigo-500 dark:has-[:checked]:ring-indigo-500"
+                >
+                  <input
+                    type="radio"
+                    name={filterName}
+                    value={filter}
+                    checked={seasonFilter === filter}
+                    onChange={() => setSeasonFilter(filter)}
+                    className="sr-only"
+                  />
+                  {t(`picker.filters.${filter}`)}
+                  <span className="text-xs tabular-nums opacity-80">{count}</span>
+                </label>
+              )
+            })}
+          </div>
+        </fieldset>
       ) : null}
       {visible.length > 0 ? (
         <ul aria-label={t('picker.options')} className="mt-3 max-h-[50dvh] space-y-1.5 overflow-y-auto p-0.5">
@@ -120,7 +160,11 @@ function PickerBody({
         </ul>
       ) : (
         <p className="mt-3 rounded-lg border border-dashed border-zinc-300 p-4 text-center text-sm text-zinc-500 dark:border-zinc-700">
-          {options.length === 0 ? t('picker.noneLeft') : t('picker.noMatch', { query: query.trim() })}
+          {options.length === 0
+            ? t('picker.noneLeft')
+            : seasonFilter !== 'all' && matching.length > 0
+              ? t('picker.noSeasonMatch', { season: t(`picker.filters.${seasonFilter}`) })
+              : t('picker.noMatch', { query: query.trim() })}
         </p>
       )}
       <div className="mt-5 flex justify-end">

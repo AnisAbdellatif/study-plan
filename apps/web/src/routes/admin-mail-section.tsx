@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../components/ui/button.tsx'
+import { LoadingText } from '../components/ui/spinner.tsx'
 import { currentIntlLocale } from '../i18n/index.ts'
 import { adminApi, type MailStatus } from '../lib/api.ts'
 
@@ -33,7 +34,7 @@ const formatDateTime = (value: string) =>
 
 /** Mail delivery status with a connection check and a test e-mail, so admins can find why e-mails don't arrive. */
 export function MailSection({ onChanged }: { onChanged: () => void }) {
-  const { t } = useTranslation('admin')
+  const { t } = useTranslation(['admin', 'common'])
   const [status, setStatus] = useState<MailStatus | null>(null)
   const [loadError, setLoadError] = useState(false)
   const [busy, setBusy] = useState<'verify' | 'test' | null>(null)
@@ -102,6 +103,7 @@ export function MailSection({ onChanged }: { onChanged: () => void }) {
             {t('mail.loadError')}
           </p>
         ) : null}
+        {!status && !loadError ? <LoadingText>{t('common:loading')}</LoadingText> : null}
         {status && health ? (
           <>
             <p className={`rounded-lg px-3 py-2 text-sm ring-1 ${HEALTH_CLASS[health]}`}>
@@ -142,10 +144,10 @@ export function MailSection({ onChanged }: { onChanged: () => void }) {
           </>
         ) : null}
         <div className="flex flex-wrap gap-2">
-          <Button onClick={() => void verify()} disabled={busy !== null}>
+          <Button onClick={() => void verify()} loading={busy === 'verify'} disabled={busy !== null}>
             {busy === 'verify' ? t('mail.verifying') : t('mail.verify')}
           </Button>
-          <Button onClick={() => void sendTest()} disabled={busy !== null}>
+          <Button onClick={() => void sendTest()} loading={busy === 'test'} disabled={busy !== null}>
             {busy === 'test' ? t('mail.sending') : t('mail.sendTest')}
           </Button>
         </div>

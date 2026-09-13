@@ -6,6 +6,7 @@ import { BrandMark } from '../components/brand-logo.tsx'
 import { AdminPresetsSection } from '../components/presets/admin-presets-section.tsx'
 import { Button } from '../components/ui/button.tsx'
 import { ConfirmDialog } from '../components/ui/dialog.tsx'
+import { LoadingText, Spinner } from '../components/ui/spinner.tsx'
 import { currentIntlLocale } from '../i18n/index.ts'
 import {
   type AdminAction,
@@ -17,6 +18,7 @@ import {
   type UserRole,
 } from '../lib/api.ts'
 import { MailSection } from './admin-mail-section.tsx'
+import { PlanLimitDialog, PlanLimitSection } from './admin-plan-limits.tsx'
 
 const cardClass = 'rounded-xl bg-white p-4 ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800'
 const inputClass =
@@ -206,9 +208,12 @@ function useAccountActions(onChanged: () => void) {
   const describeError = useErrorMessage()
   const [message, setMessage] = useState<Message | null>(null)
   const [pending, setPending] = useState<PendingAction | null>(null)
+  // Set while a confirmed action runs; the dialog is already closed then, so the section shows progress.
+  const [running, setRunning] = useState<PendingAction | null>(null)
 
   const run = async ({ user, action }: PendingAction) => {
     setMessage(null)
+    setRunning({ user, action })
     try {
       switch (action) {
         case 'send_verification_email':
@@ -240,6 +245,8 @@ function useAccountActions(onChanged: () => void) {
       }
     } catch (error) {
       setMessage(describeError(error))
+    } finally {
+      setRunning(null)
     }
     onChanged()
   }
@@ -261,16 +268,22 @@ function useAccountActions(onChanged: () => void) {
     />
   )
 
-  return { message, setMessage, request: setPending, dialog }
+  const progress = running ? (
+    <LoadingText>{t('messages.working', { email: running.user.email })}</LoadingText>
+  ) : null
+
+  return { message, setMessage, request: setPending, dialog, progress, busy: running !== null }
 }
 
 function ActionButton({
   children,
   danger = false,
+  disabled = false,
   onClick,
 }: {
   children: ReactNode
   danger?: boolean
+  disabled?: boolean
   onClick: () => void
 }) {
   return (
@@ -278,6 +291,7 @@ function ActionButton({
       size="sm"
       variant="ghost"
       className={danger ? 'text-red-700 dark:text-red-400' : undefined}
+      disabled={disabled}
       onClick={onClick}
     >
       {children}
@@ -297,12 +311,30 @@ function Accounts({ viewer, selfEmail, version, onChanged }: SectionProps) {
   const [query, setQuery] = useState('')
   const [activeQuery, setActiveQuery] = useState('')
   const [users, setUsers] = useState<AdminUser[] | null>(null)
-  const { message, setMessage, request, dialog } = useAccountActions(onChanged)
+  const [searching, setSearching] = useState(false)
+  const [limitFor, setLimitFor] = useState<AdminUser | null>(null)
+  const [defaultLimit, setDefaultLimit] = useState<number | null>(null)
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a new version reloads the global limit after a change.
+  useEffect(() => {
+    let active = true
+    adminApi
+      .settings()
+      .then((settings) => {
+        if (active) setDefaultLimit(settings.maxPlansPerUser)
+      })
+      .catch(() => {})
+    return () => {
+      active = false
+    }
+  }, [version])
+  const { message, setMessage, request, dialog, progress, busy } = useAccountActions(onChanged)
   const { t } = useTranslation('admin')
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: a new version reloads the list after a change.
   useEffect(() => {
     let active = true
+    setSearching(true)
     adminApi
       .users(activeQuery)
       .then((next) => {
@@ -310,6 +342,9 @@ function Accounts({ viewer, selfEmail, version, onChanged }: SectionProps) {
       })
       .catch(() => {
         if (active) setMessage({ tone: 'error', text: t('accounts.loadError') })
+      })
+      .finally(() => {
+        if (active) setSearching(false)
       })
     return () => {
       active = false
@@ -340,12 +375,15 @@ function Accounts({ viewer, selfEmail, version, onChanged }: SectionProps) {
             className={inputClass}
           />
         </div>
-        <Button type="submit">{t('accounts.submit')}</Button>
+        <Button type="submit" loading={searching}>
+          {t('accounts.submit')}
+        </Button>
       </form>
+      {progress}
       <StatusMessage message={message} />
       <div className={`${cardClass} overflow-x-auto p-0`}>
         {users === null ? (
-          <p className="p-4 text-sm">{t('loading', { ns: 'common' })}</p>
+          <LoadingText className="p-4">{t('loading', { ns: 'common' })}</LoadingText>
         ) : users.length === 0 ? (
           <p className="p-4 text-sm text-zinc-600 dark:text-zinc-400">{t('accounts.empty')}</p>
         ) : (
@@ -380,37 +418,61 @@ function Accounts({ viewer, selfEmail, version, onChanged }: SectionProps) {
                     <td className="px-2 py-2 tabular-nums">
                       {user.lastActiveAt ? format().date.format(new Date(user.lastActiveAt)) : '–'}
                     </td>
-                    <td className="px-2 py-2 text-right tabular-nums">{user.plans}</td>
+                    <td className="px-2 py-2 text-right tabular-nums">
+                      {user.plans} / {user.planLimit ?? defaultLimit ?? '–'}
+                      {user.planLimit !== null ? (
+                        <span className="ml-1 text-xs text-zinc-600 dark:text-zinc-400">
+                          {t('planLimits.custom')}
+                        </span>
+                      ) : null}
+                    </td>
                     <td className="px-2 py-2 text-right tabular-nums">{user.activeShares}</td>
                     <td className="px-4 py-2">
                       {access === 'manage' ? (
                         <div className="flex flex-wrap gap-1">
                           {user.emailVerified ? null : (
                             <ActionButton
+                              disabled={busy}
                               onClick={() => request({ user, action: 'send_verification_email' })}
                             >
                               {t('accounts.actions.sendVerification')}
                             </ActionButton>
                           )}
                           {user.activeShares > 0 ? (
-                            <ActionButton onClick={() => request({ user, action: 'revoke_shares' })}>
+                            <ActionButton
+                              disabled={busy}
+                              onClick={() => request({ user, action: 'revoke_shares' })}
+                            >
                               {t('accounts.actions.revokeShares')}
                             </ActionButton>
                           ) : null}
-                          <ActionButton onClick={() => request({ user, action: 'sign_out' })}>
+                          <ActionButton disabled={busy} onClick={() => setLimitFor(user)}>
+                            {t('accounts.actions.planLimit')}
+                          </ActionButton>
+                          <ActionButton disabled={busy} onClick={() => request({ user, action: 'sign_out' })}>
                             {t('accounts.actions.signOut')}
                           </ActionButton>
                           {viewer === 'superadmin' && user.role === 'user' && user.emailVerified ? (
-                            <ActionButton onClick={() => request({ user, action: 'grant_admin' })}>
+                            <ActionButton
+                              disabled={busy}
+                              onClick={() => request({ user, action: 'grant_admin' })}
+                            >
                               {t('accounts.actions.grantAdmin')}
                             </ActionButton>
                           ) : null}
                           {viewer === 'superadmin' && user.role === 'admin' ? (
-                            <ActionButton onClick={() => request({ user, action: 'revoke_admin' })}>
+                            <ActionButton
+                              disabled={busy}
+                              onClick={() => request({ user, action: 'revoke_admin' })}
+                            >
                               {t('accounts.actions.revokeAdmin')}
                             </ActionButton>
                           ) : null}
-                          <ActionButton danger onClick={() => request({ user, action: 'delete_user' })}>
+                          <ActionButton
+                            disabled={busy}
+                            danger
+                            onClick={() => request({ user, action: 'delete_user' })}
+                          >
                             {t('accounts.actions.delete')}
                           </ActionButton>
                         </div>
@@ -432,6 +494,12 @@ function Accounts({ viewer, selfEmail, version, onChanged }: SectionProps) {
         )}
       </div>
       <p className="text-xs text-zinc-600 dark:text-zinc-400">{t('accounts.footnote')}</p>
+      <PlanLimitDialog
+        user={limitFor}
+        defaultLimit={defaultLimit}
+        onClose={() => setLimitFor(null)}
+        onSaved={onChanged}
+      />
       {dialog}
     </section>
   )
@@ -523,7 +591,7 @@ function CreateAdminForm({ onCreated }: { onCreated: () => void }) {
         {t('team.passwordHint')}
       </p>
       <StatusMessage message={message} />
-      <Button type="submit" variant="primary" disabled={busy}>
+      <Button type="submit" variant="primary" loading={busy}>
         {busy ? t('team.creating') : t('team.submit')}
       </Button>
     </form>
@@ -534,7 +602,7 @@ function CreateAdminForm({ onCreated }: { onCreated: () => void }) {
 function AdminTeam({ viewer, selfEmail, version, onChanged }: SectionProps) {
   const { t } = useTranslation('admin')
   const [admins, setAdmins] = useState<AdminUser[] | null>(null)
-  const { message, setMessage, request, dialog } = useAccountActions(onChanged)
+  const { message, setMessage, request, dialog, progress, busy } = useAccountActions(onChanged)
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: a new version reloads the list after a change.
   useEffect(() => {
@@ -558,10 +626,11 @@ function AdminTeam({ viewer, selfEmail, version, onChanged }: SectionProps) {
         {t('team.heading')}
       </h2>
       <p className="text-sm text-zinc-600 dark:text-zinc-400">{t('team.intro')}</p>
+      {progress}
       <StatusMessage message={message} />
       <div className={cardClass}>
         {admins === null ? (
-          <p className="text-sm">{t('loading', { ns: 'common' })}</p>
+          <LoadingText>{t('loading', { ns: 'common' })}</LoadingText>
         ) : (
           <ul className="divide-y divide-zinc-200 text-sm dark:divide-zinc-800">
             {admins.map((admin) => {
@@ -580,10 +649,17 @@ function AdminTeam({ viewer, selfEmail, version, onChanged }: SectionProps) {
                   </span>
                   {access === 'manage' ? (
                     <span className="flex flex-wrap gap-1">
-                      <ActionButton onClick={() => request({ user: admin, action: 'revoke_admin' })}>
+                      <ActionButton
+                        disabled={busy}
+                        onClick={() => request({ user: admin, action: 'revoke_admin' })}
+                      >
                         {t('accounts.actions.revokeAdmin')}
                       </ActionButton>
-                      <ActionButton danger onClick={() => request({ user: admin, action: 'delete_user' })}>
+                      <ActionButton
+                        disabled={busy}
+                        danger
+                        onClick={() => request({ user: admin, action: 'delete_user' })}
+                      >
                         {t('accounts.actions.delete')}
                       </ActionButton>
                     </span>
@@ -621,9 +697,11 @@ function AuditLog({ entries }: { entries: AdminAuditEntry[] }) {
                   {t(`audit.actions.${entry.action}`)}{' '}
                   <span className="text-zinc-600 dark:text-zinc-400">
                     ·{' '}
-                    {PRESET_ACTIONS.has(entry.action)
-                      ? t('audit.preset', { id: entry.targetUserId })
-                      : t('audit.account', { id: entry.targetUserId })}
+                    {entry.action === 'update_settings'
+                      ? t('audit.settings')
+                      : PRESET_ACTIONS.has(entry.action)
+                        ? t('audit.preset', { id: entry.targetUserId })
+                        : t('audit.account', { id: entry.targetUserId })}
                   </span>
                 </span>
                 <span className="text-xs text-zinc-600 tabular-nums dark:text-zinc-400">
@@ -684,7 +762,8 @@ export function AdminPage() {
   if (access !== 'allowed') {
     return (
       <main className="mx-auto max-w-md space-y-3 px-4 py-10">
-        <h1 className="text-xl font-semibold">
+        <h1 className="flex items-center gap-2 text-xl font-semibold">
+          {access === 'checking' ? <Spinner className="size-5 text-indigo-600 dark:text-indigo-400" /> : null}
           {access === 'checking'
             ? t('loading', { ns: 'common' })
             : access === 'denied'
@@ -722,9 +801,10 @@ export function AdminPage() {
           <RoleBadge role={viewer} />
         </p>
       </header>
-      {stats ? <Overview stats={stats} /> : <p className="text-sm">{t('loadingStats')}</p>}
+      {stats ? <Overview stats={stats} /> : <LoadingText>{t('loadingStats')}</LoadingText>}
       <MailSection onChanged={changed} />
       <AdminPresetsSection onChanged={changed} />
+      <PlanLimitSection onChanged={changed} />
       {viewer === 'superadmin' ? <AdminTeam {...sectionProps} /> : null}
       <Accounts {...sectionProps} />
       <AuditLog entries={audit} />

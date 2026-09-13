@@ -80,7 +80,7 @@ export const auth = {
     loadingTitle: 'Account',
     title: 'Your account',
     verified: 'Your email address is confirmed. Welcome!',
-    adminLink: 'Go to the admin dashboard',
+    adminLink: 'Admin Dashboard',
     backToPlan: 'Back to your plan',
     backHome: 'Go to the home page',
     password: {
@@ -99,6 +99,21 @@ export const auth = {
       retry: 'Try again',
       open: 'Go to your plan',
       create: 'Create a plan',
+    },
+    plans: {
+      title: 'Your plans',
+      usage: '{{used}} of {{limit}} plans in use.',
+      loadError: "Your plans couldn't be loaded.",
+      empty: 'No plan in your account yet.',
+      open: 'open in this browser',
+      updated: 'Changed {{time}}',
+      delete: 'Delete…',
+      deleteLabel: 'Delete {{name}}',
+      deleteError: "The plan couldn't be deleted. Please try again.",
+      confirmTitle: 'Delete plan?',
+      confirmDescription:
+        '“{{name}}” and all its grades and share links will be deleted from your account. This can’t be undone.',
+      confirm: 'Delete plan',
     },
     data: {
       title: 'Your data',
@@ -146,7 +161,6 @@ export const auth = {
       loadAccount: 'Load the plan from your account',
     },
     banner: {
-      uploadText: 'Save your plan to your account to have it on all your devices.',
       upload: 'Save to account',
       errorText: 'Your plan couldn’t be saved to your account just now. Your changes stay in this browser.',
       retry: 'Try again',

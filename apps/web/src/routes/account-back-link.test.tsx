@@ -13,7 +13,7 @@ vi.mock('../components/account-sync.tsx', async (importOriginal) => ({
     user: { id: 'u1', email: 'studi@example.org', role: 'user' },
     state: { kind: 'no_account_plan' },
     sessionPending: false,
-    sync: { stop: vi.fn(), uploadLocal: vi.fn(), retry: vi.fn() },
+    sync: { stop: vi.fn(), uploadLocal: vi.fn(), retry: vi.fn(), linkedPlanId: vi.fn(() => null) },
   }),
 }))
 

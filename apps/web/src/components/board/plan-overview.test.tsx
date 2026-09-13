@@ -75,7 +75,10 @@ describe('plan overview', () => {
       .getAllByTestId('overview-module')
       .find((item) => within(item).queryByText(module.name))
     expect(block).toBeDefined()
-    expect(block).toHaveTextContent(`(2V+2Ü, ${String(module.credits).replace('.', ',')} LP)`)
+    // Short marker for the grade average: Ø counts, kein Ø doesn't.
+    expect(block).toHaveTextContent(
+      `(2V+2Ü, ${String(module.credits).replace('.', ',')} LP, ${module.countsTowardAverage ? 'Ø' : 'kein Ø'})`,
+    )
     expect(block).toHaveTextContent('Prof. Dr. Ada Lovelace, Dr. Alan Turing')
     expect(
       within(screen.getAllByTestId('overview-column')[0] as HTMLElement).getAllByTestId('overview-module'),

@@ -1,13 +1,15 @@
 import { Link, Navigate, useNavigate, useSearch } from '@tanstack/react-router'
 import { ArrowLeft } from 'lucide-react'
-import { type FormEvent, type ReactNode, useEffect, useId, useState } from 'react'
+import { type FormEvent, type ReactNode, useCallback, useEffect, useId, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
-import { describeSyncState, useAccountSync } from '../components/account-sync.tsx'
+import { describeSyncState, formatDateTime, useAccountSync } from '../components/account-sync.tsx'
 import { BrandMark } from '../components/brand-logo.tsx'
 import { Button } from '../components/ui/button.tsx'
 import { ConfirmDialog } from '../components/ui/dialog.tsx'
+import { LoadingText, Spinner } from '../components/ui/spinner.tsx'
+import { useSignOut } from '../components/use-sign-out.ts'
 import i18n, { currentLocale } from '../i18n/index.ts'
-import { adminApi, notificationApi } from '../lib/api.ts'
+import { adminApi, notificationApi, type PlanOverview, type PlanSummary, planApi } from '../lib/api.ts'
 import { authClient } from '../lib/auth-client.ts'
 import { downloadFile } from '../lib/files.ts'
 import { useGuestState } from '../store/guest-store.ts'
@@ -119,6 +121,7 @@ export function SignInPage() {
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<AuthError | null>(null)
   const [resent, setResent] = useState(false)
+  const [resending, setResending] = useState(false)
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
@@ -131,8 +134,13 @@ export function SignInPage() {
   }
 
   const resend = async () => {
-    await authClient.sendVerificationEmail({ email, callbackURL: VERIFIED_CALLBACK })
-    setResent(true)
+    setResending(true)
+    try {
+      await authClient.sendVerificationEmail({ email, callbackURL: VERIFIED_CALLBACK })
+      setResent(true)
+    } finally {
+      setResending(false)
+    }
   }
 
   return (
@@ -143,7 +151,7 @@ export function SignInPage() {
           resent ? (
             <Alert tone="success">{t('signIn.verificationResent')}</Alert>
           ) : (
-            <Button size="sm" onClick={resend}>
+            <Button size="sm" loading={resending} onClick={() => void resend()}>
               {t('signIn.resendVerification')}
             </Button>
           )
@@ -164,7 +172,7 @@ export function SignInPage() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
-        <Button type="submit" variant="primary" className="w-full" disabled={pending}>
+        <Button type="submit" variant="primary" className="w-full" loading={pending}>
           {pending ? t('signIn.pending') : t('signIn.submit')}
         </Button>
       </form>
@@ -188,6 +196,7 @@ export function SignUpPage() {
   const [error, setError] = useState<AuthError | null>(null)
   const [sentTo, setSentTo] = useState<string | null>(null)
   const [resent, setResent] = useState(false)
+  const [resending, setResending] = useState(false)
   const [acceptedPrivacy, setAcceptedPrivacy] = useState(false)
   const privacyId = useId()
 
@@ -227,9 +236,15 @@ export function SignUpPage() {
           ) : (
             <Button
               size="sm"
+              loading={resending}
               onClick={async () => {
-                await authClient.sendVerificationEmail({ email: sentTo, callbackURL: VERIFIED_CALLBACK })
-                setResent(true)
+                setResending(true)
+                try {
+                  await authClient.sendVerificationEmail({ email: sentTo, callbackURL: VERIFIED_CALLBACK })
+                  setResent(true)
+                } finally {
+                  setResending(false)
+                }
               }}
             >
               {t('signUp.resend')}
@@ -283,7 +298,7 @@ export function SignUpPage() {
             />
           </label>
         </div>
-        <Button type="submit" variant="primary" className="w-full" disabled={pending}>
+        <Button type="submit" variant="primary" className="w-full" loading={pending}>
           {pending ? t('signUp.pending') : t('signUp.submit')}
         </Button>
       </form>
@@ -330,7 +345,7 @@ export function ForgotPasswordPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
-            <Button type="submit" variant="primary" className="w-full" disabled={pending}>
+            <Button type="submit" variant="primary" className="w-full" loading={pending}>
               {t('forgotPassword.submit')}
             </Button>
           </>
@@ -416,7 +431,7 @@ export function ResetPasswordPage() {
             value={confirmation}
             onChange={(e) => setConfirmation(e.target.value)}
           />
-          <Button type="submit" variant="primary" className="w-full" disabled={pending}>
+          <Button type="submit" variant="primary" className="w-full" loading={pending}>
             {t('resetPassword.submit')}
           </Button>
         </form>
@@ -468,7 +483,7 @@ function ReminderSettings() {
       <p className="text-sm text-zinc-600 dark:text-zinc-400">{t('reminders.intro')}</p>
       {state.status === 'error' ? <Alert>{t('reminders.error')}</Alert> : null}
       {state.status === 'loading' ? (
-        <p className="text-sm">{t('common:loading')}</p>
+        <LoadingText>{t('common:loading')}</LoadingText>
       ) : state.status === 'ready' ? (
         <div className="flex items-start gap-2 text-sm">
           <input
@@ -480,6 +495,7 @@ function ReminderSettings() {
             onChange={(event) => void toggle(event.target.checked)}
           />
           <label htmlFor={checkboxId}>{t('reminders.label')}</label>
+          {saving ? <Spinner className="mt-0.5 text-zinc-500" /> : null}
         </div>
       ) : null}
     </section>
@@ -528,7 +544,7 @@ export function ChangePasswordSection({ email }: { email: string }) {
         </Alert>
       ) : null}
       <div>
-        <Button onClick={() => void send()} disabled={pending}>
+        <Button onClick={() => void send()} loading={pending}>
           {pending
             ? t('account.password.pending')
             : sent
@@ -536,6 +552,109 @@ export function ChangePasswordSection({ email }: { email: string }) {
               : t('account.password.submit')}
         </Button>
       </div>
+    </section>
+  )
+}
+
+/** The account's plans with the limit, and deleting the ones not open in this browser. */
+function AccountPlans() {
+  const { t } = useTranslation(['auth', 'common'])
+  const { sync, state } = useAccountSync()
+  const [overview, setOverview] = useState<PlanOverview | null>(null)
+  const [loadError, setLoadError] = useState(false)
+  const [deleting, setDeleting] = useState<PlanSummary | null>(null)
+  const [busyId, setBusyId] = useState<string | null>(null)
+  const [deleteError, setDeleteError] = useState(false)
+
+  const load = useCallback(async () => {
+    try {
+      setOverview(await planApi.overview())
+      setLoadError(false)
+    } catch {
+      setLoadError(true)
+    }
+  }, [])
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reload once a save finished, e.g. a new plan was uploaded
+  useEffect(() => {
+    void load()
+  }, [load, state.kind === 'synced'])
+
+  const remove = async (target: PlanSummary) => {
+    setBusyId(target.id)
+    setDeleteError(false)
+    try {
+      await planApi.remove(target.id)
+      await load()
+    } catch {
+      setDeleteError(true)
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  const activeId = sync.linkedPlanId()
+  return (
+    <section className={cardClass} aria-labelledby="konto-plaene">
+      <h2 id="konto-plaene" className="font-semibold">
+        {t('account.plans.title')}
+      </h2>
+      {loadError ? <Alert>{t('account.plans.loadError')}</Alert> : null}
+      {deleteError ? <Alert>{t('account.plans.deleteError')}</Alert> : null}
+      {overview === null ? (
+        loadError ? null : (
+          <LoadingText>{t('common:loading')}</LoadingText>
+        )
+      ) : (
+        <>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+            {t('account.plans.usage', { used: overview.plans.length, limit: overview.limit })}
+          </p>
+          {overview.plans.length === 0 ? (
+            <p className="text-sm">{t('account.plans.empty')}</p>
+          ) : (
+            <ul className="divide-y divide-zinc-200 text-sm dark:divide-zinc-800">
+              {overview.plans.map((item) => (
+                <li key={item.id} className="flex items-center justify-between gap-3 py-2">
+                  <span className="min-w-0">
+                    <span className="block truncate font-medium">{item.name}</span>
+                    <span className="block text-xs text-zinc-600 dark:text-zinc-400">
+                      {item.id === activeId
+                        ? t('account.plans.open')
+                        : t('account.plans.updated', { time: formatDateTime(item.updatedAt) })}
+                    </span>
+                  </span>
+                  {item.id === activeId ? null : (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-red-700 dark:text-red-400"
+                      loading={busyId === item.id}
+                      aria-label={t('account.plans.deleteLabel', { name: item.name })}
+                      onClick={() => setDeleting(item)}
+                    >
+                      {t('account.plans.delete')}
+                    </Button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
+      <ConfirmDialog
+        open={deleting !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleting(null)
+        }}
+        title={t('account.plans.confirmTitle')}
+        description={t('account.plans.confirmDescription', { name: deleting?.name ?? '' })}
+        confirmLabel={t('account.plans.confirm')}
+        destructive
+        onConfirm={() => {
+          if (deleting) void remove(deleting)
+        }}
+      />
     </section>
   )
 }
@@ -591,7 +710,7 @@ export function UnsubscribePage() {
         <div className="mt-6 space-y-4">
           {state === 'error' ? <Alert>{t('unsubscribe.invalid')}</Alert> : null}
           <p className="text-sm">{t('unsubscribe.explanation')}</p>
-          <Button variant="primary" disabled={state === 'pending'} onClick={() => void unsubscribe()}>
+          <Button variant="primary" loading={state === 'pending'} onClick={() => void unsubscribe()}>
             {t('unsubscribe.submit')}
           </Button>
         </div>
@@ -615,11 +734,15 @@ export function AccountPage() {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [exportError, setExportError] = useState(false)
+  const [exporting, setExporting] = useState(false)
+  const [signingOut, setSigningOut] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const signOutAndReset = useSignOut()
 
   if (sessionPending) {
     return (
       <AuthLayout title={t('account.loadingTitle')}>
-        <p className="mt-6 text-sm">{t('common:loading')}</p>
+        <LoadingText className="mt-6">{t('common:loading')}</LoadingText>
       </AuthLayout>
     )
   }
@@ -627,6 +750,7 @@ export function AccountPage() {
 
   const exportData = async () => {
     setExportError(false)
+    setExporting(true)
     try {
       const response = await fetch('/api/account/export', { credentials: 'same-origin' })
       if (!response.ok) throw new Error(String(response.status))
@@ -636,19 +760,27 @@ export function AccountPage() {
       downloadFile(filename, await response.text(), 'application/json')
     } catch {
       setExportError(true)
+    } finally {
+      setExporting(false)
     }
   }
 
   const signOut = async () => {
-    await authClient.signOut()
-    sync.stop()
-    void navigate({ to: '/' })
+    setSigningOut(true)
+    // Navigates to the start page, which unmounts this page; no need to reset the flag on success.
+    try {
+      await signOutAndReset()
+    } catch {
+      setSigningOut(false)
+    }
   }
 
   const deleteAccount = async () => {
     setDeleteError(null)
+    setDeleting(true)
     const result = await authClient.deleteUser({ password })
     if (result.error) {
+      setDeleting(false)
       setDeleteError(
         result.error.status === 401 || result.error.status === 400
           ? t('errors.wrongPassword')
@@ -684,6 +816,7 @@ export function AccountPage() {
         </p>
         <div className="flex flex-wrap gap-2">
           {state.kind === 'no_account_plan' && plan ? (
+            // Once saving starts this button goes away and the spinner next to the status takes over.
             <Button variant="primary" onClick={() => void sync.uploadLocal()}>
               {t('account.plan.upload')}
             </Button>
@@ -691,12 +824,16 @@ export function AccountPage() {
           {state.kind === 'error' ? (
             <Button onClick={() => void sync.retry()}>{t('account.plan.retry')}</Button>
           ) : null}
+          {state.kind === 'saving' || state.kind === 'loading' ? (
+            <Spinner className="self-center text-zinc-500" />
+          ) : null}
           <Link to={plan ? '/' : '/start'} className={`${linkClass} self-center text-sm`}>
             {plan ? t('account.plan.open') : t('account.plan.create')}
           </Link>
         </div>
       </section>
 
+      <AccountPlans />
       <ChangePasswordSection email={user.email} />
       <ReminderSettings />
       <AdminLink />
@@ -708,8 +845,10 @@ export function AccountPage() {
         <p className="text-sm text-zinc-600 dark:text-zinc-400">{t('account.data.intro')}</p>
         {exportError ? <Alert>{t('account.data.exportError')}</Alert> : null}
         <div className="flex flex-wrap gap-2">
-          <Button onClick={exportData}>{t('account.data.download')}</Button>
-          <Button variant="ghost" onClick={signOut}>
+          <Button loading={exporting} onClick={() => void exportData()}>
+            {t('account.data.download')}
+          </Button>
+          <Button variant="ghost" loading={signingOut} onClick={() => void signOut()}>
             {t('account.data.signOut')}
           </Button>
         </div>
@@ -740,7 +879,7 @@ export function AccountPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
-              <Button type="submit" variant="danger">
+              <Button type="submit" variant="danger" loading={deleting}>
                 {t('account.delete.submit')}
               </Button>
             </form>

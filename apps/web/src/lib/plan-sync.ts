@@ -1,6 +1,6 @@
 import { createGuestDocument, type Plan } from '@study-plan/shared'
 import type { GuestStore, StorageLike } from '../store/guest-store.ts'
-import type { PlanApi, StoredPlan } from './api.ts'
+import { ApiError, type PlanApi, type StoredPlan } from './api.ts'
 
 /** Which account plan the plan in this browser belongs to. */
 export const LINK_KEY = 'study-plan:account-link'
@@ -17,8 +17,11 @@ export interface AccountLink {
 export type SyncState =
   | { kind: 'signed_out' }
   | { kind: 'loading' }
-  /** Signed in, but the account has no plan yet. The browser plan, if any, can be uploaded. */
-  | { kind: 'no_account_plan' }
+  /**
+   * Signed in, but the browser plan is not in the account (yet). It can be uploaded, unless the account already
+   * holds as many plans as it may (`limitReached`).
+   */
+  | { kind: 'no_account_plan'; limitReached?: boolean }
   /** Signed in, and both the account and this browser have a plan that were never linked. */
   | { kind: 'choose'; remote: StoredPlan }
   | { kind: 'saving' }
@@ -59,6 +62,8 @@ export class PlanSync {
   #timer: ReturnType<typeof setTimeout> | null = null
   #pushing: Promise<void> | null = null
   #pushAgain = false
+  /** Set by startNewPlan: the next plan that appears in the browser is uploaded as a new account plan. */
+  #uploadNext = false
 
   constructor(options: PlanSyncOptions) {
     this.#options = options
@@ -121,6 +126,7 @@ export class PlanSync {
 
   /** Stops syncing, e.g. after signing out. The plan stays in this browser, unlinked from the account. */
   stop(): void {
+    this.#uploadNext = false
     this.#detach()
     this.#writeLink(null)
     this.#set({ kind: 'signed_out' })
@@ -142,9 +148,40 @@ export class PlanSync {
         syncedUpdatedAt: plan.updatedAt,
       })
       this.#set({ kind: 'synced', savedAt: created.updatedAt })
+    } catch (error) {
+      if (this.#userId !== userId) return
+      if (error instanceof ApiError && error.code === 'too_many_plans') {
+        this.#set({ kind: 'no_account_plan', limitReached: true })
+      } else {
+        this.#set({ kind: 'error' })
+      }
+    }
+  }
+
+  /** Saves pending edits of the open plan, then opens another plan of the account in this browser. */
+  async switchTo(planId: string): Promise<void> {
+    const userId = this.#userId
+    if (!userId) return
+    await this.#flush()
+    if (this.#userId !== userId) return
+    this.#set({ kind: 'loading' })
+    try {
+      await this.#loadRemote(planId, userId)
     } catch {
       if (this.#userId === userId) this.#set({ kind: 'error' })
     }
+  }
+
+  /**
+   * Saves pending edits of the open plan and detaches it from this browser. The next plan created here is saved
+   * as a new account plan; the previous one stays in the account.
+   */
+  async startNewPlan(): Promise<void> {
+    if (!this.#userId) return
+    await this.#flush()
+    this.#writeLink(null)
+    this.#uploadNext = true
+    this.#set({ kind: 'no_account_plan' })
   }
 
   /** Resolves `choose` by replacing the browser plan with the account plan. */
@@ -233,8 +270,23 @@ export class PlanSync {
     return plan !== null && link !== null && plan.updatedAt !== link.syncedUpdatedAt
   }
 
+  /** Pushes unsaved edits now instead of after the debounce, and waits for a push already running. */
+  async #flush(): Promise<void> {
+    if (this.#timer) {
+      clearTimeout(this.#timer)
+      this.#timer = null
+    }
+    if (this.#hasUnsavedChanges(this.#options.store.getState().plan, this.#readLink())) await this.#push()
+    else if (this.#pushing) await this.#pushing
+  }
+
   #onStoreChange(): void {
     if (!this.#userId || this.#state.kind === 'choose' || this.#state.kind === 'loading') return
+    if (this.#uploadNext && !this.#readLink() && this.#options.store.getState().plan) {
+      this.#uploadNext = false
+      void this.uploadLocal()
+      return
+    }
     if (!this.#hasUnsavedChanges(this.#options.store.getState().plan, this.#readLink())) return
     if (this.#timer) clearTimeout(this.#timer)
     this.#timer = setTimeout(() => {

@@ -21,7 +21,7 @@ const EXAMPLE = {
   codesAreOfficial: true,
   examRules: { withdrawalDaysBeforeExam: 7, maxAttempts: 3, retakePassedExams: false },
   notes:
-    'Gesamtnote (§ 18 PO): LP-weighted mean of the Fachnoten Grundlagen and Vertiefung, each truncated after the first decimal; the Bachelorarbeit counts twice. Assumption: the Studienverlaufsplan in the Modulhandbuch (p. 4) is for winter starters.',
+    'Gesamtnote (§ 18 PO): LP-weighted mean of the Fachnoten Grundlagen and Vertiefung, each truncated after the first decimal; the Bachelorarbeit counts twice. Assumption: the Studienverlaufsplan in the Modulhandbuch (p. 4) is for winter starters. Betriebspraktikum (§ 9 PO, p. 6): optional, 15 or 20 LP (12 or 16 weeks), replaces modules of the Wahlbereich; the Wahlmodul "Wahlmodul Informatik" is a placeholder here for the Wahlbereich catalogue.',
   gradeRules: {
     allowedValues: [1.0, 1.3, 1.7, 2.0, 2.3, 2.7, 3.0, 3.3, 3.7, 4.0, 5.0],
     passThreshold: 4.0,
@@ -101,8 +101,53 @@ const EXAMPLE = {
       requiresCredits: 120,
       maxAttempts: 2,
     },
+    {
+      code: 'WB-1',
+      name: 'Wahlmodul Informatik',
+      credits: 5,
+      grading: 'graded',
+      countsTowardAverage: true,
+      category: 'Wahlbereich',
+      offering: 'both',
+      elective: true,
+    },
+    {
+      code: 'PRAX-15',
+      name: 'Betriebspraktikum (15 LP)',
+      credits: 15,
+      grading: 'pass_fail',
+      countsTowardAverage: false,
+      category: 'Wahlbereich',
+      offering: 'both',
+      typicalSemester: 5,
+      elective: true,
+      internship: true,
+      alternativeGroup: 'betriebspraktikum',
+    },
+    {
+      code: 'PRAX-20',
+      name: 'Betriebspraktikum (20 LP)',
+      credits: 20,
+      grading: 'pass_fail',
+      countsTowardAverage: false,
+      category: 'Wahlbereich',
+      offering: 'both',
+      typicalSemester: 5,
+      elective: true,
+      internship: true,
+      alternativeGroup: 'betriebspraktikum',
+    },
   ],
-  areas: [{ id: 'grundlagen', name: 'Grundlagen', minCredits: 8, moduleCodes: ['INF-101'] }],
+  areas: [
+    { id: 'grundlagen', name: 'Grundlagen', minCredits: 8, moduleCodes: ['INF-101'] },
+    {
+      id: 'wahlbereich',
+      name: 'Wahlbereich',
+      minCredits: 20,
+      maxCredits: 20,
+      moduleCodes: ['WB-1', 'PRAX-15', 'PRAX-20'],
+    },
+  ],
 }
 
 function existingSection(modules: ExtractionPromptOptions['existingModules']): string {
@@ -200,6 +245,8 @@ One entry for every module a student can take in this programme: compulsory (Pfl
 - \`offering\`: "winter" if the module is only offered in the winter semester, "summer" if only in the summer semester, "both" if every semester, "irregular" if irregular or by announcement.
 - \`typicalSemester\`: the recommended semester from the Studienverlaufsplan for students who start in the winter semester (1 = first semester). Omit it for electives without a recommendation. When the plan recommends a slot such as "Proseminar" or "Wahlpflichtmodul" in a semester, give that semester to every module that can fill the slot.
 - \`elective\`: true for modules the student picks among alternatives, e.g. one Proseminar out of many, courses from a Wahlpflicht or Studium Generale catalogue. The planner leaves them unplanned so the student chooses. Omit it for compulsory modules.
+- \`internship\`: true for a work placement outside the university (Betriebspraktikum, Industriepraktikum, Berufspraktikum, Fachpraktikum, Praxisphase, Praxissemester). Lab and practical courses at the university (Laborpraktikum, Programmierpraktikum, Hardware-Praktikum, or "P = Praktikum" as a course type) are ordinary modules: omit the field for them.
+- \`alternativeGroup\`: the same id (lowercase letters, digits and dashes) on modules that exclude each other, where the student may take only one, e.g. the credit variants of one internship. See "Internships and other substitutes".
 - \`prerequisites\`: only binding admission requirements for the module, as module codes. Use \`{"anyOf": ["A", "B"]}\` when one of several modules is enough. Recommendations are not prerequisites; they belong in \`details.recommendedPrerequisites\`.
 - \`requiresCredits\`: minimum credits a student must have earned before taking the module, e.g. 120 for a thesis that requires "mindestens 120 LP".
 - \`maxAttempts\`: only if this module has a different attempt limit than \`examRules.maxAttempts\` (often the thesis).
@@ -239,6 +286,18 @@ Map every field of the catalog entry. Labels differ between universities; use th
 
 Prefer a downloadable file for long results. If you can only reply in the chat and your answer would become too long for one reply, keep every module with all fields except \`details\`, add \`details\` for as many modules as fit in catalog order, and write in \`notes\` which modules still lack details.
 
+# Internships and other substitutes
+
+Look in the PO, its annexes and the Studienverlaufsplan for a Praktikum (Betriebspraktikum, Industriepraktikum, Praxisphase), an Auslandsstudium or Auslandssemester, or similar options. Work out from the documents how many credits each gives, whether it is compulsory, and which modules it can replace. A plan often shows this as "ODER", e.g. "Informationstechnik (5 LP) ODER Betriebspraktikum (0, 15 oder 20 LP) ODER Auslandsstudium (15 LP)".
+
+- Compulsory internship: one module with \`internship\` true, its credits, grading, admission rules (e.g. \`requiresCredits\`) and recommended semester, in the area the PO assigns it to (or an area of its own).
+- Optional internship that replaces other modules: one module per allowed credit amount, e.g. "Betriebspraktikum (15 LP)" and "Betriebspraktikum (20 LP)", each with \`internship\` true, \`elective\` true and the same \`alternativeGroup\`. An option of 0 credits means not doing it; create no module for that.
+- Put these modules into the same area as the modules they can replace, and keep the area's \`minCredits\` and \`maxCredits\` at the credits the student must earn there. Choosing the internship then needs fewer of the other modules. Example: a Wahlbereich of 20 LP is filled by four 5 LP modules, by a 15 LP internship plus one 5 LP module, or by a 20 LP internship alone.
+- Other substitutes for the same credits, such as an Auslandsstudium, work the same way: their own module in that area with \`elective\` true, and the internship's \`alternativeGroup\` if the student may take only one of them.
+- If a substitute can replace modules from several areas, put it in the area the Studienverlaufsplan shows it in and explain the other options in \`notes\`.
+- Internships are usually ungraded: \`grading\` "pass_fail" and \`countsTowardAverage\` false, unless the PO grades them and counts them toward the Gesamtnote.
+- In \`notes\`, describe what the internship requires (duration in weeks, recognition, registration) and which modules it replaces, citing § and page.
+
 # Areas (\`areas\`)
 
 The areas of the programme with their credit requirements (Kompetenzbereiche, Studienbereiche, Pflicht- and Wahlpflichtbereiche, Schlüsselkompetenzen, Abschlussarbeit). \`id\`: lowercase letters, digits and dashes. \`minCredits\` and \`maxCredits\`: the credits required from the area; omit \`maxCredits\` if there is no upper limit. \`moduleCodes\`: the codes of all modules in the area. For choice lists, \`minCredits\` and \`maxCredits\` are the credits the student must choose, not the total of all listed modules (e.g. one 5 LP Proseminar out of 14 gives an area with maxCredits 5, or 10 together with a compulsory 5 LP module).
@@ -268,6 +327,7 @@ This is the most important part. Read the PO paragraph on the Gesamtnote (often 
 - The aggregation contains every graded, counted module exactly once and nothing else.
 - \`passThreshold\` and all \`standardGrades\` are in \`allowedValues\`.
 - \`maxCredits\` is never below \`minCredits\`; quota minimums do not exceed \`keepBest.maxCredits\`.
+- Every \`alternativeGroup\` is used by at least two modules, and those modules share an area with the modules they replace.
 - Credits of compulsory modules plus required elective credits match \`totalCredits\`, or \`notes\` explains the difference.
 - \`notes\` explains the grade calculation and lists every assumption.
 

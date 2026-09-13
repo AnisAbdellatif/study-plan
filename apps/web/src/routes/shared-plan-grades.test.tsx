@@ -1,6 +1,7 @@
 import { createPlanFromPreset, setModuleResult, toSharedPlan } from '@study-plan/shared'
 import { createMemoryHistory, RouterProvider } from '@tanstack/react-router'
 import { render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import i18n from '../i18n/index.ts'
 import { createAppRouter } from '../router.tsx'
@@ -61,6 +62,13 @@ describe('shared plans with and without grades', () => {
       .find((item) => item.textContent?.includes('Grundlagen der Programmierung'))
     expect(card).toHaveTextContent('1,3')
     expect(screen.getByText('Beim Übernehmen kommen keine Noten mit.')).toBeInTheDocument()
+  })
+
+  it('opens the details of a module from its card', async () => {
+    renderShared(false)
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('button', { name: /Grundlagen der Programmierung/ }))
+    expect(await screen.findByRole('dialog', { name: /Grundlagen der Programmierung/ })).toBeInTheDocument()
   })
 
   it('shows no grades by default', async () => {

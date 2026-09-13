@@ -52,7 +52,9 @@ describe('account button', () => {
     await user.click(screen.getByRole('menuitem', { name: 'Abmelden' }))
     await vi.waitFor(() => expect(mocks.stop).toHaveBeenCalled())
     expect(mocks.signOut).toHaveBeenCalledTimes(1)
-    await vi.waitFor(() => expect(router.state.location.pathname).toBe('/'))
+    await vi.waitFor(() => expect(router.state.location.pathname).toBe('/start'))
+    // Signing out also removes the plan from this browser.
+    expect(window.localStorage.getItem('study-plan:guest')).toBeNull()
   })
 
   it('offers to sign in when signed out, except on the sign-in page itself', async () => {

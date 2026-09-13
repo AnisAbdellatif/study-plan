@@ -5,6 +5,7 @@ import {
   ArrowRight,
   ArrowRightToLine,
   EllipsisVertical,
+  GripVertical,
   Plus,
   Search,
   Trash2,
@@ -15,7 +16,7 @@ import { memo, useCallback, useId, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { areaTone, moduleTone } from '../../lib/area-colors.ts'
 import { cn } from '../../lib/cn.ts'
-import { useColumnDropTarget, useListAutoScroll } from '../../lib/dnd.ts'
+import { useColumnDropTarget, useDraggableSemester, useListAutoScroll } from '../../lib/dnd.ts'
 import { formatCredits } from '../../lib/format.ts'
 import type { IssueText } from '../../lib/issues.ts'
 import { moduleMatchesQuery } from '../../lib/module-search.ts'
@@ -156,9 +157,12 @@ export const SemesterColumn = memo(function SemesterColumn({
   const { t } = useTranslation('board')
   const headingId = useId()
   const ref = useRef<HTMLElement>(null)
+  const handleRef = useRef<HTMLElement>(null)
   const listRef = useRef<HTMLUListElement>(null)
   useListAutoScroll(listRef)
-  const { isOver } = useColumnDropTarget(ref, column.id)
+  const { isOver, semesterEdge } = useColumnDropTarget(ref, column.id, column.index)
+  const { isDragging } = useDraggableSemester(ref, handleRef, column.id, column.index)
+  const isSemester = column.id !== null && column.index !== null
   const searchId = useId()
   const [query, setQuery] = useState('')
   const isBacklog = column.id === null
@@ -190,7 +194,7 @@ export const SemesterColumn = memo(function SemesterColumn({
       className={cn(
         // Phones and tablets show one to three columns and swipe. From xl, all columns share the width so a
         // typical plan fits without scrolling; below the minimum width (many semesters) the board scrolls again.
-        'print:w-[calc(33.333%-0.5rem)]! print:max-w-none! print:max-h-none print:break-inside-avoid flex max-h-[calc(100dvh-2rem)] w-[85vw] max-w-sm shrink-0 snap-start flex-col rounded-xl p-2 transition-colors sm:w-[calc((100%-0.75rem)/2)] md:w-[calc((100%-1.5rem)/3)] xl:w-auto xl:max-w-none xl:min-w-40 xl:basis-0',
+        'print:w-[calc(33.333%-0.5rem)]! print:max-w-none! print:max-h-none print:break-inside-avoid relative flex w-[85vw] sm:max-h-[calc(100dvh-2rem)] max-w-sm shrink-0 snap-start flex-col rounded-xl p-2 transition-colors sm:w-[calc((100%-0.75rem)/2)] md:w-[calc((100%-1.5rem)/3)] xl:w-auto xl:max-w-none xl:min-w-40 xl:basis-0',
         // cn does not merge Tailwind classes, so each column gets exactly one flex-grow value.
         // The not-planned column is only as tall as its content; semesters stretch so their whole height is a drop zone.
         isBacklog ? 'sm:self-start xl:flex-[1.2]' : 'xl:flex-1',
@@ -202,21 +206,42 @@ export const SemesterColumn = memo(function SemesterColumn({
             : isBacklog
               ? 'bg-slate-200/35 ring-1 ring-zinc-300/50 dark:bg-zinc-900/35 dark:ring-zinc-800/60'
               : 'bg-slate-200/75 ring-1 ring-slate-300/60 dark:bg-zinc-900/80 dark:ring-zinc-800',
+        isDragging && 'opacity-50',
       )}
     >
+      {semesterEdge ? (
+        // In the middle of the gap between two columns (gap-3), where the semester would land.
+        <div
+          aria-hidden
+          className={cn(
+            'pointer-events-none absolute inset-y-2 w-1 rounded-full bg-indigo-500',
+            semesterEdge === 'left' ? '-left-2' : '-right-2',
+          )}
+        />
+      ) : null}
       <header
+        ref={handleRef}
+        // Dragging is an enhancement; the semester menu moves semesters with the keyboard too.
+        title={isSemester ? t('columns.dragSemester') : undefined}
         className={cn(
           'mb-2 border-b px-1.5 pt-1 pb-2',
+          isSemester && 'cursor-grab active:cursor-grabbing pointer-coarse:cursor-auto print:cursor-auto',
           column.isCurrent
             ? 'border-indigo-200 dark:border-indigo-800/70'
             : 'border-zinc-300/70 dark:border-zinc-700/60',
         )}
       >
         <div className="flex items-center justify-between gap-2">
+          {isSemester ? (
+            <GripVertical
+              aria-hidden
+              className="-ml-1 size-3.5 shrink-0 text-zinc-400 pointer-coarse:hidden print:hidden dark:text-zinc-500"
+            />
+          ) : null}
           <h2
             id={headingId}
             className={cn(
-              'text-sm font-semibold',
+              'flex-1 text-sm font-semibold',
               column.isCurrent && 'text-indigo-900 dark:text-indigo-100',
               isBacklog && 'text-zinc-700 dark:text-zinc-300',
             )}
@@ -328,7 +353,7 @@ export const SemesterColumn = memo(function SemesterColumn({
         ref={listRef}
         className={cn(
           // No overscroll containment: once the list reaches its end, the wheel keeps scrolling the page.
-          '-mx-1 flex flex-1 flex-col gap-2 overflow-y-auto px-1 py-1 print:overflow-visible',
+          '-mx-1 flex flex-1 flex-col gap-2 px-1 py-1 sm:overflow-y-auto print:overflow-visible',
           isBacklog ? 'min-h-12' : 'min-h-24',
         )}
       >

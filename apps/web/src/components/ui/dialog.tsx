@@ -5,9 +5,10 @@ import { useTranslation } from 'react-i18next'
 import { Button } from './button.tsx'
 
 const backdropClass = 'fixed inset-0 z-40 bg-zinc-950/40'
+// Phones: a sheet along the bottom edge, full width and clear of the home indicator. From sm: a centred dialog.
 const popupClass =
-  'fixed top-1/2 left-1/2 z-50 max-h-[90dvh] -translate-x-1/2 overflow-y-auto -translate-y-1/2 rounded-xl bg-white p-5 shadow-xl ring-1 ring-zinc-200 outline-none dark:bg-zinc-900 dark:ring-zinc-800'
-const popupWidth = 'w-[min(28rem,calc(100vw-2rem))]'
+  'fixed inset-x-0 bottom-0 z-50 max-h-[90dvh] overflow-y-auto rounded-t-2xl bg-white p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-xl ring-1 ring-zinc-200 outline-none sm:inset-x-auto sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl sm:pb-5 dark:bg-zinc-900 dark:ring-zinc-800'
+const popupWidth = 'w-full sm:w-[min(28rem,calc(100vw-2rem))]'
 const titleClass = 'text-base font-semibold'
 const descriptionClass = 'mt-1 text-sm text-zinc-600 dark:text-zinc-400'
 
@@ -27,7 +28,7 @@ export function Dialog({ open, onOpenChange, title, description, children, size 
       <BaseDialog.Portal>
         <BaseDialog.Backdrop className={backdropClass} />
         <BaseDialog.Popup
-          className={`${popupClass} ${size === 'lg' ? 'w-[min(48rem,calc(100vw-2rem))]' : popupWidth}`}
+          className={`${popupClass} ${size === 'lg' ? 'w-full sm:w-[min(48rem,calc(100vw-2rem))]' : popupWidth}`}
         >
           <BaseDialog.Title className={titleClass}>{title}</BaseDialog.Title>
           {description ? (

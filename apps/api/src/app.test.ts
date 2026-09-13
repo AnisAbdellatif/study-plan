@@ -25,7 +25,6 @@ import {
 import { createMemoryMailer, type Mailer } from './mail.ts'
 import { berlinDate, runReminders, UNSUBSCRIBE_PATH, verifyUnsubscribeToken } from './reminders.ts'
 import { ensureSuperadmin } from './roles.ts'
-import { MAX_PLANS_PER_USER } from './routes/plans.ts'
 
 const config = loadConfig({
   NODE_ENV: 'test',
@@ -314,22 +313,74 @@ describe('plans', () => {
     expect((await call(`/api/plans/${created.id}`, { cookie })).status).toBe(404)
   })
 
-  it(`allows at most ${MAX_PLANS_PER_USER} plans per account`, async () => {
-    const heavy = await registerVerifiedUser('many@example.org')
-    for (let index = 0; index < MAX_PLANS_PER_USER; index++) {
-      const response = await call('/api/plans', {
-        method: 'POST',
-        cookie: heavy,
-        body: { document: planDocument() },
-      })
-      expect(response.status).toBe(201)
-    }
-    const oneTooMany = await call('/api/plans', {
-      method: 'POST',
-      cookie: heavy,
-      body: { document: planDocument() },
+  it('allows 4 plans by default; admins change the global and the per-account limit', async () => {
+    const adminEmail = 'limits-admin@example.org'
+    const admin = await registerVerifiedUser(adminEmail)
+    await connection.db.update(userTable).set({ role: 'admin' }).where(eq(userTable.email, adminEmail))
+    const student = await registerVerifiedUser('limits-student@example.org')
+    const [studentRow] = await connection.db
+      .select({ id: userTable.id })
+      .from(userTable)
+      .where(eq(userTable.email, 'limits-student@example.org'))
+    const studentId = studentRow?.id ?? ''
+    const create = () =>
+      call('/api/plans', { method: 'POST', cookie: student, body: { document: planDocument() } })
+
+    for (let index = 0; index < 4; index++) expect((await create()).status).toBe(201)
+    const blocked = await create()
+    expect(blocked.status).toBe(409)
+    expect(await json(blocked)).toEqual({ error: 'too_many_plans', limit: 4 })
+    expect(await json(await call('/api/plans', { cookie: student }))).toMatchObject({ limit: 4 })
+
+    // Students never reach the settings.
+    expect((await call('/api/admin/settings', { cookie: student })).status).toBe(404)
+
+    expect(await json(await call('/api/admin/settings', { cookie: admin }))).toEqual({ maxPlansPerUser: 4 })
+    const raised = await call('/api/admin/settings', {
+      method: 'PUT',
+      cookie: admin,
+      body: { maxPlansPerUser: 5 },
     })
-    expect(oneTooMany.status).toBe(409)
+    expect(raised.status).toBe(200)
+    expect((await create()).status).toBe(201)
+    expect((await create()).status).toBe(409)
+
+    const own = await call(`/api/admin/users/${studentId}/plan-limit`, {
+      method: 'PUT',
+      cookie: admin,
+      body: { planLimit: 6 },
+    })
+    expect(await json(own)).toEqual({ planLimit: 6 })
+    const listed = await json<{ users: { email: string; planLimit: number | null; plans: number }[] }>(
+      await call('/api/admin/users?q=limits-student', { cookie: admin }),
+    )
+    expect(listed.users[0]).toMatchObject({ planLimit: 6, plans: 5 })
+    expect(await json(await call('/api/plans', { cookie: student }))).toMatchObject({ limit: 6 })
+    expect((await create()).status).toBe(201)
+    expect((await create()).status).toBe(409)
+
+    // Back to the global value: the six plans stay, but no new one fits.
+    await call(`/api/admin/users/${studentId}/plan-limit`, {
+      method: 'PUT',
+      cookie: admin,
+      body: { planLimit: null },
+    })
+    expect(await json(await call('/api/plans', { cookie: student }))).toMatchObject({ limit: 5 })
+    expect(
+      (await json<{ plans: unknown[] }>(await call('/api/plans', { cookie: student }))).plans,
+    ).toHaveLength(6)
+
+    for (const value of [0, 51, 2.5, '4']) {
+      const invalid = await call('/api/admin/settings', {
+        method: 'PUT',
+        cookie: admin,
+        body: { maxPlansPerUser: value },
+      })
+      expect(invalid.status).toBe(400)
+    }
+    await call('/api/admin/settings', { method: 'PUT', cookie: admin, body: { maxPlansPerUser: 4 } })
+    // Leave no extra admin behind for the admin tests further down.
+    await connection.db.update(userTable).set({ role: 'user' }).where(eq(userTable.email, adminEmail))
   })
 })
 

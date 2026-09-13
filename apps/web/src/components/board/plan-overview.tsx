@@ -16,6 +16,7 @@ import { useTranslation } from 'react-i18next'
 import { currentLocale } from '../../i18n/index.ts'
 import { areaTone, moduleTone, NEUTRAL_TONE } from '../../lib/area-colors.ts'
 import { cn } from '../../lib/cn.ts'
+import { examKindLabels } from '../../lib/exam-kinds.ts'
 import { DEGREE_LABEL, formatCredits, formatGrade } from '../../lib/format.ts'
 
 export interface PlanOverviewProps {
@@ -229,6 +230,7 @@ export function PlanOverview({ plan, summary }: PlanOverviewProps) {
                 const { module } = block
                 const tone = moduleTone(plan, module.code)
                 const hours = teachingHours(module)
+                const exams = examKindLabels(module)
                 const people = module.details?.lecturers ?? module.details?.responsible ?? []
                 return (
                   <div
@@ -246,7 +248,9 @@ export function PlanOverview({ plan, summary }: PlanOverviewProps) {
                       <span className="font-semibold">{module.name}</span>
                       <span className="text-zinc-700 dark:text-zinc-300">
                         ({hours ? `${hours}, ` : ''}
-                        {formatCredits(module.credits)} {label})
+                        {formatCredits(module.credits)} {label}
+                        {exams.length > 0 ? `, ${exams.join(' / ')}` : ''},{' '}
+                        {t(module.countsTowardAverage ? 'card.countsShort' : 'card.notCountedShort')})
                       </span>
                       {people.length > 0 && (
                         <span className="text-zinc-700 dark:text-zinc-300">{people.join(', ')}</span>

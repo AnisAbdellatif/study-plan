@@ -63,7 +63,8 @@ describe('shared plans with placeholders and custom modules', () => {
     expect(placeholder).toHaveTextContent('≈ 5 LP')
     expect(fifth).toHaveTextContent('+ ≈5 LP')
     expect(fifth).not.toHaveTextContent('placeholder-test')
-    expect(within(fifth).queryByRole('button')).not.toBeInTheDocument()
+    // Placeholders stay read-only; module cards next to them open their details.
+    expect(within(placeholder).queryByRole('button')).not.toBeInTheDocument()
 
     const first = screen.getByRole('region', { name: '1. Semester' })
     expect(first).toHaveTextContent('Japanisch A1')

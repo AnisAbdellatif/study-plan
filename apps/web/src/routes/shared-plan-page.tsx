@@ -12,8 +12,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { formatDateTime, useAccountSync } from '../components/account-sync.tsx'
 import { ResultBadge } from '../components/board/module-card.tsx'
+import { ModuleDetailsDialog } from '../components/board/module-details-dialog.tsx'
 import { Button } from '../components/ui/button.tsx'
 import { ConfirmDialog } from '../components/ui/dialog.tsx'
+import { Spinner } from '../components/ui/spinner.tsx'
 import { currentLocale } from '../i18n/index.ts'
 import { ApiError, type SharedPlanResponse, shareApi } from '../lib/api.ts'
 import { areaTone, moduleTone } from '../lib/area-colors.ts'
@@ -34,6 +36,7 @@ function SharedPlanView({ response, plan }: { response: SharedPlanResponse; plan
   const { plan: localPlan } = useGuestState()
   const { sync } = useAccountSync()
   const [confirm, setConfirm] = useState(false)
+  const [detailsCode, setDetailsCode] = useState<string | null>(null)
   const summary = useMemo(() => summarizePlan(plan), [plan])
   const names = new Map(plan.modules.map((module) => [module.code, module]))
   const estimates = useMemo(() => placeholderCredits(plan), [plan])
@@ -133,7 +136,18 @@ function SharedPlanView({ response, plan }: { response: SharedPlanResponse; plan
             {column.subtitle ? (
               <p className="text-xs text-zinc-600 dark:text-zinc-400">{column.subtitle}</p>
             ) : null}
-            <ul className="mt-2 space-y-1.5">
+            <ul
+              // Every option of a choice area ends up here, so the list scrolls instead of stretching the page.
+              // Focusable, so keyboard users can scroll it too; printing shows everything.
+              {...(column.key === 'backlog'
+                ? { tabIndex: 0, 'aria-label': t('backlogList', { count: column.codes.length }) }
+                : {})}
+              className={cn(
+                'mt-2 space-y-1.5',
+                column.key === 'backlog' &&
+                  '-mx-1 max-h-[60dvh] overflow-y-auto overscroll-contain px-1 pb-1 focus-visible:outline-2 focus-visible:outline-indigo-500 print:max-h-none print:overflow-visible',
+              )}
+            >
               {column.codes.map((code) => {
                 if (isPlaceholderId(code)) {
                   const areaId = placeholderAreas.get(code)
@@ -171,21 +185,30 @@ function SharedPlanView({ response, plan }: { response: SharedPlanResponse; plan
                     key={code}
                     data-testid="shared-module"
                     className={cn(
-                      'rounded-lg border-l-4 px-2.5 py-2 text-sm shadow-sm ring-1 ring-zinc-900/10 dark:ring-white/10',
+                      'rounded-lg border-l-4 text-sm shadow-sm ring-1 ring-zinc-900/10 dark:ring-white/10',
                       tone.stripe,
                       tone.soft,
                     )}
                   >
-                    <span className="block leading-snug font-medium">{module?.name ?? code}</span>
-                    <span className="flex flex-wrap items-center gap-1.5 text-xs text-zinc-600 dark:text-zinc-400">
-                      {withGrades && module ? (
-                        <ResultBadge module={module} passThreshold={plan.rules.passThreshold} />
-                      ) : null}
-                      <span>
-                        {formatCredits(module?.credits ?? 0)} {label}
-                        {category ? ` · ${category}` : ''}
+                    {/* The whole card opens the module's details, like on the board. */}
+                    <button
+                      type="button"
+                      aria-haspopup="dialog"
+                      disabled={!module}
+                      onClick={() => setDetailsCode(code)}
+                      className="block w-full rounded-lg px-2.5 py-2 text-left hover:bg-white/40 focus-visible:outline-2 focus-visible:outline-indigo-500 dark:hover:bg-white/5"
+                    >
+                      <span className="block leading-snug font-medium">{module?.name ?? code}</span>
+                      <span className="flex flex-wrap items-center gap-1.5 text-xs text-zinc-600 dark:text-zinc-400">
+                        {withGrades && module ? (
+                          <ResultBadge module={module} passThreshold={plan.rules.passThreshold} />
+                        ) : null}
+                        <span>
+                          {formatCredits(module?.credits ?? 0)} {label}
+                          {category ? ` · ${category}` : ''}
+                        </span>
                       </span>
-                    </span>
+                    </button>
                   </li>
                 )
               })}
@@ -194,6 +217,11 @@ function SharedPlanView({ response, plan }: { response: SharedPlanResponse; plan
         ))}
       </div>
 
+      <ModuleDetailsDialog
+        module={detailsCode === null ? null : (names.get(detailsCode) ?? null)}
+        plan={plan}
+        onClose={() => setDetailsCode(null)}
+      />
       <ConfirmDialog
         open={confirm}
         onOpenChange={setConfirm}
@@ -250,7 +278,12 @@ export function SharedPlanPage() {
 
   return (
     <main className="mx-auto flex min-h-[70dvh] max-w-md flex-col justify-center px-4 py-10">
-      <h1 className="text-2xl font-semibold">{state.kind === 'loading' ? t('loading') : t('unavailable')}</h1>
+      <h1 className="flex items-center gap-3 text-2xl font-semibold" aria-busy={state.kind === 'loading'}>
+        {state.kind === 'loading' ? (
+          <Spinner className="size-6 text-indigo-600 dark:text-indigo-400" />
+        ) : null}
+        {state.kind === 'loading' ? t('loading') : t('unavailable')}
+      </h1>
       {state.kind === 'error' ? (
         <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
           {state.notFound ? t('notFound') : t('loadFailed')}{' '}

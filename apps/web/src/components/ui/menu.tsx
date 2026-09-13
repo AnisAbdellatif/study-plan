@@ -18,7 +18,7 @@ export function MenuContent({
   return (
     <Menu.Portal>
       <Menu.Positioner align={align} className="z-50 outline-none">
-        <Menu.Popup className="mt-1 max-h-[70vh] min-w-56 overflow-y-auto rounded-lg bg-white p-1 text-sm shadow-lg ring-1 ring-zinc-200 outline-none dark:bg-zinc-900 dark:ring-zinc-800">
+        <Menu.Popup className="mt-1 max-h-[70vh] max-w-[calc(100vw-1rem)] min-w-56 overflow-y-auto rounded-lg bg-white p-1 text-sm shadow-lg ring-1 ring-zinc-200 outline-none dark:bg-zinc-900 dark:ring-zinc-800">
           {children}
         </Menu.Popup>
       </Menu.Positioner>
@@ -32,7 +32,7 @@ export function MenuItem({ className, ...props }: MenuItemProps) {
   return (
     <Menu.Item
       className={cn(
-        'flex cursor-default items-center gap-2 rounded-md px-2 py-1.5 outline-none select-none data-[disabled]:opacity-50 data-[highlighted]:bg-zinc-100 dark:data-[highlighted]:bg-zinc-800',
+        'flex cursor-default items-center gap-2 rounded-md px-3 py-2.5 outline-none select-none data-[disabled]:opacity-50 sm:px-2 sm:py-1.5 data-[highlighted]:bg-zinc-100 dark:data-[highlighted]:bg-zinc-800',
         className,
       )}
       {...props}
@@ -60,7 +60,7 @@ export function MenuRadioItem({ className, children, ...props }: MenuRadioItemPr
     <Menu.RadioItem
       closeOnClick
       className={cn(
-        'flex cursor-default items-center gap-2 rounded-md px-2 py-1.5 outline-none select-none data-[highlighted]:bg-zinc-100 dark:data-[highlighted]:bg-zinc-800',
+        'flex cursor-default items-center gap-2 rounded-md px-3 py-2.5 outline-none select-none data-[highlighted]:bg-zinc-100 sm:px-2 sm:py-1.5 dark:data-[highlighted]:bg-zinc-800',
         className,
       )}
       {...props}

@@ -5,6 +5,7 @@ import { currentIntlLocale } from '../../i18n/index.ts'
 import { ApiError, adminApi, InvalidPresetError, type PresetSummary, presetApi } from '../../lib/api.ts'
 import { Button } from '../ui/button.tsx'
 import { ConfirmDialog } from '../ui/dialog.tsx'
+import { LoadingText } from '../ui/spinner.tsx'
 import { presetLabel, presetTitle } from './preset-search.ts'
 
 const cardClass = 'rounded-xl bg-white p-4 ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800'
@@ -65,9 +66,12 @@ export function AdminPresetsSection({ onChanged }: { onChanged: () => void }) {
   const replaceTarget = useRef<PresetSummary | null>(null)
   const [presets, setPresets] = useState<PresetSummary[] | null>(null)
   const [loadError, setLoadError] = useState(false)
-  const [busy, setBusy] = useState(false)
+  // null when idle; 'add' for an upload, otherwise the id of the preset being replaced or deleted.
+  const [busy, setBusy] = useState<string | null>(null)
   const [outcome, setOutcome] = useState<Outcome | null>(null)
   const [deleting, setDeleting] = useState<PresetSummary | null>(null)
+  // Which row's delete is running, so the spinner shows on Delete rather than Replace.
+  const deletingId = useRef<string | null>(null)
 
   const load = useCallback(async () => {
     try {
@@ -98,8 +102,8 @@ export function AdminPresetsSection({ onChanged }: { onChanged: () => void }) {
     return { tone: 'error', text }
   }
 
-  const run = async (action: () => Promise<string>) => {
-    setBusy(true)
+  const run = async (target: string, action: () => Promise<string>) => {
+    setBusy(target)
     setOutcome(null)
     try {
       setOutcome({ tone: 'ok', text: await action() })
@@ -107,7 +111,7 @@ export function AdminPresetsSection({ onChanged }: { onChanged: () => void }) {
     } catch (error) {
       setOutcome(describeError(error))
     } finally {
-      setBusy(false)
+      setBusy(null)
       void load()
     }
   }
@@ -122,7 +126,7 @@ export function AdminPresetsSection({ onChanged }: { onChanged: () => void }) {
   const onAddFile = (event: ChangeEvent<HTMLInputElement>) => {
     const file = takeFile(event)
     if (!file) return
-    void run(async () => {
+    void run('add', async () => {
       const saved = await adminApi.createPreset(await file.text())
       return t('presets.added', { name: presetLabel(saved.preset) })
     })
@@ -132,7 +136,8 @@ export function AdminPresetsSection({ onChanged }: { onChanged: () => void }) {
     const file = takeFile(event)
     const target = replaceTarget.current
     if (!file || !target) return
-    void run(async () => {
+    deletingId.current = null
+    void run(target.id, async () => {
       const saved = await adminApi.replacePreset(target.id, await file.text())
       return t('presets.replaced', { name: presetLabel(saved.preset) })
     })
@@ -145,9 +150,14 @@ export function AdminPresetsSection({ onChanged }: { onChanged: () => void }) {
       </h2>
       <p className="text-sm text-zinc-600 dark:text-zinc-400">{t('presets.intro')}</p>
       <div className="flex flex-wrap items-center gap-2">
-        <Button variant="primary" disabled={busy} onClick={() => addInput.current?.click()}>
-          <FilePlus2 aria-hidden className="size-4" />
-          {busy ? t('presets.uploading') : t('presets.add')}
+        <Button
+          variant="primary"
+          loading={busy === 'add'}
+          disabled={busy !== null}
+          onClick={() => addInput.current?.click()}
+        >
+          {busy === 'add' ? null : <FilePlus2 aria-hidden className="size-4" />}
+          {busy === 'add' ? t('presets.uploading') : t('presets.add')}
         </Button>
         <input
           ref={addInput}
@@ -169,7 +179,11 @@ export function AdminPresetsSection({ onChanged }: { onChanged: () => void }) {
       <OutcomeMessage outcome={outcome} />
       <div className={`${cardClass} overflow-x-auto p-0`}>
         {presets === null ? (
-          <p className="p-4 text-sm">{loadError ? t('presets.loadError') : t('loading', { ns: 'common' })}</p>
+          loadError ? (
+            <p className="p-4 text-sm">{t('presets.loadError')}</p>
+          ) : (
+            <LoadingText className="p-4">{t('loading', { ns: 'common' })}</LoadingText>
+          )
         ) : presets.length === 0 ? (
           <p className="p-4 text-sm text-zinc-600 dark:text-zinc-400">{t('presets.empty')}</p>
         ) : (
@@ -195,7 +209,8 @@ export function AdminPresetsSection({ onChanged }: { onChanged: () => void }) {
                       <Button
                         size="sm"
                         variant="ghost"
-                        disabled={busy}
+                        loading={busy === preset.id && deletingId.current !== preset.id}
+                        disabled={busy !== null}
                         aria-label={t('presets.replaceLabel', { name: presetLabel(preset) })}
                         onClick={() => {
                           replaceTarget.current = preset
@@ -207,7 +222,8 @@ export function AdminPresetsSection({ onChanged }: { onChanged: () => void }) {
                       <Button
                         size="sm"
                         variant="ghost"
-                        disabled={busy}
+                        loading={busy === preset.id && deletingId.current === preset.id}
+                        disabled={busy !== null}
                         className="text-red-700 dark:text-red-400"
                         aria-label={t('presets.deleteLabel', { name: presetLabel(preset) })}
                         onClick={() => setDeleting(preset)}
@@ -236,7 +252,8 @@ export function AdminPresetsSection({ onChanged }: { onChanged: () => void }) {
           const target = deleting
           setDeleting(null)
           if (!target) return
-          void run(async () => {
+          deletingId.current = target.id
+          void run(target.id, async () => {
             await adminApi.deletePreset(target.id)
             return t('presets.deleted', { name: presetLabel(target) })
           })
