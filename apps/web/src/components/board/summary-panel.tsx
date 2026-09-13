@@ -1,10 +1,11 @@
-import type { Plan, PlanSummary, TraceNode } from '@study-plan/shared'
+import type { Plan, PlanSummary } from '@study-plan/shared'
 import { GraduationCap, Layers, type LucideIcon, TrendingUp } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { type AreaTone, areaTone } from '../../lib/area-colors.ts'
 import { cn } from '../../lib/cn.ts'
 import { describeRounding, formatCredits, formatGradeString } from '../../lib/format.ts'
+import { GradeCalculation } from './grade-calculation.tsx'
 
 const cardClass = 'rounded-xl bg-white p-4 shadow-sm ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800'
 
@@ -68,55 +69,10 @@ function CreditBar({
   )
 }
 
-function TraceGroup({
-  node,
-  names,
-  depth,
-}: {
-  node: TraceNode
-  names: ReadonlyMap<string, string>
-  depth: number
-}) {
-  const { t } = useTranslation('board')
-  return (
-    <li className={cn(depth > 0 && 'mt-2 border-l border-zinc-200 pl-3 dark:border-zinc-800')}>
-      <div className="flex flex-wrap items-baseline gap-x-2">
-        <span className="font-medium">{node.label ?? node.id}</span>
-        {node.value !== null ? (
-          <span className="text-zinc-600 dark:text-zinc-400">
-            Ø {formatGradeString(node.value)}
-            {node.rounded !== null ? ` → ${formatGradeString(node.rounded)}` : ''}
-            {node.weight !== null
-              ? ` · ${t('summary.weight', { weight: formatGradeString(node.weight) })}`
-              : ''}
-          </span>
-        ) : (
-          <span className="text-zinc-500">{t('summary.noGrade')}</span>
-        )}
-      </div>
-      <ul className="mt-1 space-y-0.5">
-        {node.modules.map((module) => (
-          <li key={module.code} className="flex justify-between gap-3 text-zinc-600 dark:text-zinc-400">
-            <span className="truncate">{names.get(module.code) ?? module.code}</span>
-            <span className="shrink-0">
-              {module.grade !== null ? `${formatGradeString(module.grade)} · ` : ''}
-              {t(`summary.status.${module.status}`)}
-            </span>
-          </li>
-        ))}
-        {node.groups.map((group) => (
-          <TraceGroup key={group.id} node={group} names={names} depth={depth + 1} />
-        ))}
-      </ul>
-    </li>
-  )
-}
-
 export function SummaryPanel({ plan, summary }: { plan: Plan; summary: PlanSummary }) {
   const { t } = useTranslation('board')
   const { overall, credits } = summary
   const label = plan.preset.creditLabel
-  const names = new Map(plan.modules.map((m) => [m.code, m.name]))
 
   return (
     <aside
@@ -223,9 +179,7 @@ export function SummaryPanel({ plan, summary }: { plan: Plan; summary: PlanSumma
 
       <details className={cn(cardClass, 'col-span-2 text-sm lg:col-span-3 print:hidden')}>
         <summary className="cursor-pointer font-medium">{t('summary.howCalculated')}</summary>
-        <ul className="mt-3">
-          <TraceGroup node={overall.trace} names={names} depth={0} />
-        </ul>
+        <GradeCalculation plan={plan} overall={overall} />
       </details>
     </aside>
   )
