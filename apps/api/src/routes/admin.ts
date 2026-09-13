@@ -16,6 +16,7 @@ import {
   user,
 } from '../db/schema.ts'
 import { type MonitoredMailer, testMail } from '../mail.ts'
+import { globalPlanLimit, planLimitSchema, setGlobalPlanLimit } from '../plan-limits.ts'
 import { createPasswordAccount, isAdminRole } from '../roles.ts'
 import type { AppEnv } from '../types.ts'
 import {
@@ -60,6 +61,11 @@ const superadminOnly = createMiddleware<AppEnv>(async (c, next) => {
 })
 
 const roleChangeSchema = z.object({ role: z.enum(['admin', 'user']) })
+const settingsSchema = z.object({ maxPlansPerUser: planLimitSchema })
+/** Null returns the account to the global limit. */
+const userPlanLimitSchema = z.object({ planLimit: planLimitSchema.nullable() })
+/** Audit target for changes that concern every account rather than one. */
+const SETTINGS_TARGET = 'settings'
 
 const createAdminSchema = z.object({
   email: z.email().max(254),
@@ -173,6 +179,7 @@ export function adminRoutes(db: Database, auth: Auth, mailer: MonitoredMailer, p
         email: user.email,
         emailVerified: user.emailVerified,
         role: user.role,
+        planLimit: user.planLimit,
         createdAt: user.createdAt,
       })
       .from(user)
@@ -225,6 +232,33 @@ export function adminRoutes(db: Database, auth: Auth, mailer: MonitoredMailer, p
         reminders: reminderUsers.has(row.id),
       })),
     })
+  })
+
+  routes.get('/settings', async (c) => {
+    c.header('Cache-Control', 'no-store')
+    return c.json({ maxPlansPerUser: await globalPlanLimit(db) })
+  })
+
+  routes.put('/settings', async (c) => {
+    const body = settingsSchema.safeParse(await readJson(c))
+    if (!body.success) return c.json({ error: 'invalid_request' }, 400)
+    await setGlobalPlanLimit(db, body.data.maxPlansPerUser)
+    await audit(c, 'update_settings', SETTINGS_TARGET)
+    return c.json({ maxPlansPerUser: body.data.maxPlansPerUser })
+  })
+
+  /** The account's own plan limit. Existing plans above a lowered limit stay; the account can't add more. */
+  routes.put('/users/:id/plan-limit', async (c) => {
+    const body = userPlanLimitSchema.safeParse(await readJson(c))
+    if (!body.success) return c.json({ error: 'invalid_request' }, 400)
+    const { row, response } = await target(c)
+    if (!row) return response
+    await db
+      .update(user)
+      .set({ planLimit: body.data.planLimit, updatedAt: new Date() })
+      .where(eq(user.id, row.id))
+    await audit(c, 'set_plan_limit', row.id)
+    return c.json({ planLimit: body.data.planLimit })
   })
 
   routes.post('/users/:id/verification-email', async (c) => {

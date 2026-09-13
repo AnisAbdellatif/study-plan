@@ -37,6 +37,8 @@ export const user = pgTable(
     role: text('role', { enum: ['user', 'admin', 'superadmin'] })
       .notNull()
       .default('user'),
+    /** Plans this account may keep. Null uses the global value, see src/plan-limits.ts. Set by admins only. */
+    planLimit: integer('plan_limit'),
     ...timestamps(),
   },
   // At most one superadmin, enforced by the database.
@@ -121,6 +123,13 @@ export const plan = pgTable(
   (table) => [index('plan_user_id_idx').on(table.userId)],
 )
 
+/** Settings admins change at runtime, one row per key. Missing rows mean the default from the code. */
+export const appSetting = pgTable('app_setting', {
+  key: text('key').primaryKey(),
+  value: jsonb('value').notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
 /** Unlisted share links. Only a SHA-256 hash of the token is stored; the owner sees the token once. */
 export const planShare = pgTable(
   'plan_share',
@@ -192,6 +201,8 @@ export const adminAuditLog = pgTable(
         'create_preset',
         'update_preset',
         'delete_preset',
+        'update_settings',
+        'set_plan_limit',
       ],
     }).notNull(),
     targetUserId: text('target_user_id').notNull(),

@@ -30,13 +30,13 @@ describe('admin button', () => {
   it.each(['admin', 'superadmin'])('shows the way to the dashboard for the %s role', async (role) => {
     session.role = role
     renderAt('/')
-    expect(await screen.findByRole('button', { name: 'Zur Verwaltung' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Verwaltung' })).toBeInTheDocument()
   })
 
   it.each([null, 'user'])('stays hidden for %s', async (role) => {
     session.role = role
     renderAt('/')
     await new Promise((resolve) => setTimeout(resolve, 0))
-    expect(screen.queryByRole('button', { name: 'Zur Verwaltung' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Verwaltung' })).not.toBeInTheDocument()
   })
 })

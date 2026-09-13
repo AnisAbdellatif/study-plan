@@ -4,10 +4,8 @@ import { type Context, Hono } from 'hono'
 import { z } from 'zod'
 import type { Database } from '../db/connection.ts'
 import { plan } from '../db/schema.ts'
+import { planUsage } from '../plan-limits.ts'
 import type { AppEnv } from '../types.ts'
-
-/** Generous for real use, and keeps a single account from filling the database. */
-export const MAX_PLANS_PER_USER = 20
 
 const idSchema = z.uuid()
 const createSchema = z.object({ document: z.unknown() })
@@ -31,12 +29,14 @@ export function planRoutes(db: Database) {
   const summaryColumns = { id: plan.id, name: plan.name, revision: plan.revision, updatedAt: plan.updatedAt }
 
   routes.get('/', async (c) => {
+    const userId = c.get('user').id
     const rows = await db
       .select(summaryColumns)
       .from(plan)
-      .where(eq(plan.userId, c.get('user').id))
+      .where(eq(plan.userId, userId))
       .orderBy(desc(plan.updatedAt))
-    return c.json({ plans: rows })
+    const { limit } = await planUsage(db, userId)
+    return c.json({ plans: rows, limit })
   })
 
   routes.post('/', async (c) => {
@@ -46,11 +46,9 @@ export function planRoutes(db: Database) {
     if (!parsed.success) return invalidPlan(c, parsed)
 
     const userId = c.get('user').id
-    const [{ count } = { count: 0 }] = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(plan)
-      .where(eq(plan.userId, userId))
-    if (count >= MAX_PLANS_PER_USER) return c.json({ error: 'too_many_plans' }, 409)
+    // Lowering a limit keeps existing plans; it only stops new ones.
+    const usage = await planUsage(db, userId)
+    if (usage.count >= usage.limit) return c.json({ error: 'too_many_plans', limit: usage.limit }, 409)
 
     const [created] = await db
       .insert(plan)

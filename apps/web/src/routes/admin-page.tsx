@@ -18,6 +18,7 @@ import {
   type UserRole,
 } from '../lib/api.ts'
 import { MailSection } from './admin-mail-section.tsx'
+import { PlanLimitDialog, PlanLimitSection } from './admin-plan-limits.tsx'
 
 const cardClass = 'rounded-xl bg-white p-4 ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800'
 const inputClass =
@@ -311,6 +312,22 @@ function Accounts({ viewer, selfEmail, version, onChanged }: SectionProps) {
   const [activeQuery, setActiveQuery] = useState('')
   const [users, setUsers] = useState<AdminUser[] | null>(null)
   const [searching, setSearching] = useState(false)
+  const [limitFor, setLimitFor] = useState<AdminUser | null>(null)
+  const [defaultLimit, setDefaultLimit] = useState<number | null>(null)
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a new version reloads the global limit after a change.
+  useEffect(() => {
+    let active = true
+    adminApi
+      .settings()
+      .then((settings) => {
+        if (active) setDefaultLimit(settings.maxPlansPerUser)
+      })
+      .catch(() => {})
+    return () => {
+      active = false
+    }
+  }, [version])
   const { message, setMessage, request, dialog, progress, busy } = useAccountActions(onChanged)
   const { t } = useTranslation('admin')
 
@@ -401,7 +418,14 @@ function Accounts({ viewer, selfEmail, version, onChanged }: SectionProps) {
                     <td className="px-2 py-2 tabular-nums">
                       {user.lastActiveAt ? format().date.format(new Date(user.lastActiveAt)) : '–'}
                     </td>
-                    <td className="px-2 py-2 text-right tabular-nums">{user.plans}</td>
+                    <td className="px-2 py-2 text-right tabular-nums">
+                      {user.plans} / {user.planLimit ?? defaultLimit ?? '–'}
+                      {user.planLimit !== null ? (
+                        <span className="ml-1 text-xs text-zinc-600 dark:text-zinc-400">
+                          {t('planLimits.custom')}
+                        </span>
+                      ) : null}
+                    </td>
                     <td className="px-2 py-2 text-right tabular-nums">{user.activeShares}</td>
                     <td className="px-4 py-2">
                       {access === 'manage' ? (
@@ -422,6 +446,9 @@ function Accounts({ viewer, selfEmail, version, onChanged }: SectionProps) {
                               {t('accounts.actions.revokeShares')}
                             </ActionButton>
                           ) : null}
+                          <ActionButton disabled={busy} onClick={() => setLimitFor(user)}>
+                            {t('accounts.actions.planLimit')}
+                          </ActionButton>
                           <ActionButton disabled={busy} onClick={() => request({ user, action: 'sign_out' })}>
                             {t('accounts.actions.signOut')}
                           </ActionButton>
@@ -467,6 +494,12 @@ function Accounts({ viewer, selfEmail, version, onChanged }: SectionProps) {
         )}
       </div>
       <p className="text-xs text-zinc-600 dark:text-zinc-400">{t('accounts.footnote')}</p>
+      <PlanLimitDialog
+        user={limitFor}
+        defaultLimit={defaultLimit}
+        onClose={() => setLimitFor(null)}
+        onSaved={onChanged}
+      />
       {dialog}
     </section>
   )
@@ -664,9 +697,11 @@ function AuditLog({ entries }: { entries: AdminAuditEntry[] }) {
                   {t(`audit.actions.${entry.action}`)}{' '}
                   <span className="text-zinc-600 dark:text-zinc-400">
                     ·{' '}
-                    {PRESET_ACTIONS.has(entry.action)
-                      ? t('audit.preset', { id: entry.targetUserId })
-                      : t('audit.account', { id: entry.targetUserId })}
+                    {entry.action === 'update_settings'
+                      ? t('audit.settings')
+                      : PRESET_ACTIONS.has(entry.action)
+                        ? t('audit.preset', { id: entry.targetUserId })
+                        : t('audit.account', { id: entry.targetUserId })}
                   </span>
                 </span>
                 <span className="text-xs text-zinc-600 tabular-nums dark:text-zinc-400">
@@ -769,6 +804,7 @@ export function AdminPage() {
       {stats ? <Overview stats={stats} /> : <LoadingText>{t('loadingStats')}</LoadingText>}
       <MailSection onChanged={changed} />
       <AdminPresetsSection onChanged={changed} />
+      <PlanLimitSection onChanged={changed} />
       {viewer === 'superadmin' ? <AdminTeam {...sectionProps} /> : null}
       <Accounts {...sectionProps} />
       <AuditLog entries={audit} />

@@ -40,7 +40,25 @@ export const board = {
     practical: 'Practical',
     portfolio: 'Portfolio',
   },
+  plans: {
+    switch: 'Switch plan',
+    switchLabel: 'Switch plan, {{name}} is open',
+    title: 'Your plans',
+    usage: '{{used}} of {{limit}} plans',
+    loadError: "Your plans couldn't be loaded.",
+    updated: 'Changed {{time}}',
+    saveFirst: 'Save this plan to your account first, then you can switch between your plans.',
+    rename: 'Rename plan…',
+    renameTitle: 'Rename plan',
+    nameLabel: 'Name',
+    renamed: 'Plan renamed to {{name}}',
+    new: 'New plan',
+    limitReached: 'All {{limit}} plans are in use. Delete one on the account page to create a new one.',
+    switched: '{{name}} opened',
+  },
   storage: {
+    limitReached:
+      'This plan is only in this browser, and your account has no room for another plan. Delete a plan on the account page or export this one as a file.',
     accountReminder:
       "Your plan is only stored in this browser so far. Some browsers, such as Safari, delete data from sites you haven't visited in a while. Save it to your account to have it on all your devices, or export it as a file.",
     saveFailed: "Your plan couldn't be saved in the browser. Export it as a file so nothing gets lost.",

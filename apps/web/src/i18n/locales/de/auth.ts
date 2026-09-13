@@ -81,7 +81,7 @@ export const auth = {
     loadingTitle: 'Konto',
     title: 'Dein Konto',
     verified: 'Deine E-Mail-Adresse ist bestätigt. Willkommen!',
-    adminLink: 'Zur Verwaltung',
+    adminLink: 'Verwaltung',
     backToPlan: 'Zurück zu deinem Plan',
     backHome: 'Zur Startseite',
     password: {
@@ -100,6 +100,21 @@ export const auth = {
       retry: 'Erneut versuchen',
       open: 'Zum Plan',
       create: 'Plan anlegen',
+    },
+    plans: {
+      title: 'Deine Pläne',
+      usage: '{{used}} von {{limit}} Plänen belegt.',
+      loadError: 'Deine Pläne ließen sich nicht laden.',
+      empty: 'Noch kein Plan im Konto.',
+      open: 'in diesem Browser geöffnet',
+      updated: 'Geändert {{time}}',
+      delete: 'Löschen…',
+      deleteLabel: '{{name}} löschen',
+      deleteError: 'Der Plan konnte nicht gelöscht werden. Bitte versuche es noch einmal.',
+      confirmTitle: 'Plan löschen?',
+      confirmDescription:
+        '„{{name}}“ wird mit allen Noten und geteilten Links aus deinem Konto gelöscht. Das lässt sich nicht rückgängig machen.',
+      confirm: 'Plan löschen',
     },
     data: {
       title: 'Deine Daten',

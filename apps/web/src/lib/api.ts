@@ -18,6 +18,12 @@ export interface StoredPlan extends PlanSummary {
   document: GuestDocument
 }
 
+/** The account's plans and how many it may keep. */
+export interface PlanOverview {
+  plans: PlanSummary[]
+  limit: number
+}
+
 export class ApiError extends Error {
   override readonly name = 'ApiError'
   readonly status: number
@@ -76,7 +82,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export type SaveResult = { status: 'saved'; plan: PlanSummary } | { status: 'conflict'; current: StoredPlan }
 
 export const planApi = {
-  list: async (): Promise<PlanSummary[]> => (await request<{ plans: PlanSummary[] }>('/api/plans')).plans,
+  list: async (): Promise<PlanSummary[]> => (await request<PlanOverview>('/api/plans')).plans,
+  overview: (): Promise<PlanOverview> => request<PlanOverview>('/api/plans'),
+  remove: (id: string): Promise<void> =>
+    request<void>(`/api/plans/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   get: (id: string): Promise<StoredPlan> => request<StoredPlan>(`/api/plans/${encodeURIComponent(id)}`),
   create: (document: GuestDocument): Promise<PlanSummary> =>
     request<PlanSummary>('/api/plans', { method: 'POST', body: JSON.stringify({ document }) }),
@@ -209,6 +218,8 @@ export interface AdminUser {
   createdAt: string
   lastActiveAt: string | null
   plans: number
+  /** The account's own plan limit; null uses the global value. */
+  planLimit: number | null
   activeShares: number
   reminders: boolean
 }
@@ -226,7 +237,13 @@ export type PresetAction = 'create_preset' | 'update_preset' | 'delete_preset'
 export interface AdminAuditEntry {
   id: string
   adminEmail: string
-  action: AdminAction | 'create_admin' | 'send_test_email' | PresetAction
+  action:
+    | AdminAction
+    | 'create_admin'
+    | 'send_test_email'
+    | PresetAction
+    | 'update_settings'
+    | 'set_plan_limit'
   targetUserId: string
   createdAt: string
 }
@@ -246,6 +263,15 @@ export interface MailStatus {
 
 export type MailCheck = { ok: true; durationMs: number } | { ok: false; error: string }
 export type TestMailResult = { ok: true; to: string } | { ok: false; error: string }
+
+export interface AdminSettings {
+  /** Plans each account may keep unless it has its own limit. */
+  maxPlansPerUser: number
+}
+
+/** Bounds the API accepts for plan limits, see apps/api/src/plan-limits.ts. */
+export const PLAN_LIMIT_MIN = 1
+export const PLAN_LIMIT_MAX = 50
 
 export interface NewAdmin {
   email: string
@@ -275,6 +301,15 @@ export const adminApi = {
   /** Superadmin only. */
   createAdmin: (admin: NewAdmin): Promise<{ id: string }> =>
     request<{ id: string }>('/api/admin/admins', { method: 'POST', body: JSON.stringify(admin) }),
+  settings: (): Promise<AdminSettings> => request<AdminSettings>('/api/admin/settings'),
+  updateSettings: (settings: AdminSettings): Promise<AdminSettings> =>
+    request<AdminSettings>('/api/admin/settings', { method: 'PUT', body: JSON.stringify(settings) }),
+  /** Null returns the account to the global limit. */
+  setPlanLimit: (id: string, planLimit: number | null): Promise<{ planLimit: number | null }> =>
+    request<{ planLimit: number | null }>(`${adminUser(id)}/plan-limit`, {
+      method: 'PUT',
+      body: JSON.stringify({ planLimit }),
+    }),
   audit: async (): Promise<AdminAuditEntry[]> =>
     (await request<{ entries: AdminAuditEntry[] }>('/api/admin/audit')).entries,
   sendVerificationEmail: (id: string): Promise<void> =>

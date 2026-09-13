@@ -74,15 +74,17 @@ export function StorageNotice({ plan }: { plan: Plan }) {
         tone="warning"
         actions={
           <>
-            <Button size="sm" variant="primary" onClick={() => void sync.uploadLocal()}>
-              {t('auth:sync.banner.upload')}
-            </Button>
+            {state.limitReached ? null : (
+              <Button size="sm" variant="primary" onClick={() => void sync.uploadLocal()}>
+                {t('auth:sync.banner.upload')}
+              </Button>
+            )}
             {exportButton}
             {laterButton}
           </>
         }
       >
-        {t('storage.accountReminder')}
+        {state.limitReached ? t('storage.limitReached') : t('storage.accountReminder')}
       </Notice>
     )
   }

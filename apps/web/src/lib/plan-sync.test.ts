@@ -1,4 +1,4 @@
-import { createPlanFromPreset, type GuestDocument, moveModule } from '@study-plan/shared'
+import { createGuestDocument, createPlanFromPreset, type GuestDocument, moveModule } from '@study-plan/shared'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createGuestStore, type StorageLike } from '../store/guest-store.ts'
 import { examplePreset as preset } from '../test/fixtures.ts'
@@ -239,5 +239,58 @@ describe('PlanSync', () => {
     const other = new PlanSync({ store, api, storage, debounceMs: 0 })
     await other.start('user-2')
     expect(storage.data.get(LINK_KEY)).toBeUndefined()
+  })
+})
+
+describe('PlanSync with several plans', () => {
+  beforeEach(() => {
+    tick = 0
+  })
+
+  it('saves pending edits before switching to another account plan', async () => {
+    const { store, api, sync } = setup()
+    store.replacePlan(newPlan('Erster Plan'))
+    await sync.start('user-1')
+    await sync.uploadLocal()
+    const first = sync.linkedPlanId()
+    const second = (await api.create(createGuestDocument(newPlan('Zweiter Plan')))).id
+
+    store.updatePlan((plan) => ({ ...plan, name: 'Erster Plan, geändert' }))
+    await sync.switchTo(second)
+
+    expect(api.plans.get(first ?? '')?.name).toBe('Erster Plan, geändert')
+    expect(store.getState().plan?.name).toBe('Zweiter Plan')
+    expect(sync.linkedPlanId()).toBe(second)
+    expect(sync.getState().kind).toBe('synced')
+  })
+
+  it('saves the next plan as a new account plan after startNewPlan', async () => {
+    const { store, api, sync } = setup()
+    store.replacePlan(newPlan('Erster Plan'))
+    await sync.start('user-1')
+    await sync.uploadLocal()
+    const first = sync.linkedPlanId()
+
+    await sync.startNewPlan()
+    expect(sync.linkedPlanId()).toBeNull()
+    store.replacePlan(null)
+    store.replacePlan(newPlan('Neuer Plan'))
+    await settle()
+
+    expect(api.plans.size).toBe(2)
+    expect(sync.linkedPlanId()).not.toBe(first)
+    expect(api.plans.get(first ?? '')?.name).toBe('Erster Plan')
+    expect(sync.getState().kind).toBe('synced')
+  })
+
+  it('reports a full account instead of a failure', async () => {
+    const { store, api, sync } = setup()
+    api.create = async () => {
+      throw new ApiError(409, 'too_many_plans')
+    }
+    store.replacePlan(newPlan())
+    await sync.start('user-1')
+    await sync.uploadLocal()
+    expect(sync.getState()).toEqual({ kind: 'no_account_plan', limitReached: true })
   })
 })

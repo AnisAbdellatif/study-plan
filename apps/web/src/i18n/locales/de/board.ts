@@ -37,7 +37,26 @@ export const board = {
     practical: 'Praktisch',
     portfolio: 'Portfolio',
   },
+  plans: {
+    switch: 'Plan wechseln',
+    switchLabel: 'Plan wechseln, geöffnet ist {{name}}',
+    title: 'Deine Pläne',
+    usage: '{{used}} von {{limit}} Plänen',
+    loadError: 'Deine Pläne ließen sich nicht laden.',
+    updated: 'Geändert {{time}}',
+    saveFirst: 'Sichere diesen Plan zuerst im Konto, dann kannst du zwischen deinen Plänen wechseln.',
+    rename: 'Plan umbenennen…',
+    renameTitle: 'Plan umbenennen',
+    nameLabel: 'Name',
+    renamed: 'Plan umbenannt in {{name}}',
+    new: 'Neuer Plan',
+    limitReached:
+      'Alle {{limit}} Pläne sind belegt. Lösche einen auf der Kontoseite, um einen neuen anzulegen.',
+    switched: '{{name}} geöffnet',
+  },
   storage: {
+    limitReached:
+      'Dieser Plan liegt nur in diesem Browser, und in deinem Konto ist kein Platz für einen weiteren Plan. Lösche einen Plan auf der Kontoseite oder exportiere diesen als Datei.',
     accountReminder:
       'Dein Plan liegt bisher nur in diesem Browser. Manche Browser, etwa Safari, löschen Daten von Seiten, die du länger nicht besucht hast. Sichere ihn im Konto, dann ist er auf allen deinen Geräten verfügbar, oder exportiere ihn als Datei.',
     saveFailed:

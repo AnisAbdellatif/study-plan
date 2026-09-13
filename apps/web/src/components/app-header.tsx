@@ -14,6 +14,7 @@ import { ShareDialog } from './board/share-dialog.tsx'
 import { BrandMark } from './brand-logo.tsx'
 import { useImportPlan } from './import-plan-button.tsx'
 import { LanguageMenu } from './language-menu.tsx'
+import { PlanSwitcher } from './plan-switcher.tsx'
 import { ThemeToggle } from './theme-toggle.tsx'
 import { Button } from './ui/button.tsx'
 import { ConfirmDialog } from './ui/dialog.tsx'
@@ -137,11 +138,16 @@ export function AppHeader({ plan }: { plan: Plan }) {
           </MenuRoot>
         </div>
       </div>
-      <div className="min-w-0">
-        <h1 className="text-lg font-semibold break-words sm:truncate sm:text-xl">{plan.name}</h1>
-        <p className="text-sm text-zinc-600 sm:truncate dark:text-zinc-400">
-          {plan.preset.universityName} · {plan.preset.poVersion}
-        </p>
+      <div className="flex items-start gap-2">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-lg font-semibold break-words sm:truncate sm:text-xl">{plan.name}</h1>
+          <p className="text-sm text-zinc-600 sm:truncate dark:text-zinc-400">
+            {plan.preset.universityName} · {plan.preset.poVersion}
+          </p>
+        </div>
+        <div className="shrink-0 print:hidden">
+          <PlanSwitcher plan={plan} />
+        </div>
       </div>
       <div
         aria-hidden
