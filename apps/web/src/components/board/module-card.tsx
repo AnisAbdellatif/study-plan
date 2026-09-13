@@ -107,6 +107,12 @@ export function ModuleCard({
             {module.countsTowardAverage ? null : <span>· zählt nicht zum Schnitt</span>}
             {module.retired ? <span>· nicht mehr in der Prüfungsordnung</span> : null}
             <ResultBadge module={module} passThreshold={passThreshold} />
+            {module.attempts.length > 1 ? (
+              <span className="tabular-nums">{module.attempts.length}. Versuch</span>
+            ) : null}
+            {module.attempts.at(-1)?.result === 'registered' ? (
+              <span className="rounded bg-zinc-100 px-1.5 py-0.5 dark:bg-zinc-800">angemeldet</span>
+            ) : null}
             {module.examDate ? (
               <span className="rounded bg-zinc-100 px-1.5 py-0.5 tabular-nums dark:bg-zinc-800">
                 Prüfung {formatShortDate(module.examDate)}

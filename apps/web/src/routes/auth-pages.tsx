@@ -1,8 +1,9 @@
 import { Link, Navigate, useNavigate, useSearch } from '@tanstack/react-router'
-import { type FormEvent, type ReactNode, useId, useState } from 'react'
+import { type FormEvent, type ReactNode, useEffect, useId, useState } from 'react'
 import { describeSyncState, useAccountSync } from '../components/account-sync.tsx'
 import { Button } from '../components/ui/button.tsx'
 import { ConfirmDialog } from '../components/ui/dialog.tsx'
+import { notificationApi } from '../lib/api.ts'
 import { authClient } from '../lib/auth-client.ts'
 import { downloadFile } from '../lib/files.ts'
 import { useGuestState } from '../store/guest-store.ts'
@@ -386,6 +387,122 @@ export function ResetPasswordPage() {
   )
 }
 
+type ReminderState = { status: 'loading' } | { status: 'ready'; enabled: boolean } | { status: 'error' }
+
+function ReminderSettings() {
+  const [state, setState] = useState<ReminderState>({ status: 'loading' })
+  const [saving, setSaving] = useState(false)
+  const checkboxId = useId()
+
+  useEffect(() => {
+    let active = true
+    notificationApi
+      .get()
+      .then((settings) => {
+        if (active) setState({ status: 'ready', enabled: settings.examReminders })
+      })
+      .catch(() => {
+        if (active) setState({ status: 'error' })
+      })
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const toggle = async (enabled: boolean) => {
+    setSaving(true)
+    try {
+      const settings = await notificationApi.update({ examReminders: enabled })
+      setState({ status: 'ready', enabled: settings.examReminders })
+    } catch {
+      setState({ status: 'error' })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <section className={cardClass} aria-labelledby="konto-erinnerungen">
+      <h2 id="konto-erinnerungen" className="font-semibold">
+        E-Mail-Erinnerungen
+      </h2>
+      <p className="text-sm text-zinc-600 dark:text-zinc-400">
+        Wir schreiben dir 3 Tage vor dem letzten Tag zur Abmeldung und 7 Tage vor einer Prüfung. Grundlage
+        sind die Prüfungstermine in deinen im Konto gespeicherten Plänen. Die E-Mails enthalten nur Modulnamen
+        und Daten.
+      </p>
+      {state.status === 'error' ? (
+        <Alert>
+          Die Einstellung ließ sich nicht laden oder speichern. Bitte versuche es später noch einmal.
+        </Alert>
+      ) : null}
+      {state.status === 'loading' ? (
+        <p className="text-sm">Wird geladen…</p>
+      ) : state.status === 'ready' ? (
+        <div className="flex items-start gap-2 text-sm">
+          <input
+            id={checkboxId}
+            type="checkbox"
+            className="mt-0.5 size-4 accent-indigo-600"
+            checked={state.enabled}
+            disabled={saving}
+            onChange={(event) => void toggle(event.target.checked)}
+          />
+          <label htmlFor={checkboxId}>An Abmeldefristen und Prüfungen erinnern</label>
+        </div>
+      ) : null}
+    </section>
+  )
+}
+
+export function UnsubscribePage() {
+  const search = useSearch({ strict: false }) as { token?: unknown }
+  const token = typeof search.token === 'string' ? search.token : ''
+  const [state, setState] = useState<'idle' | 'pending' | 'done' | 'error'>('idle')
+
+  const unsubscribe = async () => {
+    setState('pending')
+    try {
+      await notificationApi.unsubscribe(token)
+      setState('done')
+    } catch {
+      setState('error')
+    }
+  }
+
+  return (
+    <AuthLayout title="E-Mail-Erinnerungen ausschalten">
+      {token === '' ? (
+        <Alert>
+          Der Link ist unvollständig. Öffne ihn direkt aus der E-Mail oder schalte die Erinnerungen im Konto
+          aus.
+        </Alert>
+      ) : state === 'done' ? (
+        <Alert tone="success">
+          Erinnerungen sind ausgeschaltet. Auf der Kontoseite kannst du sie jederzeit wieder einschalten.
+        </Alert>
+      ) : (
+        <div className="mt-6 space-y-4">
+          {state === 'error' ? (
+            <Alert>
+              Der Link ist ungültig oder abgelaufen. Du kannst die Erinnerungen im Konto ausschalten.
+            </Alert>
+          ) : null}
+          <p className="text-sm">Du bekommst dann keine Erinnerungen an Abmeldefristen und Prüfungen mehr.</p>
+          <Button variant="primary" disabled={state === 'pending'} onClick={() => void unsubscribe()}>
+            Erinnerungen ausschalten
+          </Button>
+        </div>
+      )}
+      <p className="mt-6 text-sm">
+        <Link to="/konto" className={linkClass}>
+          Zum Konto
+        </Link>
+      </p>
+    </AuthLayout>
+  )
+}
+
 export function AccountPage() {
   const navigate = useNavigate()
   const search = useSearch({ strict: false }) as { verifiziert?: unknown }
@@ -468,6 +585,8 @@ export function AccountPage() {
           </Link>
         </div>
       </section>
+
+      <ReminderSettings />
 
       <section className={cardClass} aria-labelledby="konto-daten">
         <h2 id="konto-daten" className="font-semibold">

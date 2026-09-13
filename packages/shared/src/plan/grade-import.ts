@@ -1,3 +1,4 @@
+import type { AttemptEntry } from './attempts.ts'
 import type { ResultEntry } from './operations.ts'
 import type { Plan, PlanModule } from './plan.ts'
 
@@ -175,4 +176,29 @@ export function mergeImportResults(
     }
   }
   return merged
+}
+
+const passes = (entry: ResultEntry, passThreshold: number): boolean =>
+  entry.kind === 'passed' || (entry.kind === 'graded' && entry.grade <= passThreshold)
+
+/**
+ * Rebuilds each module's attempt history from the import: results that did not pass in the order they appear,
+ * then the best passing result.
+ */
+export function mergeImportAttempts(
+  assignments: readonly { moduleCode: string; result: ResultEntry }[],
+  plan: Plan,
+): Map<string, AttemptEntry[]> {
+  const threshold = plan.rules.passThreshold
+  const attempts = new Map<string, AttemptEntry[]>()
+  for (const { moduleCode, result } of assignments) {
+    if (result.kind === 'open') continue
+    const list = attempts.get(moduleCode) ?? []
+    if (!passes(result, threshold)) list.push(result)
+    attempts.set(moduleCode, list)
+  }
+  for (const [code, best] of mergeImportResults(assignments, plan)) {
+    if (best.kind !== 'open' && passes(best, threshold)) attempts.get(code)?.push(best)
+  }
+  return attempts
 }

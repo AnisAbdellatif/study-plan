@@ -14,6 +14,7 @@
     "format": "biome check --write .",
     "presets:validate": "bun packages/shared/scripts/validate-presets.ts",
     "presets:schema": "bun packages/shared/scripts/generate-preset-schema.ts",
+    "presets:new": "bun packages/shared/scripts/new-preset.ts",
     "dev": "bun run --filter '@study-plan/*' dev",
     "build": "bun run --filter @study-plan/web build",
     "presets:lock": "bun packages/shared/scripts/preset-lock.ts --write",

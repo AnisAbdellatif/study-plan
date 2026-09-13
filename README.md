@@ -5,16 +5,17 @@ See [project.md](project.md) for the brief and [assessment.md](assessment.md) fo
 
 ## Status
 
-Milestone 5 of the assessment: sharing, grade import, printing and preset updates, on top of accounts and plan sync.
+Milestone 6 of the assessment: exam attempts, thesis admission, PO switches, e-mail reminders and community presets, on top of sharing, grade import and accounts.
 
-- Sharing: signed-in students create an unlisted, revocable link to their account plan. The link shows semesters and modules but never results, exam dates or the target grade, and visitors can copy the plan into their own browser. Only a hash of each link is stored.
-- Grade import: paste a Notenspiegel table or load a CSV file. Module names are matched automatically, unclear lines can be assigned by hand, and several attempts at the same module keep the best result.
-- Printing: the board has a print layout, so the plan can be printed or saved as PDF from the browser.
-- Preset updates: when a bundled preset changes, the board lists added, removed and changed modules and updates the plan while keeping placements and results that still fit.
-- `apps/api`: Hono API on Bun with Better Auth and Drizzle; plans per account with revisions; share links; data export and account deletion.
+- Exam attempts: every module keeps its attempts, including no-shows and withdrawals. Presets define attempt limits and whether passed exams can be retaken, and the board warns before the last attempt and when attempts run out.
+- Thesis admission: for modules with a credit requirement, such as the Bachelorarbeit, the board shows the credits earned and forecasts the semester in which the plan reaches them.
+- PO switch: a newer preset can declare a transition from an older one. Students preview which modules carry over with their results, then switch; new plans only offer the newest PO.
+- E-mail reminders: opt-in on the account page. 3 days before the last withdrawal day and 7 days before an exam, with module names and dates only, a one-click unsubscribe header and an unsubscribe page.
+- Community presets: [presets/README.md](presets/README.md) explains sources and modelling, `bun run presets:new` creates a skeleton, and GitHub has an issue form and a pull request checklist.
+- `apps/api`: Hono API on Bun with Better Auth and Drizzle; plans per account with revisions; share links; reminders; data export and account deletion.
 - `apps/web`: React app that works without an account and syncs with one.
-- `packages/shared`: Zod schemas, the grade engine, plan validation, what-if solver, deadlines, grade import and preset update logic.
-- `presets/`: Technische Informatik B.Sc. at Leibniz Universität Hannover and a fictional example, guarded by `presets.lock.json` and `CHANGELOG.md`.
+- `packages/shared`: Zod schemas, the grade engine, plan validation, attempts, what-if solver, deadlines, grade import, preset updates and PO switches.
+- `presets/`: Technische Informatik B.Sc. at Leibniz Universität Hannover and two fictional example POs, guarded by `presets.lock.json` and `CHANGELOG.md`.
 
 ## Requirements
 
@@ -34,6 +35,7 @@ bun run build
 bun run presets:validate
 bun run presets:check    # fails when a preset changed without updating presets.lock.json
 bun run presets:lock
+bun run presets:new tum/informatik-bsc-2024   # preset skeleton, see presets/README.md
 bun run db:generate      # SQL migration after changing apps/api/src/db/schema.ts
 ```
 
@@ -51,6 +53,7 @@ API (`apps/api`, environment variables):
 - `WEB_DIST`: path to `apps/web/dist` to serve the web app from the API process.
 - `IP_ADDRESS_HEADER`: behind a reverse proxy that sets it, e.g. `x-forwarded-for`, so rate limiting sees client IPs.
 - `PORT`: defaults to 3000.
+- `REMINDER_INTERVAL_MINUTES`: how often the API checks for due reminder e-mails, default 60. `0` turns the reminder job off, e.g. when a second API process runs next to the first. Reminders are claimed in the database before sending, so parallel runs never send one twice.
 
 Migrations run automatically when the API starts.
 

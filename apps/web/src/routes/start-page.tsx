@@ -5,7 +5,7 @@ import { ImportPlanButton } from '../components/import-plan-button.tsx'
 import { Button } from '../components/ui/button.tsx'
 import { ConfirmDialog } from '../components/ui/dialog.tsx'
 import { DEGREE_LABEL, newId } from '../lib/format.ts'
-import { findPreset, presets } from '../presets.ts'
+import { currentPresets, findPreset } from '../presets.ts'
 import { useGuestState, useGuestStore } from '../store/guest-store.ts'
 
 const fieldClass =
@@ -18,7 +18,7 @@ export function StartPage() {
   const ids = { preset: useId(), year: useId() }
 
   const currentTerm = useMemo(() => termAt(new Date()), [])
-  const [presetId, setPresetId] = useState(presets[0]?.preset.id ?? '')
+  const [presetId, setPresetId] = useState(currentPresets[0]?.preset.id ?? '')
   const [season, setSeason] = useState<Term['season']>(currentTerm.season)
   const [year, setYear] = useState(currentTerm.year)
   const [confirmReplace, setConfirmReplace] = useState(false)
@@ -80,7 +80,7 @@ export function StartPage() {
             onChange={(event) => setPresetId(event.target.value)}
             className={fieldClass}
           >
-            {presets.map(({ preset, fictional }) => (
+            {currentPresets.map(({ preset, fictional }) => (
               <option key={preset.id} value={preset.id}>
                 {preset.programme.name} {DEGREE_LABEL[preset.programme.degree]} · {preset.university.name}
                 {fictional ? ' (fiktives Beispiel)' : ''}

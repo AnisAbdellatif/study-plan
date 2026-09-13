@@ -1,6 +1,7 @@
 import { isModulePassed } from '../engine/progress.ts'
 import { toHalves } from '../engine/units.ts'
 import { type Prerequisite, prerequisiteCodes } from '../schema/preset.ts'
+import { attemptStatus } from './attempts.ts'
 import type { Plan } from './plan.ts'
 import { addTerms, type Term } from './terms.ts'
 
@@ -32,6 +33,16 @@ export type PlanIssue =
       /** Credits passed or planned in earlier semesters. */
       available: number
     }
+  | { kind: 'attempts_exhausted'; severity: 'warning'; code: string; maxAttempts: number }
+  | {
+      kind: 'last_attempt'
+      severity: 'warning'
+      code: string
+      maxAttempts: number
+      /** A failed Klausur in the last attempt is followed by a supplementary oral exam. */
+      supplementaryExam: boolean
+    }
+  | { kind: 'retaken_after_pass'; severity: 'warning'; code: string }
   | { kind: 'area_below_minimum'; severity: 'info'; areaId: string; planned: number; minCredits: number }
   | { kind: 'area_above_maximum'; severity: 'warning'; areaId: string; planned: number; maxCredits: number }
 
@@ -103,6 +114,23 @@ export function validatePlan(plan: Plan): PlanIssue[] {
       }
     }
   })
+
+  for (const module of plan.modules) {
+    const status = attemptStatus(module, plan)
+    const { code } = module
+    if (status.exhausted && status.maxAttempts !== null) {
+      issues.push({ kind: 'attempts_exhausted', severity: 'warning', code, maxAttempts: status.maxAttempts })
+    } else if (status.lastAttempt && status.maxAttempts !== null) {
+      issues.push({
+        kind: 'last_attempt',
+        severity: 'warning',
+        code,
+        maxAttempts: status.maxAttempts,
+        supplementaryExam: plan.preset.supplementaryExamOnLastAttempt === true,
+      })
+    }
+    if (status.retakenAfterPass) issues.push({ kind: 'retaken_after_pass', severity: 'warning', code })
+  }
 
   const counted = new Set([...plan.semesters.flatMap((semester) => semester.moduleCodes), ...passed])
   for (const area of plan.areas) {

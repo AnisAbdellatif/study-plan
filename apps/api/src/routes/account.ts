@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import type { Database } from '../db/connection.ts'
-import { plan, planShare, session, user } from '../db/schema.ts'
+import { notificationSetting, plan, planShare, reminderDelivery, session, user } from '../db/schema.ts'
 import type { AppEnv } from '../types.ts'
 
 /** Self-service access to one's own data (Art. 15 and Art. 20 DSGVO). Deletion goes through Better Auth. */
@@ -52,13 +52,38 @@ export function accountRoutes(db: Database) {
 
       .where(eq(plan.userId, userId))
 
+    const [notifications] = await db
+      .select({ examReminders: notificationSetting.examReminders, updatedAt: notificationSetting.updatedAt })
+      .from(notificationSetting)
+      .where(eq(notificationSetting.userId, userId))
+    const reminders = await db
+      .select({
+        planId: reminderDelivery.planId,
+        moduleCode: reminderDelivery.moduleCode,
+        kind: reminderDelivery.kind,
+        eventDate: reminderDelivery.eventDate,
+        sentAt: reminderDelivery.sentAt,
+      })
+      .from(reminderDelivery)
+      .innerJoin(plan, eq(reminderDelivery.planId, plan.id))
+      .where(eq(plan.userId, userId))
+
     const exportedAt = new Date()
     c.header(
       'Content-Disposition',
       `attachment; filename="studienplaner-daten-${exportedAt.toISOString().slice(0, 10)}.json"`,
     )
     c.header('Cache-Control', 'no-store')
-    return c.json({ format: 'study-plan.account-export', exportedAt, user: profile, plans, sessions, shares })
+    return c.json({
+      format: 'study-plan.account-export',
+      exportedAt,
+      user: profile,
+      plans,
+      sessions,
+      shares,
+      notifications: notifications ?? { examReminders: false, updatedAt: null },
+      reminders,
+    })
   })
 
   return routes

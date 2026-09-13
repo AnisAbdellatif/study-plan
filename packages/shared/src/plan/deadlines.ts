@@ -60,3 +60,17 @@ export function upcomingDeadlines(plan: Plan, today: string, horizonDays: number
   const end = addDays(today, horizonDays)
   return planDeadlines(plan).filter((event) => event.date >= today && event.date <= end)
 }
+
+/** How many days ahead of a deadline the reminder e-mail goes out. */
+export const REMINDER_LEAD_DAYS: Readonly<Record<DeadlineKind, number>> = { withdrawal: 3, exam: 7 }
+
+/** Deadlines that are due for a reminder on `today`: from the lead time before the date up to the date itself. */
+export function dueReminders(
+  plan: Plan,
+  today: string,
+  leadDays: Readonly<Record<DeadlineKind, number>> = REMINDER_LEAD_DAYS,
+): DeadlineEvent[] {
+  return planDeadlines(plan).filter(
+    (event) => event.date >= today && daysBetween(today, event.date) <= leadDays[event.kind],
+  )
+}

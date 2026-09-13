@@ -99,3 +99,21 @@ export const shareApi = {
   get: (token: string): Promise<SharedPlanResponse> =>
     request<SharedPlanResponse>(`/api/share/${encodeURIComponent(token)}`),
 }
+
+export interface NotificationSettings {
+  examReminders: boolean
+}
+
+export const notificationApi = {
+  get: (): Promise<NotificationSettings> => request<NotificationSettings>('/api/account/notifications'),
+  update: (settings: NotificationSettings): Promise<NotificationSettings> =>
+    request<NotificationSettings>('/api/account/notifications', {
+      method: 'PUT',
+      body: JSON.stringify(settings),
+    }),
+  /** Uses the token from a reminder e-mail, no sign-in needed. */
+  unsubscribe: (token: string): Promise<NotificationSettings> =>
+    request<NotificationSettings>(`/api/notifications/unsubscribe?token=${encodeURIComponent(token)}`, {
+      method: 'POST',
+    }),
+}

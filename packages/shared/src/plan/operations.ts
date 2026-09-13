@@ -76,10 +76,7 @@ export function currentResult(module: PlanModule): ResultEntry {
   return { kind: 'open' }
 }
 
-/**
- * Replaces a module's attempts with a single attempt matching the entry.
- * Multi-attempt tracking and attempt policies come in a later milestone.
- */
+/** Replaces a module's attempts with a single attempt matching the entry. See `setModuleAttempts` for several. */
 export function setModuleResult(plan: Plan, code: string, entry: ResultEntry): Plan {
   const module = findModule(plan, code)
   let attempts: Attempt[]
@@ -133,17 +130,17 @@ export function removeLastSemester(plan: Plan): Plan {
   }
 }
 
+/** True for a real calendar date written as YYYY-MM-DD. */
+export function isIsoDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+  const parsed = new Date(`${value}T00:00:00Z`)
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value
+}
+
 /** Sets or clears a module's exam date. Dates are calendar dates, YYYY-MM-DD. */
 export function setExamDate(plan: Plan, code: string, examDate: string | null): Plan {
   findModule(plan, code)
-  if (examDate !== null) {
-    const parsed = new Date(`${examDate}T00:00:00Z`)
-    const valid =
-      /^\d{4}-\d{2}-\d{2}$/.test(examDate) &&
-      !Number.isNaN(parsed.getTime()) &&
-      parsed.toISOString().slice(0, 10) === examDate
-    if (!valid) throw new PlanError(`Invalid exam date "${examDate}"`)
-  }
+  if (examDate !== null && !isIsoDate(examDate)) throw new PlanError(`Invalid exam date "${examDate}"`)
   return {
     ...plan,
     modules: plan.modules.map((module) => {

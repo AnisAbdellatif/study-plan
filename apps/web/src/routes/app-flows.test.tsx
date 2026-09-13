@@ -12,7 +12,7 @@ import { createMemoryHistory, RouterProvider } from '@tanstack/react-router'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { findPreset } from '../presets.ts'
+import { currentPresets, findPreset } from '../presets.ts'
 import { createAppRouter } from '../router.tsx'
 import { createGuestStore, EXPORT_KEY, GuestStoreContext, STORAGE_KEY } from '../store/guest-store.ts'
 
@@ -411,5 +411,107 @@ describe('preset updates on the board', () => {
       ),
     )
     expect(screen.queryByText(/gibt es eine aktualisierte Vorlage/)).not.toBeInTheDocument()
+  })
+})
+
+describe('milestone 6', () => {
+  const preset2027 = findPreset('example/informatik-bsc-example-2027')?.preset
+  const luh = findPreset('luh/technische-informatik-bsc-2026')?.preset
+  if (!preset2027 || !luh) throw new Error('expected bundled presets')
+  const planFrom = (source: typeof preset2027) =>
+    createPlanFromPreset(source, {
+      id: 'plan-test',
+      startTerm: { season: 'winter', year: 2026 },
+      now: new Date('2026-09-13T10:00:00Z'),
+    })
+
+  it('offers only the newest PO for new plans', () => {
+    const ids = currentPresets.map((entry) => entry.preset.id)
+    expect(ids).toContain('example/informatik-bsc-example-2027')
+    expect(ids).not.toContain('example/informatik-bsc-example')
+  })
+
+  it('records several attempts and warns before the last one', async () => {
+    const { user, store } = renderApp({ plan: planFrom(preset2027) })
+    await openCardMenu(user, 'Grundlagen der Programmierung')
+    await user.click(await screen.findByRole('menuitem', { name: 'Note eintragen…' }))
+    let dialog = await screen.findByRole('dialog')
+    await user.selectOptions(within(dialog).getByLabelText('Note'), 'grade:5')
+    await user.click(within(dialog).getByRole('button', { name: 'Weiteren Versuch eintragen' }))
+    await user.selectOptions(within(dialog).getByLabelText('Note im 2. Versuch'), 'grade:5')
+    expect(within(dialog).getByTestId('attempt-summary')).toHaveTextContent(
+      '2 von 3 Versuchen verbraucht. Der nächste Versuch ist der letzte.',
+    )
+    await user.click(within(dialog).getByRole('button', { name: 'Speichern' }))
+
+    await waitFor(() =>
+      expect(store.getState().plan?.modules.find((m) => m.code === 'INF-101')?.attempts).toHaveLength(2),
+    )
+    const firstSemester = column(/^1\. Semester/)
+    expect(within(firstSemester).getByText('Letzter Versuch')).toBeInTheDocument()
+    expect(within(firstSemester).getByText('2. Versuch')).toBeInTheDocument()
+
+    await openCardMenu(user, 'Grundlagen der Programmierung')
+    await user.click(await screen.findByRole('menuitem', { name: 'Note eintragen…' }))
+    dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: 'Weiteren Versuch eintragen' }))
+    await user.selectOptions(within(dialog).getByLabelText('Note im 3. Versuch'), 'grade:2.3')
+    await user.click(within(dialog).getByRole('button', { name: 'Speichern' }))
+
+    await waitFor(() => expect(screen.getByTestId('overall-grade')).toHaveTextContent('2,3'))
+    expect(within(column(/^1\. Semester/)).queryByText('Letzter Versuch')).not.toBeInTheDocument()
+  })
+
+  it('switches a plan to the newer PO after a preview', async () => {
+    const { user, store } = renderApp({
+      plan: setModuleResult(makePlan(), 'MAT-101', { kind: 'graded', grade: 1.7 }),
+    })
+    await user.click(await screen.findByRole('button', { name: 'Weitere Aktionen' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Prüfungsordnung wechseln…' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Prüfungsordnung wechseln' })
+    expect(within(dialog).getByText('Lineare Algebra I → Lineare Algebra (mit Ergebnis)')).toBeInTheDocument()
+    expect(
+      within(dialog).getByText(
+        /IT-Sicherheit: bleibt mit deinem Ergebnis im Plan|IT-Sicherheit: wird aus dem Plan entfernt/,
+      ),
+    ).toBeInTheDocument()
+
+    await user.click(within(dialog).getByRole('button', { name: 'Prüfungsordnung wechseln' }))
+    await waitFor(() => expect(store.getState().plan?.preset.id).toBe('example/informatik-bsc-example-2027'))
+    expect(screen.getAllByText(/PO 2027 \(fiktiv\)/).length).toBeGreaterThan(0)
+    expect(screen.getByTestId('overall-grade')).toHaveTextContent('1,7')
+
+    await user.click(screen.getByRole('button', { name: 'Weitere Aktionen' }))
+    expect(await screen.findByRole('menuitem', { name: 'Noten importieren…' })).toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: 'Prüfungsordnung wechseln…' })).not.toBeInTheDocument()
+  })
+
+  it('shows the credits towards the Bachelorarbeit admission', async () => {
+    renderApp({ plan: planFrom(luh) })
+    const card = await screen.findByRole('region', { name: /Zulassung: Bachelorarbeit/ })
+    expect(within(card).getByText('0 von 120 LP')).toBeInTheDocument()
+    expect(within(card).getByTestId('requirement-forecast')).toHaveTextContent(
+      /Laut Plan|Mit den eingeplanten Modulen/,
+    )
+  })
+
+  it('turns reminders off from the e-mail link after asking', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ examReminders: false }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    )
+    try {
+      const { user } = renderApp({ path: '/erinnerungen-abbestellen?token=abc.def' })
+      await user.click(await screen.findByRole('button', { name: 'Erinnerungen ausschalten' }))
+      expect(await screen.findByText(/Erinnerungen sind ausgeschaltet/)).toBeInTheDocument()
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/notifications/unsubscribe?token=abc.def',
+        expect.objectContaining({ method: 'POST' }),
+      )
+    } finally {
+      fetchMock.mockRestore()
+    }
   })
 })

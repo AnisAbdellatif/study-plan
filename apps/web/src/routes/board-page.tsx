@@ -1,14 +1,15 @@
 import {
+  type AttemptEntry,
   analyzeWhatIf,
   createIcs,
+  creditRequirements,
   localIsoDate,
   moveModule,
   type Plan,
   planDeadlines,
-  type ResultEntry,
   semesterIndexAt,
   setExamDate,
-  setModuleResult,
+  setModuleAttempts,
   setTargetGrade,
   summarizePlan,
   upcomingDeadlines,
@@ -40,16 +41,22 @@ export function BoardPage() {
   return <Board plan={plan} />
 }
 
-function describeEntry(entry: ResultEntry): string {
-  switch (entry.kind) {
+function describeAttempts(entries: readonly AttemptEntry[]): string {
+  const latest = entries.at(-1)
+  if (!latest) return 'Ergebnis entfernt'
+  switch (latest.kind) {
     case 'graded':
-      return `Note ${formatGrade(entry.grade)} eingetragen`
+      return `Note ${formatGrade(latest.grade)} eingetragen`
     case 'passed':
       return 'als bestanden eingetragen'
     case 'failed':
       return 'als nicht bestanden eingetragen'
-    case 'open':
-      return 'Ergebnis entfernt'
+    case 'registered':
+      return 'als angemeldet eingetragen'
+    case 'absent':
+      return 'als nicht erschienen eingetragen'
+    case 'withdrawn':
+      return 'Abmeldung eingetragen'
   }
 }
 
@@ -63,6 +70,7 @@ function Board({ plan }: { plan: Plan }) {
   const currentIndex = useMemo(() => semesterIndexAt(plan.startTerm, new Date()), [plan.startTerm])
   const issues = useMemo(() => describeIssues(plan, validatePlan(plan)), [plan])
   const whatIf = useMemo(() => analyzeWhatIf(plan, plan.targetGrade), [plan])
+  const requirements = useMemo(() => creditRequirements(plan).filter((item) => !item.passed), [plan])
   const allDeadlines = useMemo(() => planDeadlines(plan), [plan])
   const upcoming = useMemo(() => upcomingDeadlines(plan, today, DEADLINE_HORIZON_DAYS), [plan, today])
 
@@ -76,11 +84,11 @@ function Board({ plan }: { plan: Plan }) {
   )
   useModuleDropMonitor(move)
 
-  const saveResult = (code: string, entry: ResultEntry, examDate: string | null) => {
+  const saveResult = (code: string, entries: AttemptEntry[], examDate: string | null) => {
     const name = plan.modules.find((m) => m.code === code)?.name ?? code
-    store.updatePlan((current) => setExamDate(setModuleResult(current, code, entry), code, examDate))
+    store.updatePlan((current) => setExamDate(setModuleAttempts(current, code, entries), code, examDate))
     setGradingCode(null)
-    announce(`${name}: ${describeEntry(entry)}`)
+    announce(`${name}: ${describeAttempts(entries)}`)
   }
 
   const changeTarget = (grade: number | null) => {
@@ -111,6 +119,7 @@ function Board({ plan }: { plan: Plan }) {
           plan={plan}
           hints={issues.list}
           whatIf={whatIf}
+          requirements={requirements}
           today={today}
           upcoming={upcoming}
           canExportCalendar={allDeadlines.length > 0}
@@ -128,9 +137,7 @@ function Board({ plan }: { plan: Plan }) {
       />
       <GradeDialog
         module={plan.modules.find((m) => m.code === gradingCode) ?? null}
-        rules={plan.rules}
-        creditLabel={plan.preset.creditLabel}
-        showCode={plan.preset.codesAreOfficial ?? true}
+        plan={plan}
         onSave={saveResult}
         onClose={() => setGradingCode(null)}
       />

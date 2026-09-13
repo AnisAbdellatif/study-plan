@@ -2,11 +2,12 @@ import {
   currentResult,
   fitImportResult,
   type ImportRow,
+  mergeImportAttempts,
   mergeImportResults,
   type Plan,
   parseGradeImport,
   type ResultEntry,
-  setModuleResult,
+  setModuleAttempts,
 } from '@study-plan/shared'
 import { type ChangeEvent, useId, useMemo, useState } from 'react'
 import { cn } from '../../lib/cn.ts'
@@ -82,7 +83,10 @@ export function ImportGradesDialog({
 
   const apply = () => {
     store.updatePlan((current) =>
-      [...merged].reduce((next, [code, entry]) => setModuleResult(next, code, entry), current),
+      [...mergeImportAttempts(assignments, current)].reduce(
+        (next, [code, attempts]) => setModuleAttempts(next, code, attempts),
+        current,
+      ),
     )
     announce(`${merged.size} ${merged.size === 1 ? 'Ergebnis' : 'Ergebnisse'} importiert`)
     reset()
@@ -211,7 +215,8 @@ export function ImportGradesDialog({
         {rows.length > 0 ? (
           <p className="text-xs text-zinc-600 dark:text-zinc-400">
             {skipped > 0 ? `${skipped} ${skipped === 1 ? 'Zeile' : 'Zeilen'} ohne Note übersprungen. ` : ''}
-            Mehrere Zeilen zum selben Modul gelten als Versuche, das beste Ergebnis zählt.
+            Mehrere Zeilen zum selben Modul gelten als Versuche und ersetzen die bisher eingetragenen. Von
+            mehreren bestandenen zählt das beste.
             {overwrites > 0
               ? ` ${overwrites} bereits eingetragene ${overwrites === 1 ? 'Ergebnis wird' : 'Ergebnisse werden'} ersetzt.`
               : ''}

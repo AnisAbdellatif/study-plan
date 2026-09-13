@@ -1,6 +1,8 @@
 import { z } from 'zod'
 import { type AggregationNode, creditValueSchema, gradeRulesSchema } from './rules.ts'
 
+const presetIdSchema = z.string().regex(/^[a-z0-9-]+\/[a-z0-9-]+$/)
+
 const slugSchema = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Use lowercase letters, digits and dashes')
 
 /** A prerequisite is a module code, or a group where any one of the listed modules suffices. */
@@ -26,6 +28,8 @@ export const presetModuleSchema = z.object({
   prerequisites: z.array(prerequisiteSchema).optional(),
   /** Minimum earned credits before the module can be taken, e.g. 120 for a Bachelorarbeit. */
   requiresCredits: creditValueSchema.optional(),
+  /** Overrides `examRules.maxAttempts` for this module, e.g. fewer attempts for a Bachelorarbeit. */
+  maxAttempts: z.number().int().min(1).max(10).optional(),
 })
 export type PresetModule = z.infer<typeof presetModuleSchema>
 
@@ -46,6 +50,14 @@ function* walkAggregation(node: AggregationNode): Generator<{ node: AggregationN
   }
 }
 
+export const transitionSchema = z.object({
+  fromPresetId: presetIdSchema,
+  moduleMap: z.array(z.object({ from: z.string().min(1), to: z.string().min(1) })),
+  /** Shown to students before they switch, e.g. where the official transition rules are published. */
+  notes: z.string().optional(),
+})
+export type PresetTransition = z.infer<typeof transitionSchema>
+
 export const prerequisiteCodes = (prerequisite: Prerequisite): string[] =>
   typeof prerequisite === 'string' ? [prerequisite] : prerequisite.anyOf
 
@@ -54,7 +66,7 @@ export const presetSchema = z
     $schema: z.string().optional(),
     schemaVersion: z.literal(1),
     /** "<university>/<programme>-<po-year>", matching the file path under presets/. */
-    id: z.string().regex(/^[a-z0-9-]+\/[a-z0-9-]+$/),
+    id: presetIdSchema,
     university: z.object({ slug: slugSchema, name: z.string().min(1) }),
     programme: z.object({ slug: slugSchema, name: z.string().min(1), degree: z.enum(['bsc', 'msc']) }),
     poVersion: z.string().min(1),
@@ -69,8 +81,19 @@ export const presetSchema = z
       .object({
         /** Withdrawal is possible until this many days before the exam. */
         withdrawalDaysBeforeExam: z.number().int().min(0).max(60).optional(),
+        /** Attempts per exam including the first, e.g. 3 when a failed exam can be repeated twice. */
+        maxAttempts: z.number().int().min(1).max(10).optional(),
+        /** Whether a passed exam may be retaken to improve the grade (Notenverbesserung). */
+        retakePassedExams: z.boolean().optional(),
+        /** A failed Klausur in the last attempt only counts as failed after a supplementary oral exam. */
+        supplementaryExamOnLastAttempt: z.boolean().optional(),
       })
       .optional(),
+    /**
+     * Ways to move a plan from an older preset (an earlier PO) to this one. `moduleMap` lists modules that
+     * continue under a different code; modules with the same code carry over without an entry.
+     */
+    transitions: z.array(transitionSchema).optional(),
     /** Free-text maintainer notes. JSON has no comments, so they live here. */
     notes: z.string().optional(),
     gradeRules: gradeRulesSchema,
@@ -121,6 +144,31 @@ export const presetSchema = z
             message: `Unknown module "${code}"`,
           })
         }
+      }
+    })
+
+    preset.transitions?.forEach((transition, index) => {
+      const path = ['transitions', index]
+      if (transition.fromPresetId === preset.id) {
+        ctx.addIssue({ code: 'custom', path, message: 'A preset cannot transition from itself' })
+      }
+      const sources = new Set<string>()
+      const targets = new Set<string>()
+      for (const { from, to } of transition.moduleMap) {
+        if (!modules.has(to)) {
+          ctx.addIssue({
+            code: 'custom',
+            path,
+            message: `Transition target "${to}" is not a module of this preset`,
+          })
+        }
+        if (sources.has(from))
+          ctx.addIssue({ code: 'custom', path, message: `Module "${from}" is mapped twice` })
+        if (targets.has(to)) {
+          ctx.addIssue({ code: 'custom', path, message: `Several modules map to "${to}"` })
+        }
+        sources.add(from)
+        targets.add(to)
       }
     })
 

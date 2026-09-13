@@ -1,5 +1,14 @@
-import { type DeadlineEvent, daysBetween, type Plan, type WhatIfAnalysis } from '@study-plan/shared'
-import { CalendarPlus, Info, TriangleAlert } from 'lucide-react'
+import {
+  addTerms,
+  type CreditRequirement,
+  type DeadlineEvent,
+  daysBetween,
+  formatTerm,
+  type Plan,
+  prerequisiteCodes,
+  type WhatIfAnalysis,
+} from '@study-plan/shared'
+import { CalendarPlus, GraduationCap, Info, TriangleAlert } from 'lucide-react'
 import { useId } from 'react'
 import { cn } from '../../lib/cn.ts'
 import {
@@ -192,10 +201,80 @@ function DeadlinesCard({
   )
 }
 
+function RequirementCard({ plan, requirement }: { plan: Plan; requirement: CreditRequirement }) {
+  const headingId = useId()
+  const label = plan.preset.creditLabel
+  const credits = (value: number) => `${formatCredits(value)} ${label}`
+  const semester = (index: number) =>
+    `${index + 1}. Semesters (${formatTerm(addTerms(plan.startTerm, index))})`
+  const names = new Map(plan.modules.map((module) => [module.code, module.name]))
+  const { eligibleFromIndex, plannedIndex } = requirement
+  const percent = Math.min(100, Math.round((requirement.earnedCredits / requirement.requiredCredits) * 100))
+
+  let forecast: string
+  if (requirement.eligibleNow) forecast = 'Die Leistungspunkte für die Zulassung hast du schon.'
+  else if (eligibleFromIndex === null) {
+    forecast = `Mit den eingeplanten Modulen kommst du nicht auf ${credits(requirement.requiredCredits)}.`
+  } else if (eligibleFromIndex >= plan.semesters.length) {
+    forecast = `Laut Plan erreichst du ${credits(requirement.requiredCredits)} erst nach dem letzten Semester.`
+  } else {
+    forecast = `Laut Plan erreichst du ${credits(requirement.requiredCredits)} zu Beginn des ${semester(eligibleFromIndex)}.`
+  }
+  const tooEarly =
+    !requirement.eligibleNow &&
+    plannedIndex !== null &&
+    (eligibleFromIndex === null || plannedIndex < eligibleFromIndex)
+
+  return (
+    <section aria-labelledby={headingId} className={cardClass}>
+      <h2 id={headingId} className={cn(headingClass, 'flex items-center gap-1.5')}>
+        <GraduationCap aria-hidden className="size-4" />
+        Zulassung: {requirement.name}
+      </h2>
+      <p className="mt-1 text-lg font-semibold tabular-nums">
+        {formatCredits(requirement.earnedCredits)} von {credits(requirement.requiredCredits)}
+      </p>
+      <div
+        className="mt-2 h-1.5 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800"
+        role="progressbar"
+        aria-label={`Leistungspunkte für die Zulassung: ${requirement.name}`}
+        aria-valuemin={0}
+        aria-valuemax={requirement.requiredCredits}
+        aria-valuenow={requirement.earnedCredits}
+      >
+        <div className="h-full rounded-full bg-indigo-500" style={{ width: `${percent}%` }} />
+      </div>
+      <p className="mt-2 text-sm" data-testid="requirement-forecast">
+        {forecast}
+      </p>
+      {tooEarly && plannedIndex !== null ? (
+        <p className="mt-1 text-sm text-amber-800 dark:text-amber-300">
+          Eingeplant ist sie im {semester(plannedIndex).replace('Semesters', 'Semester')}.
+        </p>
+      ) : null}
+      {requirement.openPrerequisites.length > 0 ? (
+        <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
+          Außerdem nötig:{' '}
+          {requirement.openPrerequisites
+            .map((item) =>
+              prerequisiteCodes(item)
+                .map((code) => names.get(code) ?? code)
+                .join(' oder '),
+            )
+            .join(', ')}
+          .
+        </p>
+      ) : null}
+    </section>
+  )
+}
+
 export interface PlanInsightsProps {
   plan: Plan
   hints: readonly IssueText[]
   whatIf: WhatIfAnalysis
+  /** Modules with a credit requirement that are not passed yet, usually the thesis. */
+  requirements: readonly CreditRequirement[]
   today: string
   upcoming: readonly DeadlineEvent[]
   canExportCalendar: boolean
@@ -207,6 +286,7 @@ export function PlanInsights({
   plan,
   hints,
   whatIf,
+  requirements,
   today,
   upcoming,
   canExportCalendar,
@@ -214,7 +294,12 @@ export function PlanInsights({
   onExportCalendar,
 }: PlanInsightsProps) {
   return (
-    <div className="grid gap-3 md:grid-cols-3">
+    <div
+      className={cn(
+        'grid gap-3',
+        requirements.length > 0 ? 'md:grid-cols-2 xl:grid-cols-4' : 'md:grid-cols-3',
+      )}
+    >
       <HintsCard hints={hints} />
       <WhatIfCard plan={plan} analysis={whatIf} onTargetChange={onTargetChange} />
       <DeadlinesCard
@@ -224,6 +309,9 @@ export function PlanInsights({
         canExport={canExportCalendar}
         onExport={onExportCalendar}
       />
+      {requirements.map((requirement) => (
+        <RequirementCard key={requirement.code} plan={plan} requirement={requirement} />
+      ))}
     </div>
   )
 }

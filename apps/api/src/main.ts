@@ -8,6 +8,7 @@ import { createAuth } from './auth.ts'
 import { loadConfig } from './config.ts'
 import { openDatabase } from './db/connection.ts'
 import { createConsoleMailer, createSmtpMailer } from './mail.ts'
+import { startReminderScheduler } from './reminders.ts'
 
 const config = loadConfig()
 const database = await openDatabase(config.databaseUrl)
@@ -26,6 +27,10 @@ const app = createApp({
       }
     : undefined,
 })
+
+if (config.reminderIntervalMinutes > 0 && config.env !== 'test') {
+  startReminderScheduler({ db: database.db, mailer, config }, config.reminderIntervalMinutes * 60_000)
+}
 
 console.info(
   `[api] listening on http://localhost:${config.port} (${config.env}, public URL ${config.publicUrl})`,

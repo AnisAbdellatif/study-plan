@@ -19,6 +19,7 @@ const season = (offering: 'winter' | 'summer') =>
 export function describeIssues(plan: Plan, issues: readonly PlanIssue[]): DescribedIssues {
   const names = new Map(plan.modules.map((module) => [module.code, module.name]))
   const nameOf = (code: string) => names.get(code) ?? code
+  const graded = (code: string) => plan.modules.find((module) => module.code === code)?.grading === 'graded'
   const areaName = (id: string) => plan.areas.find((area) => area.id === id)?.name ?? id
   const credits = (value: number) => `${formatCredits(value)} ${plan.preset.creditLabel}`
   const prerequisite = (item: Prerequisite) =>
@@ -65,6 +66,30 @@ export function describeIssues(plan: Plan, issues: readonly PlanIssue[]): Descri
           `${nameOf(issue.code)} setzt ${credits(issue.required)} voraus, bis dahin sind ${credits(issue.available)} eingeplant.`,
           issue.code,
           `Erst ab ${credits(issue.required)}`,
+        )
+        break
+      case 'attempts_exhausted':
+        add(
+          issue.severity,
+          `${nameOf(issue.code)}: alle ${issue.maxAttempts} Versuche sind ohne Bestehen verbraucht. Bei Pflicht- und Wahlpflichtmodulen bedeutet das meist das endgültige Nichtbestehen. Sprich mit dem Prüfungsamt oder der Studienberatung.`,
+          issue.code,
+          'Keine Versuche mehr',
+        )
+        break
+      case 'last_attempt':
+        add(
+          issue.severity,
+          `${nameOf(issue.code)}: nur noch ein Versuch von ${issue.maxAttempts} übrig.${issue.supplementaryExam ? ` Fällst du im letzten Versuch durch eine Klausur, folgt erst eine Ergänzungsprüfung, danach ist ${graded(issue.code) ? 'höchstens 4,0' : 'nur „bestanden“'} möglich.` : ''}`,
+          issue.code,
+          'Letzter Versuch',
+        )
+        break
+      case 'retaken_after_pass':
+        add(
+          issue.severity,
+          `${nameOf(issue.code)} ist nach dem Bestehen noch einmal eingetragen. Laut Prüfungsordnung lassen sich bestandene Prüfungen nicht wiederholen.`,
+          issue.code,
+          'Nach dem Bestehen wiederholt',
         )
         break
       case 'area_below_minimum':

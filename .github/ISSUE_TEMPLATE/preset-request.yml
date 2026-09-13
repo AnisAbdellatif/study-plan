@@ -1,0 +1,56 @@
+name: Studiengang vorschlagen
+description: Eine Vorlage für einen Studiengang und eine Prüfungsordnung, die noch fehlt oder fehlerhaft ist
+title: 'Vorlage: <Hochschule>, <Studiengang>, <PO>'
+labels: [preset]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Danke! Vorlagen entstehen aus den offiziellen Dokumenten. Je vollständiger die Links, desto schneller geht es.
+        Wenn du selbst eine Vorlage bauen willst, lies `presets/README.md`.
+  - type: input
+    id: university
+    attributes:
+      label: Hochschule
+    validations:
+      required: true
+  - type: input
+    id: programme
+    attributes:
+      label: Studiengang und Abschluss
+      placeholder: Informatik B.Sc.
+    validations:
+      required: true
+  - type: input
+    id: po
+    attributes:
+      label: Prüfungsordnung (Version oder Jahr)
+    validations:
+      required: true
+  - type: textarea
+    id: sources
+    attributes:
+      label: Links zu Prüfungsordnung, Modulhandbuch und Studienverlaufsplan
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Worum geht es?
+      options:
+        - Neue Vorlage
+        - Fehler in einer bestehenden Vorlage
+        - Neue Prüfungsordnung für eine bestehende Vorlage
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Details
+      description: Bei Fehlern bitte Modul, erwarteten Wert und die Stelle in der Prüfungsordnung nennen.
+  - type: checkboxes
+    id: willing
+    attributes:
+      label: Mithilfe
+      options:
+        - label: Ich kann die fertige Vorlage mit meinem Notenspiegel prüfen

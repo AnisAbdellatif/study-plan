@@ -7,6 +7,8 @@ export const attemptSchema = z.object({
   attemptNo: z.number().int().min(1),
   result: z.enum(['passed', 'failed', 'registered', 'absent', 'withdrawn']),
   grade: gradeValueSchema.optional(),
+  /** Exam date of this attempt, YYYY-MM-DD. */
+  date: z.iso.date().optional(),
 })
 
 /** A module snapshotted from the preset when the plan was created, plus the student's attempts. */
@@ -44,6 +46,10 @@ export const presetInfoSchema = z.object({
   codesAreOfficial: z.boolean().optional(),
   /** Last day to withdraw from an exam, in days before it. From the preset's exam rules. */
   withdrawalDaysBeforeExam: z.number().int().min(0).max(60).optional(),
+  /** Attempt policy from the preset's exam rules. Missing means unknown, so no attempt warnings. */
+  maxAttempts: z.number().int().min(1).max(10).optional(),
+  retakePassedExams: z.boolean().optional(),
+  supplementaryExamOnLastAttempt: z.boolean().optional(),
 })
 export type PresetInfo = z.infer<typeof presetInfoSchema>
 
@@ -127,6 +133,9 @@ export function presetInfoFrom(preset: Preset): PresetInfo {
     creditLabel: preset.creditLabel,
     codesAreOfficial: preset.codesAreOfficial,
     withdrawalDaysBeforeExam: preset.examRules?.withdrawalDaysBeforeExam,
+    maxAttempts: preset.examRules?.maxAttempts,
+    retakePassedExams: preset.examRules?.retakePassedExams,
+    supplementaryExamOnLastAttempt: preset.examRules?.supplementaryExamOnLastAttempt,
   }
 }
 

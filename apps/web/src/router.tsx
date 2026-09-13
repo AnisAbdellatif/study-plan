@@ -10,6 +10,7 @@ import {
   ResetPasswordPage,
   SignInPage,
   SignUpPage,
+  UnsubscribePage,
 } from './routes/auth-pages.tsx'
 import { BoardPage } from './routes/board-page.tsx'
 import { SharedPlanPage } from './routes/shared-plan-page.tsx'
@@ -61,6 +62,12 @@ const sharedRoute = createRoute({
   component: SharedPlanPage,
 })
 
+const unsubscribeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/erinnerungen-abbestellen',
+  component: UnsubscribePage,
+})
+
 export const routeTree = rootRoute.addChildren([
   boardRoute,
   startRoute,
@@ -72,6 +79,7 @@ export const routeTree = rootRoute.addChildren([
   impressumRoute,
   datenschutzRoute,
   sharedRoute,
+  unsubscribeRoute,
 ])
 
 type RouterOptions = Parameters<typeof createRouter<typeof routeTree>>[0]

@@ -1,11 +1,13 @@
-import { addSemester, type Plan, removeLastSemester } from '@study-plan/shared'
+import { addSemester, findTransitions, type Plan, removeLastSemester } from '@study-plan/shared'
 import { useNavigate } from '@tanstack/react-router'
 import { Download, EllipsisVertical } from 'lucide-react'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import { presets } from '../presets.ts'
 import { useGuestStore } from '../store/guest-store.ts'
 import { AccountButton } from './account-button.tsx'
 import { useAnnounce } from './announcer.tsx'
 import { ImportGradesDialog } from './board/import-grades-dialog.tsx'
+import { PoSwitchDialog } from './board/po-switch-dialog.tsx'
 import { ShareDialog } from './board/share-dialog.tsx'
 import { ImportPlanButton } from './import-plan-button.tsx'
 import { Button } from './ui/button.tsx'
@@ -21,6 +23,15 @@ export function AppHeader({ plan }: { plan: Plan }) {
   const [confirmReset, setConfirmReset] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
+  const [switchOpen, setSwitchOpen] = useState(false)
+  const transitions = useMemo(
+    () =>
+      findTransitions(
+        plan,
+        presets.map((entry) => entry.preset),
+      ),
+    [plan],
+  )
 
   return (
     <header className="flex flex-wrap items-center gap-3">
@@ -48,6 +59,9 @@ export function AppHeader({ plan }: { plan: Plan }) {
             <MenuItem onClick={() => setImportOpen(true)}>Noten importieren…</MenuItem>
             <MenuItem onClick={() => setShareOpen(true)}>Plan teilen…</MenuItem>
             <MenuItem onClick={() => window.print()}>Drucken oder als PDF speichern</MenuItem>
+            {transitions.length > 0 ? (
+              <MenuItem onClick={() => setSwitchOpen(true)}>Prüfungsordnung wechseln…</MenuItem>
+            ) : null}
             <MenuSeparator />
             <MenuItem
               onClick={() => {
@@ -75,6 +89,7 @@ export function AppHeader({ plan }: { plan: Plan }) {
       </div>
       <ImportGradesDialog plan={plan} open={importOpen} onOpenChange={setImportOpen} />
       <ShareDialog open={shareOpen} onOpenChange={setShareOpen} />
+      <PoSwitchDialog plan={plan} transitions={transitions} open={switchOpen} onOpenChange={setSwitchOpen} />
       <ConfirmDialog
         open={confirmReset}
         onOpenChange={setConfirmReset}

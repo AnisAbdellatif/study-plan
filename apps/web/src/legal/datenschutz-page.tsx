@@ -72,8 +72,10 @@ export function DatenschutzPage() {
         </li>
         <li>dein Passwort nur als gesalzenen scrypt-Hash, niemals im Klartext,</li>
         <li>
-          deine Pläne: Studiengang, Module, Semester, Ergebnisse und Noten, Prüfungstermine und Zielschnitt,
+          deine Pläne: Studiengang, Module, Semester, Ergebnisse und Noten mit allen Prüfungsversuchen,
+          Prüfungstermine und Zielschnitt,
         </li>
+        <li>ob du E-Mail-Erinnerungen eingeschaltet hast,</li>
         <li>
           für jede Anmeldung einen zufälligen Sitzungsschlüssel, ihr Ablaufdatum sowie die IP-Adresse und die
           Browserkennung zum Zeitpunkt der Anmeldung. So kannst du erkennen, wo du angemeldet bist, und
@@ -103,8 +105,20 @@ export function DatenschutzPage() {
 
       <h2>7. E-Mails</h2>
       <p>
-        Wir schicken dir nur E-Mails, die für dein Konto nötig sind: die Bestätigung deiner E-Mail-Adresse und
-        Links zum Zurücksetzen deines Passworts (Art. 6 Abs. 1 lit. b DSGVO). Der Versand erfolgt über{' '}
+        Wir schicken dir E-Mails, die für dein Konto nötig sind: die Bestätigung deiner E-Mail-Adresse und
+        Links zum Zurücksetzen deines Passworts (Art. 6 Abs. 1 lit. b DSGVO).
+      </p>
+      <p>
+        Wenn du auf der Kontoseite E-Mail-Erinnerungen einschaltest, erinnern wir dich an Abmeldefristen und
+        Prüfungstermine, die du in deinen im Konto gespeicherten Plänen eingetragen hast. Die E-Mails
+        enthalten nur Modulnamen und Daten. Damit keine Erinnerung doppelt kommt, speichern wir zu jeder
+        verschickten Erinnerung den Plan, die Modulnummer, die Art und das Datum des Termins sowie den
+        Versandzeitpunkt und löschen diese Einträge 30 Tage nach dem Termin. Du schaltest die Erinnerungen
+        jederzeit auf der Kontoseite oder über den Link in jeder Erinnerung aus. Rechtsgrundlage ist Art. 6
+        Abs. 1 lit. b DSGVO.
+      </p>
+      <p>
+        Der Versand aller E-Mails erfolgt über{' '}
         <Filled value={operator.mailProvider} placeholder="E-Mail-Versanddienst" />, der die Daten in unserem
         Auftrag verarbeitet (Art. 28 DSGVO).
       </p>

@@ -14,8 +14,9 @@ import { createApp } from './app.ts'
 import { createAuth } from './auth.ts'
 import { loadConfig } from './config.ts'
 import { type DatabaseConnection, openDatabase } from './db/connection.ts'
-import { account, planShare, plan as planTable, user as userTable } from './db/schema.ts'
-import { createMemoryMailer } from './mail.ts'
+import { account, planShare, plan as planTable, reminderDelivery, user as userTable } from './db/schema.ts'
+import { createMemoryMailer, type Mailer } from './mail.ts'
+import { berlinDate, runReminders, UNSUBSCRIBE_PATH, verifyUnsubscribeToken } from './reminders.ts'
 import { MAX_PLANS_PER_USER } from './routes/plans.ts'
 
 const config = loadConfig({
@@ -489,5 +490,129 @@ describe('sharing', () => {
     expect(text).not.toContain(token)
     const data = JSON.parse(text) as { shares: { planId: string; revokedAt: string | null }[] }
     expect(data.shares.some((share) => share.planId === planId && share.revokedAt === null)).toBe(true)
+  })
+})
+
+describe('reminders', () => {
+  const email = 'erinnerung@example.org'
+  let cookie = ''
+
+  const reminderDocument = () => {
+    const document = planDocument('Mit Prüfungen')
+    document.plan = setExamDate(document.plan, 'INF-101', '2027-02-15')
+    return document
+  }
+  const remindersFor = (to: string) =>
+    mailer.sent.filter((mail) => mail.to === to && mail.subject.startsWith('Erinnerung'))
+
+  beforeAll(async () => {
+    cookie = await registerVerifiedUser(email)
+    expect(
+      (await call('/api/plans', { method: 'POST', cookie, body: { document: reminderDocument() } })).status,
+    ).toBe(201)
+  })
+
+  it('uses the German calendar date', () => {
+    expect(berlinDate(new Date('2027-02-04T23:30:00Z'))).toBe('2027-02-05')
+    expect(berlinDate(new Date('2027-07-04T22:30:00Z'))).toBe('2027-07-05')
+  })
+
+  it('sends nothing until the student turns reminders on', async () => {
+    expect(await json(await call('/api/account/notifications', { cookie }))).toEqual({ examReminders: false })
+    await runReminders({ db: connection.db, mailer, config }, new Date('2027-02-05T08:00:00Z'))
+    expect(remindersFor(email)).toEqual([])
+
+    expect(
+      (await call('/api/account/notifications', { method: 'PUT', cookie, body: { examReminders: 'ja' } }))
+        .status,
+    ).toBe(400)
+    const updated = await call('/api/account/notifications', {
+      method: 'PUT',
+      cookie,
+      body: { examReminders: true },
+    })
+    expect(await json(updated)).toEqual({ examReminders: true })
+    expect(await json(await call('/api/account/notifications', { cookie }))).toEqual({ examReminders: true })
+  })
+
+  it('mails each deadline once, with module and date only and a one-click unsubscribe header', async () => {
+    const run = await runReminders({ db: connection.db, mailer, config }, new Date('2027-02-05T08:00:00Z'))
+    expect(run).toEqual({ mailsSent: 1, failures: 0 })
+    const [mail] = remindersFor(email)
+    expect(mail?.subject).toBe('Erinnerung: Abmeldefristen und Prüfungen')
+    expect(mail?.text).toContain(
+      '- Letzter Tag zur Abmeldung: Grundlagen der Programmierung, Mo., 8. Februar 2027',
+    )
+    expect(mail?.text).not.toContain('Prüfung: Grundlagen')
+    expect(mail?.headers?.['List-Unsubscribe-Post']).toBe('List-Unsubscribe=One-Click')
+    expect(mail?.headers?.['List-Unsubscribe']).toMatch(
+      /^<http:\/\/localhost:5173\/api\/notifications\/unsubscribe\?token=/,
+    )
+
+    await runReminders({ db: connection.db, mailer, config }, new Date('2027-02-05T18:00:00Z'))
+    expect(remindersFor(email)).toHaveLength(1)
+
+    await runReminders({ db: connection.db, mailer, config }, new Date('2027-02-08T08:00:00Z'))
+    const reminders = remindersFor(email)
+    expect(reminders).toHaveLength(2)
+    expect(reminders[1]?.subject).toBe('Erinnerung: anstehende Prüfungen')
+    expect(reminders[1]?.text).toContain('- Prüfung: Grundlagen der Programmierung, Mo., 15. Februar 2027')
+  })
+
+  it('retries on the next run when sending fails', async () => {
+    const other = 'erinnerung-fehler@example.org'
+    const otherCookie = await registerVerifiedUser(other)
+    await call('/api/plans', { method: 'POST', cookie: otherCookie, body: { document: reminderDocument() } })
+    await call('/api/account/notifications', {
+      method: 'PUT',
+      cookie: otherCookie,
+      body: { examReminders: true },
+    })
+
+    const failing: Mailer = {
+      send: async (mail) => {
+        if (mail.to === other) throw new Error('SMTP down')
+      },
+    }
+    const now = new Date('2027-02-06T08:00:00Z')
+    const failed = await runReminders({ db: connection.db, mailer: failing, config }, now)
+    expect(failed.failures).toBe(1)
+    await runReminders({ db: connection.db, mailer, config }, now)
+    expect(remindersFor(other)).toHaveLength(1)
+  })
+
+  it('lists reminder settings and sent reminders in the account export', async () => {
+    const exported = await json<{ notifications: { examReminders: boolean }; reminders: { kind: string }[] }>(
+      await call('/api/account/export', { cookie }),
+    )
+    expect(exported.notifications.examReminders).toBe(true)
+    expect(exported.reminders.map((reminder) => reminder.kind).sort()).toEqual(['exam', 'withdrawal'])
+  })
+
+  it('unsubscribes with the token from the e-mail, without a session or Origin header', async () => {
+    const header = remindersFor(email)[0]?.headers?.['List-Unsubscribe'] ?? ''
+    const url = new URL(header.slice(1, -1))
+    expect(url.pathname).toBe(UNSUBSCRIBE_PATH)
+    const token = url.searchParams.get('token') ?? ''
+    const userId = verifyUnsubscribeToken(config.authSecret, token)
+    expect(userId).not.toBeNull()
+
+    const forged = await app.request(`${UNSUBSCRIBE_PATH}?token=${encodeURIComponent(`${userId}.falsch`)}`, {
+      method: 'POST',
+    })
+    expect(forged.status).toBe(400)
+
+    const oneClick = await app.request(`${url.pathname}${url.search}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: 'List-Unsubscribe=One-Click',
+    })
+    expect(oneClick.status).toBe(200)
+    expect(await json(await call('/api/account/notifications', { cookie }))).toEqual({ examReminders: false })
+  })
+
+  it('purges delivery records a month after the deadline', async () => {
+    await runReminders({ db: connection.db, mailer, config }, new Date('2027-03-20T08:00:00Z'))
+    expect(await connection.db.select().from(reminderDelivery)).toEqual([])
   })
 })

@@ -6,7 +6,9 @@ import { secureHeaders } from 'hono/secure-headers'
 import type { Auth } from './auth.ts'
 import type { Config } from './config.ts'
 import type { Database } from './db/connection.ts'
+import { UNSUBSCRIBE_PATH } from './reminders.ts'
 import { accountRoutes } from './routes/account.ts'
+import { notificationSettingsRoutes, unsubscribeRoutes } from './routes/notifications.ts'
 import { planRoutes } from './routes/plans.ts'
 import { planShareRoutes, publicShareRoutes } from './routes/shares.ts'
 import type { AppEnv } from './types.ts'
@@ -56,7 +58,10 @@ export function createApp({ config, db, auth, staticFiles }: AppDependencies) {
     '/api/*',
     bodyLimit({ maxSize: 1024 * 1024, onError: (c) => c.json({ error: 'payload_too_large' }, 413) }),
   )
-  app.use('/api/*', csrf({ origin: config.publicOrigin }))
+  const csrfProtection = csrf({ origin: config.publicOrigin })
+  // One-click unsubscribe requests come from mail clients without an Origin header. The endpoint only turns
+  // reminders off and needs a signed token, so a forged request cannot do harm.
+  app.use('/api/*', (c, next) => (c.req.path === UNSUBSCRIBE_PATH ? next() : csrfProtection(c, next)))
 
   app.get('/api/health', (c) => c.json({ status: 'ok' }))
   app.on(['GET', 'POST'], '/api/auth/*', (c) => auth.handler(c.req.raw))
@@ -75,7 +80,9 @@ export function createApp({ config, db, auth, staticFiles }: AppDependencies) {
   // Public: anyone with a share link may read the plan's structure.
   app.route('/api/share', publicShareRoutes(db, config))
   app.use('/api/account/*', requireUser)
+  app.route('/api/account/notifications', notificationSettingsRoutes(db))
   app.route('/api/account', accountRoutes(db))
+  app.route('/api/notifications', unsubscribeRoutes(db, config))
   app.all('/api/*', (c) => c.json({ error: 'not_found' }, 404))
 
   if (staticFiles) {

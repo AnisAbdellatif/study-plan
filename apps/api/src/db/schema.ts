@@ -6,6 +6,7 @@ import type { GuestDocument } from '@study-plan/shared'
 import {
   bigint,
   boolean,
+  date,
   index,
   integer,
   jsonb,
@@ -121,4 +122,36 @@ export const planShare = pgTable(
     revokedAt: timestamp('revoked_at', { withTimezone: true }),
   },
   (table) => [index('plan_share_plan_id_idx').on(table.planId)],
+)
+
+/** E-mail reminder settings. Reminders are opt-in: without a row they are off. */
+export const notificationSetting = pgTable('notification_setting', {
+  userId: text('user_id')
+    .primaryKey()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  examReminders: boolean('exam_reminders').notNull().default(false),
+  ...timestamps(),
+})
+
+/** One row per reminder sent, so each deadline is mailed only once. Old rows are purged after the deadline. */
+export const reminderDelivery = pgTable(
+  'reminder_delivery',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    planId: uuid('plan_id')
+      .notNull()
+      .references(() => plan.id, { onDelete: 'cascade' }),
+    moduleCode: text('module_code').notNull(),
+    kind: text('kind', { enum: ['withdrawal', 'exam'] }).notNull(),
+    eventDate: date('event_date', { mode: 'string' }).notNull(),
+    sentAt: timestamp('sent_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('reminder_delivery_event_idx').on(
+      table.planId,
+      table.moduleCode,
+      table.kind,
+      table.eventDate,
+    ),
+  ],
 )

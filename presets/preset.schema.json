@@ -90,7 +90,57 @@
           "type": "integer",
           "minimum": 0,
           "maximum": 60
+        },
+        "maxAttempts": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10
+        },
+        "retakePassedExams": {
+          "type": "boolean"
+        },
+        "supplementaryExamOnLastAttempt": {
+          "type": "boolean"
         }
+      }
+    },
+    "transitions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "fromPresetId": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]+\\/[a-z0-9-]+$"
+          },
+          "moduleMap": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "from": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "to": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "from",
+                "to"
+              ]
+            }
+          },
+          "notes": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "fromPresetId",
+          "moduleMap"
+        ]
       }
     },
     "notes": {
@@ -245,6 +295,11 @@
           "requiresCredits": {
             "type": "number",
             "minimum": 0
+          },
+          "maxAttempts": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10
           }
         },
         "required": [

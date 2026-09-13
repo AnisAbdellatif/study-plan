@@ -20,6 +20,8 @@ const envSchema = z.object({
    * limiting; only set it when the proxy overwrites the header, otherwise clients could spoof it.
    */
   IP_ADDRESS_HEADER: z.string().min(1).optional(),
+  /** How often reminder e-mails are checked, in minutes. 0 turns reminders off for this process. */
+  REMINDER_INTERVAL_MINUTES: z.coerce.number().int().min(0).max(1440).default(60),
 })
 
 export interface Config {
@@ -34,6 +36,8 @@ export interface Config {
   mailFrom: string
   webDist: string | undefined
   ipAddressHeaders: string[] | undefined
+  /** 0 when reminders are off. */
+  reminderIntervalMinutes: number
 }
 
 export function loadConfig(source: Record<string, string | undefined> = process.env): Config {
@@ -60,5 +64,6 @@ export function loadConfig(source: Record<string, string | undefined> = process.
     mailFrom: env.MAIL_FROM,
     webDist: env.WEB_DIST,
     ipAddressHeaders: env.IP_ADDRESS_HEADER?.split(',').map((header) => header.trim().toLowerCase()),
+    reminderIntervalMinutes: env.REMINDER_INTERVAL_MINUTES,
   }
 }
