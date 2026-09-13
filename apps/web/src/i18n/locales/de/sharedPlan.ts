@@ -7,6 +7,8 @@ export const sharedPlan = {
   adopt: 'Als eigenen Plan übernehmen',
   semester: '{{number}}. Semester',
   backlog: 'Nicht eingeplant',
+  backlogList_one: '{{count}} nicht eingeplantes Modul',
+  backlogList_other: '{{count}} nicht eingeplante Module',
   legend: 'Bereiche',
   placeholder: 'Platzhalter',
   custom: 'Eigenes Modul',

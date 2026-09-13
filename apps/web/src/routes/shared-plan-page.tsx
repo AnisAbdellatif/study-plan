@@ -134,7 +134,18 @@ function SharedPlanView({ response, plan }: { response: SharedPlanResponse; plan
             {column.subtitle ? (
               <p className="text-xs text-zinc-600 dark:text-zinc-400">{column.subtitle}</p>
             ) : null}
-            <ul className="mt-2 space-y-1.5">
+            <ul
+              // Every option of a choice area ends up here, so the list scrolls instead of stretching the page.
+              // Focusable, so keyboard users can scroll it too; printing shows everything.
+              {...(column.key === 'backlog'
+                ? { tabIndex: 0, 'aria-label': t('backlogList', { count: column.codes.length }) }
+                : {})}
+              className={cn(
+                'mt-2 space-y-1.5',
+                column.key === 'backlog' &&
+                  '-mx-1 max-h-[60dvh] overflow-y-auto overscroll-contain px-1 pb-1 focus-visible:outline-2 focus-visible:outline-indigo-500 print:max-h-none print:overflow-visible',
+              )}
+            >
               {column.codes.map((code) => {
                 if (isPlaceholderId(code)) {
                   const areaId = placeholderAreas.get(code)

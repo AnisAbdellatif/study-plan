@@ -10,6 +10,8 @@ export const sharedPlan = {
   adopt: 'Use as my own plan',
   semester: 'Semester {{number}}',
   backlog: 'Not scheduled',
+  backlogList_one: '{{count}} module not scheduled',
+  backlogList_other: '{{count}} modules not scheduled',
   legend: 'Areas',
   placeholder: 'Placeholder',
   custom: 'Custom module',
