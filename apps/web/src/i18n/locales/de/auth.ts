@@ -33,7 +33,8 @@ export const auth = {
       'Dein Plan aus diesem Browser lässt sich danach im Konto sichern. Wir brauchen nur deine E-Mail-Adresse und ein Passwort.',
     passwordHint:
       'Mindestens {{min}} Zeichen. Ein langer Satz ist leichter zu merken als ein kurzes, kompliziertes Passwort.',
-    privacy: 'Welche Daten wir speichern, steht in der <privacyLink>Datenschutzerklärung</privacyLink>.',
+    privacyConsent:
+      'Ich habe die <privacyLink>Datenschutzerklärung</privacyLink> gelesen und akzeptiere sie.',
     submit: 'Konto erstellen',
     pending: 'Wird erstellt…',
     haveAccount: 'Schon ein Konto? Anmelden',

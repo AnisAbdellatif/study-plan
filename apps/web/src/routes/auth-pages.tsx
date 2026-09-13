@@ -188,9 +188,13 @@ export function SignUpPage() {
   const [error, setError] = useState<AuthError | null>(null)
   const [sentTo, setSentTo] = useState<string | null>(null)
   const [resent, setResent] = useState(false)
+  const [acceptedPrivacy, setAcceptedPrivacy] = useState(false)
+  const privacyId = useId()
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
+    // The checkbox is required, so browsers block the submit; this also covers ones that skip validation.
+    if (!acceptedPrivacy) return
     setPending(true)
     setError(null)
     const result = await authClient.signUp.email({
@@ -259,13 +263,26 @@ export function SignUpPage() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
-        <p className="text-xs text-zinc-600 dark:text-zinc-400">
-          <Trans
-            t={t}
-            i18nKey="signUp.privacy"
-            components={{ privacyLink: <Link to="/privacy" className={linkClass} /> }}
+        <div className="flex items-start gap-2.5">
+          <input
+            id={privacyId}
+            type="checkbox"
+            required
+            checked={acceptedPrivacy}
+            onChange={(event) => setAcceptedPrivacy(event.target.checked)}
+            className="mt-0.5 size-4 shrink-0 accent-indigo-600"
           />
-        </p>
+          <label htmlFor={privacyId} className="text-sm text-zinc-700 dark:text-zinc-300">
+            <Trans
+              t={t}
+              i18nKey="signUp.privacyConsent"
+              components={{
+                // A new tab keeps the half-filled form.
+                privacyLink: <Link to="/privacy" target="_blank" rel="noopener" className={linkClass} />,
+              }}
+            />
+          </label>
+        </div>
         <Button type="submit" variant="primary" className="w-full" disabled={pending}>
           {pending ? t('signUp.pending') : t('signUp.submit')}
         </Button>
