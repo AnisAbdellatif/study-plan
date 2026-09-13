@@ -7,6 +7,7 @@ import { BrandMark } from '../components/brand-logo.tsx'
 import { Button } from '../components/ui/button.tsx'
 import { ConfirmDialog } from '../components/ui/dialog.tsx'
 import { LoadingText, Spinner } from '../components/ui/spinner.tsx'
+import { useSignOut } from '../components/use-sign-out.ts'
 import i18n, { currentLocale } from '../i18n/index.ts'
 import { adminApi, notificationApi } from '../lib/api.ts'
 import { authClient } from '../lib/auth-client.ts'
@@ -633,6 +634,7 @@ export function AccountPage() {
   const [exporting, setExporting] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const signOutAndReset = useSignOut()
 
   if (sessionPending) {
     return (
@@ -662,9 +664,12 @@ export function AccountPage() {
 
   const signOut = async () => {
     setSigningOut(true)
-    await authClient.signOut()
-    sync.stop()
-    void navigate({ to: '/' })
+    // Navigates to the start page, which unmounts this page; no need to reset the flag on success.
+    try {
+      await signOutAndReset()
+    } catch {
+      setSigningOut(false)
+    }
   }
 
   const deleteAccount = async () => {
