@@ -5,9 +5,10 @@ See [project.md](project.md) for the brief and [assessment.md](assessment.md) fo
 
 ## Status
 
-Milestone 1 of the assessment: the grade engine.
+Milestone 2 of the assessment: the guest board, on top of the milestone 1 grade engine.
 
-- `packages/shared`: Zod schemas for presets and grade rules, and a pure grade engine using exact integer arithmetic.
+- `apps/web`: React app. Pick a preset and a start term, then plan modules across semesters by dragging or with each card's menu. Enter grades and see the running average, ECTS progress and area progress. Data stays in this browser's local storage and can be exported and imported as JSON. No account needed.
+- `packages/shared`: Zod schemas for presets, grade rules and plans, the grade engine with exact integer arithmetic, and pure plan operations reused by the web app and later by the server.
 - `presets/`: study-programme presets as JSON, validated in CI. The only preset so far is a fictional example.
 
 ## Requirements
@@ -19,11 +20,13 @@ Milestone 1 of the assessment: the grade engine.
 
 ```bash
 bun install
+bun run dev
 bun run test
 bun run typecheck
 bun run lint
 bun run presets:validate
 bun run presets:schema
+bun run build
 ```
 
 ## How grades are computed

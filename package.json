@@ -3,16 +3,19 @@
   "private": true,
   "type": "module",
   "workspaces": [
+    "apps/*",
     "packages/*"
   ],
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc -p packages/shared",
+    "typecheck": "tsc -p packages/shared && tsc -p apps/web",
     "lint": "biome check .",
     "format": "biome check --write .",
     "presets:validate": "bun packages/shared/scripts/validate-presets.ts",
-    "presets:schema": "bun packages/shared/scripts/generate-preset-schema.ts"
+    "presets:schema": "bun packages/shared/scripts/generate-preset-schema.ts",
+    "dev": "bun run --filter @study-plan/web dev",
+    "build": "bun run --filter @study-plan/web build"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.0",

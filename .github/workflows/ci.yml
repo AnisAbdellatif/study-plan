@@ -24,6 +24,7 @@ jobs:
       - name: Preset JSON Schema is up to date
         run: bun run presets:schema && git diff --exit-code presets/preset.schema.json
       - run: bun run test
+      - run: bun run build
       - run: bun audit --audit-level=high --prod
 
   node:
