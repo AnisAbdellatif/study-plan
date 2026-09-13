@@ -6,7 +6,7 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["**", "!**/node_modules", "!**/bun.lock", "!presets/preset.schema.json"]
+    "includes": ["**", "!**/node_modules", "!**/bun.lock", "!presets/preset.schema.json", "!apps/api/drizzle"]
   },
   "formatter": {
     "indentStyle": "space",

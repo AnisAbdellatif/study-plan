@@ -9,13 +9,16 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc -p packages/shared && tsc -p apps/web",
+    "typecheck": "tsc -p packages/shared && tsc -p apps/web && tsc -p apps/api",
     "lint": "biome check .",
     "format": "biome check --write .",
     "presets:validate": "bun packages/shared/scripts/validate-presets.ts",
     "presets:schema": "bun packages/shared/scripts/generate-preset-schema.ts",
-    "dev": "bun run --filter @study-plan/web dev",
-    "build": "bun run --filter @study-plan/web build"
+    "dev": "bun run --filter '@study-plan/*' dev",
+    "build": "bun run --filter @study-plan/web build",
+    "presets:lock": "bun packages/shared/scripts/preset-lock.ts --write",
+    "presets:check": "bun packages/shared/scripts/preset-lock.ts",
+    "db:generate": "bun run --filter @study-plan/api db:generate"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.0",

@@ -1,0 +1,29 @@
+{
+  "name": "@study-plan/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --watch src/main.ts",
+    "start": "bun src/main.ts",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "bun src/db/migrate-cli.ts"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@study-plan/shared": "workspace:*",
+    "better-auth": "^1.7.2",
+    "drizzle-orm": "^0.45.2",
+    "hono": "^4.13.7",
+    "nodemailer": "^10.0.0",
+    "postgres": "^3.4.9",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.1",
+    "@types/node": "^24.0.0",
+    "@types/nodemailer": "^8.0.1",
+    "drizzle-kit": "^0.31.10",
+    "vitest": "^5.0.0"
+  }
+}

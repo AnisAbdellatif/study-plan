@@ -16,6 +16,7 @@ import {
 } from '@study-plan/shared'
 import { Navigate } from '@tanstack/react-router'
 import { useCallback, useMemo, useState } from 'react'
+import { AccountSyncBanner } from '../components/account-sync.tsx'
 import { useAnnounce } from '../components/announcer.tsx'
 import { AppHeader } from '../components/app-header.tsx'
 import { GradeDialog } from '../components/board/grade-dialog.tsx'
@@ -99,6 +100,7 @@ function Board({ plan }: { plan: Plan }) {
     <main className="mx-auto max-w-[96rem] space-y-4 px-4 py-5 sm:px-6">
       <AppHeader plan={plan} />
       <StorageNotice plan={plan} />
+      <AccountSyncBanner />
       <SummaryPanel plan={plan} summary={summary} />
       <PlanInsights
         plan={plan}

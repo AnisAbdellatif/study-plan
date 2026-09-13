@@ -21,6 +21,7 @@ jobs:
       - run: bun run lint
       - run: bun run typecheck
       - run: bun run presets:validate
+      - run: bun run presets:check
       - name: Preset JSON Schema is up to date
         run: bun run presets:schema && git diff --exit-code presets/preset.schema.json
       - run: bun run test
@@ -41,3 +42,4 @@ jobs:
       - run: bun ci
       - run: npx --no-install vitest run
       - run: node packages/shared/scripts/validate-presets.ts
+      - run: node packages/shared/scripts/preset-lock.ts

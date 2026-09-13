@@ -3,6 +3,7 @@ import { Download, TriangleAlert } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { cn } from '../lib/cn.ts'
 import { useGuestState } from '../store/guest-store.ts'
+import { useAccountSync } from './account-sync.tsx'
 import { Button } from './ui/button.tsx'
 import { useExportPlan } from './use-export-plan.ts'
 
@@ -39,6 +40,7 @@ function Notice({
 export function StorageNotice({ plan }: { plan: Plan }) {
   const { saveFailed, lastExportedAt } = useGuestState()
   const exportPlan = useExportPlan()
+  const { user, state } = useAccountSync()
   const [dismissed, setDismissed] = useState(false)
 
   const exportButton = (
@@ -60,7 +62,9 @@ export function StorageNotice({ plan }: { plan: Plan }) {
   const exportIsStale =
     lastExportedAt === null || Date.now() - Date.parse(lastExportedAt) > EXPORT_REMINDER_DAYS * DAY_MS
   const hasChanges = plan.updatedAt !== plan.createdAt
-  if (dismissed || !exportIsStale || !hasChanges) return null
+  // A plan saved in the account survives cleared browser data, so the export reminder is not needed.
+  const savedInAccount = user !== null && state.kind === 'synced'
+  if (dismissed || !exportIsStale || !hasChanges || savedInAccount) return null
 
   return (
     <Notice

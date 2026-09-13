@@ -3,6 +3,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { Download, EllipsisVertical } from 'lucide-react'
 import { useState } from 'react'
 import { useGuestStore } from '../store/guest-store.ts'
+import { AccountButton } from './account-button.tsx'
 import { useAnnounce } from './announcer.tsx'
 import { ImportPlanButton } from './import-plan-button.tsx'
 import { Button } from './ui/button.tsx'
@@ -29,6 +30,7 @@ export function AppHeader({ plan }: { plan: Plan }) {
         </p>
       </div>
       <div className="flex items-center gap-2">
+        <AccountButton />
         <Button onClick={() => exportPlan(plan)}>
           <Download aria-hidden className="size-4" />
           <span className="sr-only sm:not-sr-only">Exportieren</span>

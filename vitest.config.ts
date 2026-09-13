@@ -12,6 +12,7 @@ export default defineConfig({
       },
       // Bun installs workspaces in isolated mode, so the web project keeps its own config next to its dependencies.
       'apps/web',
+      'apps/api',
     ],
   },
 })

@@ -10,7 +10,7 @@ import { presetSchema } from '../src/schema/preset.ts'
 
 const presetsDir = fileURLToPath(new URL('../../../presets/', import.meta.url))
 const files = readdirSync(presetsDir, { recursive: true, encoding: 'utf8' })
-  .filter((file) => file.endsWith('.json') && !file.endsWith('.schema.json'))
+  .filter((file) => file.endsWith('.json') && !file.endsWith('.schema.json') && !file.endsWith('.lock.json'))
   .sort()
 
 let failures = 0
