@@ -3,6 +3,7 @@ import { Search } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { currentLocale } from '../../i18n/index.ts'
+import { examKindLabels } from '../../lib/exam-kinds.ts'
 import { formatCredits } from '../../lib/format.ts'
 import { moduleMatchesQuery } from '../../lib/module-search.ts'
 import { Button } from '../ui/button.tsx'
@@ -42,6 +43,7 @@ function OptionFacts({
         <span className="tabular-nums">
           {formatCredits(module.credits)} {creditLabel}
         </span>
+        {examKindLabels(module).length > 0 ? <span>· {examKindLabels(module).join(' / ')}</span> : null}
         {warn && onlyIn !== null ? (
           <span className="font-medium text-amber-700 dark:text-amber-400">
             · {t(`picker.offeredOnly.${onlyIn}`)}

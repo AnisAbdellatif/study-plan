@@ -31,6 +31,15 @@ export const board = {
     warnings_one: '{{count}} warning',
     warnings_other: '{{count}} warnings',
   },
+  examKinds: {
+    written: 'Written exam',
+    oral: 'Oral exam',
+    project: 'Project',
+    presentation: 'Presentation',
+    paper: 'Paper',
+    practical: 'Practical',
+    portfolio: 'Portfolio',
+  },
   storage: {
     accountReminder:
       "Your plan is only stored in this browser so far. Some browsers, such as Safari, delete data from sites you haven't visited in a while. Save it to your account to have it on all your devices, or export it as a file.",
@@ -83,6 +92,10 @@ export const board = {
     failed: 'failed',
     notCounted: "doesn't count toward the grade average",
     internship: 'Internship',
+    counts: 'counts toward the grade average',
+    countsShort: 'avg',
+    notCountedShort: 'no avg',
+    examKindSr: 'Assessment:',
     retired: 'no longer in the examination regulations',
     attempt: 'Attempt {{number}}',
     registered: 'registered',

@@ -28,6 +28,15 @@ export const board = {
     warnings_one: '{{count}} Warnung',
     warnings_other: '{{count}} Warnungen',
   },
+  examKinds: {
+    written: 'Klausur',
+    oral: 'Mündlich',
+    project: 'Projekt',
+    presentation: 'Referat',
+    paper: 'Hausarbeit',
+    practical: 'Praktisch',
+    portfolio: 'Portfolio',
+  },
   storage: {
     accountReminder:
       'Dein Plan liegt bisher nur in diesem Browser. Manche Browser, etwa Safari, löschen Daten von Seiten, die du länger nicht besucht hast. Sichere ihn im Konto, dann ist er auf allen deinen Geräten verfügbar, oder exportiere ihn als Datei.',
@@ -81,6 +90,10 @@ export const board = {
     failed: 'nicht bestanden',
     notCounted: 'zählt nicht zum Schnitt',
     internship: 'Praktikum',
+    counts: 'zählt zum Schnitt',
+    countsShort: 'Ø',
+    notCountedShort: 'kein Ø',
+    examKindSr: 'Prüfungsform:',
     retired: 'nicht mehr in der Prüfungsordnung',
     attempt: '{{number}}. Versuch',
     registered: 'angemeldet',

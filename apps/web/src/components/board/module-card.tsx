@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { type AreaTone, NEUTRAL_TONE } from '../../lib/area-colors.ts'
 import { cn } from '../../lib/cn.ts'
 import { useDraggableModule } from '../../lib/dnd.ts'
+import { examKindLabels } from '../../lib/exam-kinds.ts'
 import { formatCredits, formatGrade, formatShortDate } from '../../lib/format.ts'
 import type { IssueText } from '../../lib/issues.ts'
 import { Button } from '../ui/button.tsx'
@@ -128,8 +129,34 @@ export const ModuleCard = memo(function ModuleCard({
             <span className="tabular-nums">
               {formatCredits(module.credits)} {creditLabel}
             </span>
-            {module.countsTowardAverage ? null : <span>· {t('card.notCounted')}</span>}
+            {/* Minimal marker; the full sentence is the tooltip and what screen readers hear. */}
+            <span
+              className={cn(
+                'rounded px-1.5 py-0.5 font-medium',
+                module.countsTowardAverage
+                  ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-500/20 dark:text-indigo-200'
+                  : 'bg-white/80 text-zinc-500 dark:bg-zinc-950/50 dark:text-zinc-400',
+              )}
+              title={t(module.countsTowardAverage ? 'card.counts' : 'card.notCounted')}
+            >
+              <span className="sr-only">
+                {t(module.countsTowardAverage ? 'card.counts' : 'card.notCounted')}
+              </span>
+              <span aria-hidden>
+                {t(module.countsTowardAverage ? 'card.countsShort' : 'card.notCountedShort')}
+              </span>
+            </span>
             {module.internship ? <span>· {t('card.internship')}</span> : null}
+            {examKindLabels(module).length > 0 ? (
+              // The verbatim forms ("Klausur (90 Min.)") are in the details; the card only names the kind.
+              <span
+                className="rounded bg-white/80 px-1.5 py-0.5 dark:bg-zinc-950/50"
+                title={module.details?.examForms?.join(' · ')}
+              >
+                <span className="sr-only">{t('card.examKindSr')} </span>
+                {examKindLabels(module).join(' / ')}
+              </span>
+            ) : null}
             {module.retired ? <span>· {t('card.retired')}</span> : null}
             <ResultBadge module={module} passThreshold={passThreshold} />
             {module.attempts.length > 1 ? (
