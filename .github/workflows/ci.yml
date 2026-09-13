@@ -1,8 +1,10 @@
 name: CI
 
+# Changes land on dev first and reach main through pull requests. Both branches build an image and deploy:
+# main to production (image tags latest and <sha>), dev to the dev stack (image tags dev and dev-<sha>).
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
 
 permissions:
@@ -66,10 +68,10 @@ jobs:
       - run: bun ci
       - run: bunx vitest run --project api
 
-  # Only on main, and only after all checks passed: build the image and push it to GitHub Container Registry.
+  # Only for pushes to main or dev, and only after all checks passed.
   image:
     name: Build and push image
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'dev')
     needs: [bun, node, postgres]
     runs-on: ubuntu-24.04
     permissions:
@@ -77,10 +79,21 @@ jobs:
       packages: write
     outputs:
       image: ${{ steps.name.outputs.image }}
+      tag: ${{ steps.name.outputs.tag }}
+      alias: ${{ steps.name.outputs.alias }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - id: name
-        run: echo "image=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+        # main: <sha> and latest. dev: dev-<sha> and dev. The stable latest tag never comes from dev.
+        run: |
+          echo "image=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+          if [ "$GITHUB_REF_NAME" = main ]; then
+            echo "tag=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+            echo "alias=latest" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=dev-$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+            echo "alias=dev" >> "$GITHUB_OUTPUT"
+          fi
       - name: Log in to ghcr.io
         env:
           TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -88,6 +101,8 @@ jobs:
       - name: Build and push
         env:
           IMAGE: ${{ steps.name.outputs.image }}
+          TAG: ${{ steps.name.outputs.tag }}
+          ALIAS: ${{ steps.name.outputs.alias }}
           # Operator details for the legal pages, compiled into the web app. Set them as repository variables.
           VITE_OPERATOR_NAME: ${{ vars.VITE_OPERATOR_NAME }}
           VITE_OPERATOR_STREET: ${{ vars.VITE_OPERATOR_STREET }}
@@ -103,20 +118,21 @@ jobs:
             --build-arg VITE_OPERATOR_NAME --build-arg VITE_OPERATOR_STREET --build-arg VITE_OPERATOR_POSTAL_CITY \
             --build-arg VITE_OPERATOR_EMAIL --build-arg VITE_OPERATOR_PHONE --build-arg VITE_HOSTING_PROVIDER \
             --build-arg VITE_MAIL_PROVIDER --build-arg VITE_SERVER_LOG_RETENTION \
-            --cache-from "type=registry,ref=$IMAGE:buildcache" \
-            --cache-to "type=registry,ref=$IMAGE:buildcache,mode=max" \
-            --tag "$IMAGE:$GITHUB_SHA" --tag "$IMAGE:latest" \
+            --cache-from "type=registry,ref=$IMAGE:buildcache-$ALIAS" \
+            --cache-to "type=registry,ref=$IMAGE:buildcache-$ALIAS,mode=max" \
+            --tag "$IMAGE:$TAG" --tag "$IMAGE:$ALIAS" \
             .
 
-  # Copies the stack definition to the VPS, pulls the new image and restarts. Skipped until DEPLOY_HOST is set.
+  # main deploys to DEPLOY_PATH (default /opt/study-plan). dev deploys to DEV_DEPLOY_PATH and is skipped until that
+  # variable is set, so a dev push can never fall back to the production directory.
   deploy:
-    name: Deploy to the VPS
-    if: vars.DEPLOY_HOST != ''
+    name: Deploy ${{ github.ref_name == 'main' && 'production' || 'dev' }}
+    if: vars.DEPLOY_HOST != '' && (github.ref_name == 'main' || vars.DEV_DEPLOY_PATH != '')
     needs: image
     runs-on: ubuntu-24.04
-    environment: production
+    environment: ${{ github.ref_name == 'main' && 'production' || 'development' }}
     concurrency:
-      group: deploy-production
+      group: deploy-${{ github.ref_name }}
       cancel-in-progress: false
     permissions:
       contents: read
@@ -125,9 +141,17 @@ jobs:
       DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
       DEPLOY_USER: ${{ vars.DEPLOY_USER }}
       DEPLOY_PORT: ${{ vars.DEPLOY_PORT || '22' }}
-      DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '/opt/study-plan' }}
+      PRODUCTION_PATH: ${{ vars.DEPLOY_PATH || '/opt/study-plan' }}
+      TARGET_PATH: ${{ github.ref_name == 'main' && (vars.DEPLOY_PATH || '/opt/study-plan') || vars.DEV_DEPLOY_PATH }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Refuse to deploy dev into the production directory
+        if: github.ref_name != 'main'
+        run: |
+          if [ "${TARGET_PATH%/}" = "${PRODUCTION_PATH%/}" ]; then
+            echo "::error::DEV_DEPLOY_PATH must differ from the production path ($PRODUCTION_PATH)"
+            exit 1
+          fi
       - name: Set up SSH
         env:
           SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
@@ -139,20 +163,30 @@ jobs:
           chmod 600 ~/.ssh/deploy_key ~/.ssh/known_hosts
       - name: Copy the stack definition
         run: |
-          scp -i ~/.ssh/deploy_key -P "$DEPLOY_PORT" deploy/compose.yaml deploy/Caddyfile \
-            "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/"
+          if [ "$GITHUB_REF_NAME" = main ]; then
+            scp -i ~/.ssh/deploy_key -P "$DEPLOY_PORT" deploy/compose.yaml deploy/Caddyfile \
+              "$DEPLOY_USER@$DEPLOY_HOST:$TARGET_PATH/"
+          else
+            scp -i ~/.ssh/deploy_key -P "$DEPLOY_PORT" deploy/compose.dev.yaml \
+              "$DEPLOY_USER@$DEPLOY_HOST:$TARGET_PATH/compose.yaml"
+          fi
       - name: Pull and restart
         env:
           IMAGE: ${{ needs.image.outputs.image }}
+          TAG: ${{ needs.image.outputs.tag }}
+          ALIAS: ${{ needs.image.outputs.alias }}
           TOKEN: ${{ secrets.GITHUB_TOKEN }}
         # The registry token goes through stdin, never on a command line. It expires when this job ends.
+        # The pulled image is tagged as latest/dev on the VPS, so manual compose commands use it without a pull.
         run: |
           echo "$TOKEN" | ssh -i ~/.ssh/deploy_key -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
             "set -eu
-             cd '$DEPLOY_PATH'
+             cd '$TARGET_PATH'
+             docker network create study-plan-proxy >/dev/null 2>&1 || true
              docker login ghcr.io --username '$GITHUB_ACTOR' --password-stdin
-             export APP_IMAGE='$IMAGE' APP_TAG='$GITHUB_SHA'
-             docker compose pull app
-             docker compose up --detach --wait --remove-orphans
+             docker pull '$IMAGE:$TAG'
              docker logout ghcr.io
-             docker image prune --force"
+             docker tag '$IMAGE:$TAG' '$IMAGE:$ALIAS'
+             export APP_IMAGE='$IMAGE'
+             docker compose up --detach --wait --remove-orphans
+             docker image prune --all --force --filter until=336h"

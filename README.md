@@ -64,7 +64,16 @@ Before publishing:
 
 The `Dockerfile` builds one image: the API, which also serves the built web app. `deploy/compose.yaml` runs it on a VPS together with PostgreSQL and Caddy, which obtains the HTTPS certificate. PostgreSQL is only reachable from the app container.
 
-Every push to `main` runs the checks. When they pass, CI builds the image, pushes it to `ghcr.io/<owner>/<repository>` (tagged with the commit SHA and `latest`), copies `deploy/compose.yaml` and `deploy/Caddyfile` to the VPS over SSH, pulls the image and restarts with `docker compose up --wait`. A failing health check fails the deploy.
+Branches: changes go to `dev` first and reach `main` through pull requests, usually several at once. Protect `main` in the repository settings (Settings → Branches: require a pull request and the CI checks).
+
+Every push to `main` or `dev` runs the checks. When they pass, CI builds the image and pushes it to `ghcr.io/<owner>/<repository>`, copies the stack definition to the VPS over SSH, pulls the image and restarts with `docker compose up --wait`. A failing health check fails the deploy.
+
+| Branch | Image tags | VPS directory | Stack | Address |
+|---|---|---|---|---|
+| `main` | `latest`, `<sha>` | `DEPLOY_PATH` (`/opt/study-plan`) | `deploy/compose.yaml`: app, PostgreSQL, Caddy | `DOMAIN` |
+| `dev` | `dev`, `dev-<sha>` | `DEV_DEPLOY_PATH` (e.g. `/opt/study-plan-dev`) | `deploy/compose.dev.yaml`: app, PostgreSQL | `DEV_DOMAIN` |
+
+The dev stack has its own database, `.env` and superadmin, and never touches the production image tags or containers. Only one program can use ports 80 and 443, so the production Caddy also serves `DEV_DOMAIN`, forwarding it over the shared Docker network `study-plan-proxy`; the dev domain answers 502 while the dev stack is down. Dev deploys are skipped until `DEV_DEPLOY_PATH` is set.
 
 One-time setup:
 
@@ -74,8 +83,9 @@ One-time setup:
    - Secrets: `DEPLOY_SSH_KEY` (a private key whose public key is in the deploy user's `authorized_keys`) and `DEPLOY_KNOWN_HOSTS` (output of `ssh-keyscan -p <port> <host>`).
    The deploy job is skipped until `DEPLOY_HOST` is set; the image is still built.
 3. After the first deploy, sign in with `SUPERADMIN_EMAIL` and change the password.
+4. For the dev stack: add a DNS record for `DEV_DOMAIN`, create the directory (e.g. `/opt/study-plan-dev`, owned by the deploy user), put a filled-in copy of `deploy/dev.env.example` there as `.env` with its own passwords and secret, and set the repository variable `DEV_DEPLOY_PATH`. The next push to `dev` deploys it.
 
-Rolling back: on the VPS, `APP_TAG=<older commit sha> docker compose up -d`. Back up the database with `docker compose exec postgres pg_dump -U studyplan studyplan > backup.sql`.
+Each deploy tags the image it pulled as `latest` (or `dev`) on the VPS, so `docker compose up -d` in the stack's directory restarts the deployed version without logging in to the registry. Rolling back: `docker compose pull` is not needed; run `APP_TAG=<older commit sha> docker compose up -d` if that image is still on the VPS (unused images are removed after two weeks), otherwise revert the commit and push. Back up the database with `docker compose exec postgres pg_dump -U studyplan studyplan > backup.sql`.
 
 Building locally: `docker build -t study-plan .`
 

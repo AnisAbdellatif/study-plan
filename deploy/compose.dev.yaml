@@ -1,12 +1,13 @@
-# Production stack for the VPS: the app, PostgreSQL and Caddy for HTTPS.
-# Lives next to a .env file (see .env.example) in DEPLOY_PATH; the CI deploy job copies this file there.
-# Caddy also serves the dev stack (compose.dev.yaml) on DEV_DOMAIN through the shared study-plan-proxy network.
-name: study-plan
+# Dev stack for the VPS: the app built from the dev branch with its own PostgreSQL, in its own directory
+# (DEV_DEPLOY_PATH) next to a .env file (see dev.env.example). The CI deploy job copies this file there as
+# compose.yaml. It has no Caddy of its own: the production Caddy serves it on DEV_DOMAIN through the shared
+# study-plan-proxy network, so the production stack must be running.
+name: study-plan-dev
 
 services:
   app:
-    # The deploy job tags the image it deployed as latest on the VPS, so manual `docker compose up -d` needs no pull.
-    image: ${APP_IMAGE:?set APP_IMAGE}:${APP_TAG:-latest}
+    # The deploy job tags the image it deployed as dev on the VPS, so manual `docker compose up -d` needs no pull.
+    image: ${APP_IMAGE:?set APP_IMAGE}:${APP_TAG:-dev}
     pull_policy: missing
     restart: unless-stopped
     depends_on:
@@ -22,10 +23,13 @@ services:
       SUPERADMIN_EMAIL: ${SUPERADMIN_EMAIL:?set SUPERADMIN_EMAIL}
       SUPERADMIN_PASSWORD: ${SUPERADMIN_PASSWORD:?set SUPERADMIN_PASSWORD}
       SUPERADMIN_NAME: ${SUPERADMIN_NAME:-Superadmin}
-      REMINDER_INTERVAL_MINUTES: ${REMINDER_INTERVAL_MINUTES:-60}
-      # Caddy replaces this header with the real client address, so rate limiting can trust it.
+      REMINDER_INTERVAL_MINUTES: ${REMINDER_INTERVAL_MINUTES:-0}
       IP_ADDRESS_HEADER: x-forwarded-for
-    networks: [internal, web]
+    networks:
+      internal:
+      proxy:
+        # The production Caddyfile forwards DEV_DOMAIN to this name.
+        aliases: [study-plan-dev-app]
 
   postgres:
     image: postgres:18-alpine
@@ -41,38 +45,14 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
-    # Not published on the host; only the app reaches it.
     networks: [internal]
-
-  caddy:
-    image: caddy:2-alpine
-    restart: unless-stopped
-    depends_on:
-      app:
-        condition: service_healthy
-    ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
-    environment:
-      DOMAIN: ${DOMAIN:?set DOMAIN}
-      DEV_DOMAIN: ${DEV_DOMAIN:-dev.${DOMAIN}}
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy-data:/data
-      - caddy-config:/config
-    networks: [web, proxy]
 
 networks:
   internal:
     internal: true
-  web:
-  # Shared with the dev stack. Created by the deploy job: docker network create study-plan-proxy
   proxy:
     name: study-plan-proxy
     external: true
 
 volumes:
   postgres-data:
-  caddy-data:
-  caddy-config:
