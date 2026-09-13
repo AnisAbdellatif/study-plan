@@ -12,9 +12,11 @@ export const slugify = (value: string): string =>
 export const exportFilename = (plan: Plan, date: Date): string =>
   `studienplan-${slugify(plan.name) || 'export'}-${date.toISOString().slice(0, 10)}.json`
 
-/** Triggers a browser download of `data` as pretty-printed JSON. */
-export function downloadJson(filename: string, data: unknown): void {
-  const blob = new Blob([`${JSON.stringify(data, null, 2)}\n`], { type: 'application/json' })
+export const calendarFilename = (plan: Plan): string => `termine-${slugify(plan.name) || 'studienplan'}.ics`
+
+/** Triggers a browser download of text content. */
+export function downloadFile(filename: string, content: string, type: string): void {
+  const blob = new Blob([content], { type })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
@@ -24,3 +26,7 @@ export function downloadJson(filename: string, data: unknown): void {
   link.remove()
   setTimeout(() => URL.revokeObjectURL(url), 0)
 }
+
+/** Triggers a browser download of `data` as pretty-printed JSON. */
+export const downloadJson = (filename: string, data: unknown): void =>
+  downloadFile(filename, `${JSON.stringify(data, null, 2)}\n`, 'application/json')

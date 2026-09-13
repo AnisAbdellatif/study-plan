@@ -12,6 +12,8 @@ export const attemptSchema = z.object({
 /** A module snapshotted from the preset when the plan was created, plus the student's attempts. */
 export const planModuleSchema = presetModuleSchema.extend({
   attempts: z.array(attemptSchema),
+  /** Exam date the student entered, YYYY-MM-DD. */
+  examDate: z.iso.date().optional(),
 })
 export type PlanModule = z.infer<typeof planModuleSchema>
 
@@ -38,6 +40,8 @@ export const presetInfoSchema = z.object({
   creditLabel: z.enum(['ECTS', 'LP', 'CP']),
   /** Missing in plans created before the flag existed; treat as true. */
   codesAreOfficial: z.boolean().optional(),
+  /** Last day to withdraw from an exam, in days before it. From the preset's exam rules. */
+  withdrawalDaysBeforeExam: z.number().int().min(0).max(60).optional(),
 })
 export type PresetInfo = z.infer<typeof presetInfoSchema>
 
@@ -55,6 +59,8 @@ export const planSchema = z
     /** Module codes that are not placed in any semester yet ("Nicht eingeplant"). */
     backlog: z.array(z.string()),
     modules: z.array(planModuleSchema),
+    /** Zielschnitt for the what-if analysis. */
+    targetGrade: gradeValueSchema.optional(),
   })
   .superRefine((plan, ctx) => {
     const codes = new Set<string>()
@@ -147,6 +153,7 @@ export function createPlanFromPreset(preset: Preset, options: CreatePlanOptions)
       totalCredits: preset.totalCredits,
       creditLabel: preset.creditLabel,
       codesAreOfficial: preset.codesAreOfficial,
+      withdrawalDaysBeforeExam: preset.examRules?.withdrawalDaysBeforeExam,
     },
     rules: structuredClone(preset.gradeRules),
     areas: structuredClone(preset.areas),

@@ -44,17 +44,19 @@ interface GradeFormProps {
   rules: GradeRules
   creditLabel: string
   showCode: boolean
-  onSave: (entry: ResultEntry) => void
+  onSave: (entry: ResultEntry, examDate: string | null) => void
   onCancel: () => void
 }
 
 function GradeForm({ module, rules, creditLabel, showCode, onSave, onCancel }: GradeFormProps) {
   const id = useId()
   const [value, setValue] = useState(() => encode(currentResult(module)))
+  const dateId = useId()
+  const [examDate, setExamDate] = useState(module.examDate ?? '')
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
-    onSave(decode(value))
+    onSave(decode(value), examDate === '' ? null : examDate)
   }
 
   return (
@@ -83,6 +85,16 @@ function GradeForm({ module, rules, creditLabel, showCode, onSave, onCancel }: G
           </>
         )}
       </select>
+      <label htmlFor={dateId} className="mt-4 block text-sm font-medium">
+        Prüfungstermin <span className="font-normal text-zinc-500 dark:text-zinc-400">(optional)</span>
+      </label>
+      <input
+        id={dateId}
+        type="date"
+        value={examDate}
+        onChange={(event) => setExamDate(event.target.value)}
+        className="mt-1 h-10 w-full rounded-lg bg-white px-3 text-sm ring-1 ring-zinc-300 ring-inset focus-visible:outline-2 focus-visible:outline-indigo-500 dark:bg-zinc-950 dark:ring-zinc-700"
+      />
       <div className="mt-5 flex justify-end gap-2">
         <Button variant="secondary" onClick={onCancel}>
           Abbrechen
@@ -101,7 +113,7 @@ export interface GradeDialogProps {
   creditLabel: string
   /** False when the preset's module codes are made up; they are then hidden. */
   showCode: boolean
-  onSave: (code: string, entry: ResultEntry) => void
+  onSave: (code: string, entry: ResultEntry, examDate: string | null) => void
   onClose: () => void
 }
 
@@ -122,7 +134,7 @@ export function GradeDialog({ module, rules, creditLabel, showCode, onSave, onCl
           creditLabel={creditLabel}
           showCode={showCode}
           onCancel={onClose}
-          onSave={(entry) => onSave(module.code, entry)}
+          onSave={(entry, examDate) => onSave(module.code, entry, examDate)}
         />
       ) : null}
     </Dialog>

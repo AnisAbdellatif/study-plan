@@ -1,9 +1,10 @@
 import { currentResult, type PlanModule } from '@study-plan/shared'
-import { EllipsisVertical } from 'lucide-react'
+import { EllipsisVertical, Info, TriangleAlert } from 'lucide-react'
 import { useRef } from 'react'
 import { cn } from '../../lib/cn.ts'
 import { type MoveHandler, useDraggableModule } from '../../lib/dnd.ts'
-import { formatCredits, formatGrade } from '../../lib/format.ts'
+import { formatCredits, formatGrade, formatShortDate } from '../../lib/format.ts'
+import type { IssueText } from '../../lib/issues.ts'
 import { Button } from '../ui/button.tsx'
 import {
   MenuContent,
@@ -31,6 +32,8 @@ export interface ModuleCardProps {
   destinations: readonly Destination[]
   onMove: MoveHandler
   onGrade: (code: string) => void
+  /** Validation notes for this module, already worded for the card. */
+  notes: readonly IssueText[]
 }
 
 function ResultBadge({ module, passThreshold }: { module: PlanModule; passThreshold: number }) {
@@ -66,6 +69,7 @@ export function ModuleCard({
   destinations,
   onMove,
   onGrade,
+  notes,
 }: ModuleCardProps) {
   const ref = useRef<HTMLLIElement>(null)
   const { isDragging, closestEdge } = useDraggableModule(ref, { code: module.code, columnId, index })
@@ -76,6 +80,8 @@ export function ModuleCard({
       className={cn(
         'relative cursor-grab rounded-lg bg-white p-2.5 shadow-sm ring-1 ring-zinc-200 active:cursor-grabbing dark:bg-zinc-950 dark:ring-zinc-800',
         isDragging && 'opacity-40',
+        notes.some((note) => note.severity === 'warning') &&
+          'outline-2 outline-amber-400/70 dark:outline-amber-500/60',
       )}
     >
       {closestEdge ? (
@@ -100,7 +106,34 @@ export function ModuleCard({
             </span>
             {module.countsTowardAverage ? null : <span>· zählt nicht zum Schnitt</span>}
             <ResultBadge module={module} passThreshold={passThreshold} />
+            {module.examDate ? (
+              <span className="rounded bg-zinc-100 px-1.5 py-0.5 tabular-nums dark:bg-zinc-800">
+                Prüfung {formatShortDate(module.examDate)}
+              </span>
+            ) : null}
           </p>
+          {notes.length > 0 ? (
+            <ul className="mt-1.5 space-y-0.5 text-[11px] leading-snug">
+              {notes.map((note) => (
+                <li
+                  key={note.text}
+                  className={cn(
+                    'flex items-start gap-1',
+                    note.severity === 'warning'
+                      ? 'text-amber-700 dark:text-amber-400'
+                      : 'text-zinc-500 dark:text-zinc-400',
+                  )}
+                >
+                  {note.severity === 'warning' ? (
+                    <TriangleAlert aria-hidden className="mt-px size-3 shrink-0" />
+                  ) : (
+                    <Info aria-hidden className="mt-px size-3 shrink-0" />
+                  )}
+                  <span>{note.text}</span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </div>
         <MenuRoot>
           <MenuTrigger

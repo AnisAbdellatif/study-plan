@@ -132,3 +132,33 @@ export function removeLastSemester(plan: Plan): Plan {
     backlog: [...plan.backlog, ...last.moduleCodes],
   }
 }
+
+/** Sets or clears a module's exam date. Dates are calendar dates, YYYY-MM-DD. */
+export function setExamDate(plan: Plan, code: string, examDate: string | null): Plan {
+  findModule(plan, code)
+  if (examDate !== null) {
+    const parsed = new Date(`${examDate}T00:00:00Z`)
+    const valid =
+      /^\d{4}-\d{2}-\d{2}$/.test(examDate) &&
+      !Number.isNaN(parsed.getTime()) &&
+      parsed.toISOString().slice(0, 10) === examDate
+    if (!valid) throw new PlanError(`Invalid exam date "${examDate}"`)
+  }
+  return {
+    ...plan,
+    modules: plan.modules.map((module) => {
+      if (module.code !== code) return module
+      const { examDate: _previous, ...rest } = module
+      return examDate === null ? rest : { ...rest, examDate }
+    }),
+  }
+}
+
+/** Sets or clears the Zielschnitt used by the what-if analysis. */
+export function setTargetGrade(plan: Plan, grade: number | null): Plan {
+  if (grade !== null && !plan.rules.allowedValues.includes(grade)) {
+    throw new PlanError(`Grade ${grade} is not allowed for this plan`)
+  }
+  const { targetGrade: _previous, ...rest } = plan
+  return grade === null ? rest : { ...rest, targetGrade: grade }
+}

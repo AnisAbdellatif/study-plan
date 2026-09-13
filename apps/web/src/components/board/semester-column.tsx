@@ -4,7 +4,10 @@ import { useId, useRef } from 'react'
 import { cn } from '../../lib/cn.ts'
 import { type MoveHandler, useColumnDropTarget } from '../../lib/dnd.ts'
 import { formatCredits } from '../../lib/format.ts'
+import type { IssueText } from '../../lib/issues.ts'
 import { type Destination, ModuleCard } from './module-card.tsx'
+
+const NO_NOTES: readonly IssueText[] = []
 
 export interface ColumnModel {
   id: string | null
@@ -21,6 +24,7 @@ export interface SemesterColumnProps {
   passThreshold: number
   creditLabel: string
   showCode: boolean
+  notesByCode: ReadonlyMap<string, readonly IssueText[]>
   destinations: readonly Destination[]
   onMove: MoveHandler
   onGrade: (code: string) => void
@@ -32,6 +36,7 @@ export function SemesterColumn({
   passThreshold,
   creditLabel,
   showCode,
+  notesByCode,
   destinations,
   onMove,
   onGrade,
@@ -91,6 +96,7 @@ export function SemesterColumn({
             passThreshold={passThreshold}
             creditLabel={creditLabel}
             showCode={showCode}
+            notes={notesByCode.get(module.code) ?? NO_NOTES}
             destinations={destinations}
             onMove={onMove}
             onGrade={onGrade}

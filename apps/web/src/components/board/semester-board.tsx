@@ -2,6 +2,7 @@ import type { Plan, PlanModule, PlanSummary } from '@study-plan/shared'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { cn } from '../../lib/cn.ts'
 import type { MoveHandler } from '../../lib/dnd.ts'
+import type { IssueText } from '../../lib/issues.ts'
 import type { Destination } from './module-card.tsx'
 import { type ColumnModel, SemesterColumn } from './semester-column.tsx'
 
@@ -11,6 +12,7 @@ export interface SemesterBoardProps {
   currentIndex: number
   onMove: MoveHandler
   onGrade: (code: string) => void
+  notesByCode: ReadonlyMap<string, readonly IssueText[]>
 }
 
 export const columnTitle = (plan: Plan, columnId: string | null): string => {
@@ -18,7 +20,14 @@ export const columnTitle = (plan: Plan, columnId: string | null): string => {
   return `${plan.semesters.findIndex((s) => s.id === columnId) + 1}. Semester`
 }
 
-export function SemesterBoard({ plan, summary, currentIndex, onMove, onGrade }: SemesterBoardProps) {
+export function SemesterBoard({
+  plan,
+  summary,
+  currentIndex,
+  onMove,
+  onGrade,
+  notesByCode,
+}: SemesterBoardProps) {
   const elements = useRef(new Map<string | null, HTMLElement>())
   const registerElement = useCallback((id: string | null, element: HTMLElement | null) => {
     if (element) elements.current.set(id, element)
@@ -102,6 +111,7 @@ export function SemesterBoard({ plan, summary, currentIndex, onMove, onGrade }: 
             passThreshold={plan.rules.passThreshold}
             creditLabel={plan.preset.creditLabel}
             showCode={plan.preset.codesAreOfficial ?? true}
+            notesByCode={notesByCode}
             destinations={destinations}
             onMove={onMove}
             onGrade={onGrade}

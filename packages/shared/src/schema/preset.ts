@@ -64,6 +64,13 @@ export const presetSchema = z
     creditLabel: z.enum(['ECTS', 'LP', 'CP']),
     /** False when the module codes were made up for this preset because the university publishes none. */
     codesAreOfficial: z.boolean(),
+    /** Exam procedure rules used for deadline reminders. */
+    examRules: z
+      .object({
+        /** Withdrawal is possible until this many days before the exam. */
+        withdrawalDaysBeforeExam: z.number().int().min(0).max(60).optional(),
+      })
+      .optional(),
     /** Free-text maintainer notes. JSON has no comments, so they live here. */
     notes: z.string().optional(),
     gradeRules: gradeRulesSchema,

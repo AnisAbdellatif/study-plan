@@ -5,11 +5,14 @@ See [project.md](project.md) for the brief and [assessment.md](assessment.md) fo
 
 ## Status
 
-Milestone 2 of the assessment: the guest board, on top of the milestone 1 grade engine.
+Milestone 3 of the assessment, on top of the guest board and the grade engine.
 
-- `apps/web`: React app. Pick a preset and a start term, then plan modules across semesters by dragging or with each card's menu. Enter grades and see the running average, ECTS progress and area progress. Data stays in this browser's local storage and can be exported and imported as JSON. No account needed.
-- `packages/shared`: Zod schemas for presets, grade rules and plans, the grade engine with exact integer arithmetic, and pure plan operations reused by the web app and later by the server.
-- `presets/`: study-programme presets as JSON, validated in CI. The only preset so far is a fictional example.
+- `presets/luh/`: Technische Informatik B.Sc. at Leibniz Universität Hannover, built from the PO in force from WS 2026/27 and the Modulkatalog WS 2026/27. `presets/example/` holds a fictional preset used in tests.
+- Plan checks: modules planned in a term they are not offered in, missing prerequisites, not enough credits before a module such as the Bachelorarbeit, and areas below their minimum or above their maximum. Warnings show on the card and in a hints panel.
+- What-if: pick a target grade and see which average the open planned modules need, computed with the real grade rules.
+- Deadlines: enter exam dates per module to see upcoming exams and withdrawal deadlines, and export them as an iCalendar file.
+- `apps/web`: React app, no account needed. Data stays in the browser's local storage with JSON export and import.
+- `packages/shared`: Zod schemas, the grade engine with exact integer arithmetic, and pure plan operations.
 
 ## Requirements
 
