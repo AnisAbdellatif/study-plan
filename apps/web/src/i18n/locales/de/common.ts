@@ -16,6 +16,10 @@ export const common = {
     save: 'Speichern',
     close: 'Schließen',
   },
+  theme: {
+    toDark: 'Zu dunklem Design wechseln',
+    toLight: 'Zu hellem Design wechseln',
+  },
   loading: 'Wird geladen…',
   relativeDays: {
     today: 'heute',

@@ -2,9 +2,12 @@ import './i18n/index.ts'
 import { RouterProvider } from '@tanstack/react-router'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { applyTheme } from './lib/theme.ts'
 import { createAppRouter } from './router.tsx'
 import { guestStore, STORAGE_KEY } from './store/guest-store.ts'
 import './styles.css'
+
+applyTheme()
 
 const router = createAppRouter()
 

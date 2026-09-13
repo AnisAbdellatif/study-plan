@@ -19,6 +19,10 @@ export const common = {
     save: 'Save',
     close: 'Close',
   },
+  theme: {
+    toDark: 'Switch to dark theme',
+    toLight: 'Switch to light theme',
+  },
   loading: 'Loading…',
   relativeDays: {
     today: 'today',

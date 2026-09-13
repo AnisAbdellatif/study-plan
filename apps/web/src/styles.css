@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Dark mode follows the .dark class on <html>, set from the saved choice or the system setting (see src/lib/theme.ts). */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @layer base {
   :root {
     color-scheme: light dark;
