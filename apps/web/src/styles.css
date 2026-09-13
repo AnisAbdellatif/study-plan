@@ -8,6 +8,30 @@
     color-scheme: light dark;
   }
 
+  /*
+   * The UI is built from Tailwind's zinc greys; these overrides tune them per theme instead of changing every class.
+   * Light: darker secondary text (zinc-600 on white 7.7 -> 10:1), stronger borders and a page that sets white cards
+   * apart. Dark: brighter page, card and hover backgrounds, with muted text lifted to stay readable (zinc-500 on a
+   * card 4.6:1). Values in OKLCH, hue kept at Tailwind's zinc.
+   */
+  :root:not(.dark) {
+    --color-zinc-100: oklch(94.5% 0.003 286);
+    --color-zinc-200: oklch(88.5% 0.006 286);
+    --color-zinc-300: oklch(80% 0.01 286);
+    --color-zinc-500: oklch(48% 0.017 286);
+    --color-zinc-600: oklch(38% 0.016 286);
+  }
+
+  .dark {
+    --color-zinc-400: oklch(80% 0.012 286);
+    --color-zinc-500: oklch(66% 0.015 286);
+    --color-zinc-600: oklch(48% 0.014 286);
+    --color-zinc-700: oklch(41% 0.01 286);
+    --color-zinc-800: oklch(33% 0.008 286);
+    --color-zinc-900: oklch(27.5% 0.007 286);
+    --color-zinc-950: oklch(22% 0.006 286);
+  }
+
   body {
     @apply bg-zinc-100 text-zinc-900 antialiased dark:bg-zinc-950 dark:text-zinc-100;
   }
