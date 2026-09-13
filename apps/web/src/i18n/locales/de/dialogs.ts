@@ -90,16 +90,6 @@ export const dialogs = {
     createNew: 'Neuen Link erstellen',
     revoke: 'Link deaktivieren',
   },
-  presetUpdate: {
-    banner:
-      'Für {{programme}} gibt es eine aktualisierte Vorlage ({{poVersion}}, {{handbookVersion}}). Sieh dir die Änderungen an, bevor du deinen Plan umstellst.',
-    review: 'Änderungen ansehen',
-    later: 'Später',
-    title: 'Vorlage aktualisieren',
-    description: 'Deine Platzierungen, Ergebnisse und Prüfungstermine bleiben erhalten, wo sie noch passen.',
-    apply: 'Plan aktualisieren',
-    announced: 'Plan auf die aktualisierte Vorlage umgestellt',
-  },
   presetDiff: {
     added: 'Neue Module ({{number}})',
     addedHint: 'Sie landen unter „Nicht eingeplant“.',
@@ -141,19 +131,6 @@ export const dialogs = {
       retakePassedExams: 'Notenverbesserung',
       supplementaryExamOnLastAttempt: 'Ergänzungsprüfung im letzten Versuch',
     },
-  },
-  poSwitch: {
-    title: 'Prüfungsordnung wechseln',
-    description: 'Von {{from}} zu {{to}}. Sieh dir an, was übernommen wird, bevor du wechselst.',
-    newPo: 'Neue Prüfungsordnung',
-    mapped: 'Übernommene Module ({{number}})',
-    mappedHint:
-      'Sie heißen in der neuen Prüfungsordnung anders und behalten Platz, Ergebnis und Prüfungstermin.',
-    withResult: '(mit Ergebnis)',
-    disclaimer:
-      'Verbindlich ist, was dein Prüfungsamt anerkennt. Exportiere deinen Plan vorher, wenn du den alten Stand behalten willst.',
-    confirm: 'Prüfungsordnung wechseln',
-    announced: 'Plan auf {{poVersion}} umgestellt',
   },
   importPlan: {
     label: 'Importieren',

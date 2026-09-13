@@ -1,12 +1,9 @@
 import { createPlanFromPreset, type GuestDocument, moveModule } from '@study-plan/shared'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { findPreset } from '../presets.ts'
 import { createGuestStore, type StorageLike } from '../store/guest-store.ts'
+import { examplePreset as preset } from '../test/fixtures.ts'
 import { ApiError, type PlanSummary, type SaveResult, type StoredPlan } from './api.ts'
 import { LINK_KEY, PlanSync } from './plan-sync.ts'
-
-const preset = findPreset('example/informatik-bsc-example')?.preset
-if (!preset) throw new Error('expected the example preset')
 
 function memoryStorage(): StorageLike & { data: Map<string, string> } {
   const data = new Map<string, string>()

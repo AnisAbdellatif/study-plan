@@ -16,9 +16,9 @@ import {
   UnsubscribePage,
 } from './routes/auth-pages.tsx'
 import { BoardPage } from './routes/board-page.tsx'
-import { CustomPresetPage } from './routes/custom-preset-page.tsx'
 import { SharedPlanPage } from './routes/shared-plan-page.tsx'
 import { StartPage } from './routes/start-page.tsx'
+import { UpdateProgrammePage } from './routes/update-programme-page.tsx'
 
 const rootRoute = createRootRoute({
   component: () => (
@@ -35,10 +35,10 @@ const rootRoute = createRootRoute({
 
 const boardRoute = createRoute({ getParentRoute: () => rootRoute, path: '/', component: BoardPage })
 const startRoute = createRoute({ getParentRoute: () => rootRoute, path: '/start', component: StartPage })
-const customPresetRoute = createRoute({
+const updateProgrammeRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/start/custom',
-  component: CustomPresetPage,
+  path: '/plan/update',
+  component: UpdateProgrammePage,
 })
 const signInRoute = createRoute({ getParentRoute: () => rootRoute, path: '/sign-in', component: SignInPage })
 const signUpRoute = createRoute({
@@ -88,7 +88,7 @@ const adminRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin'
 export const routeTree = rootRoute.addChildren([
   boardRoute,
   startRoute,
-  customPresetRoute,
+  updateProgrammeRoute,
   signInRoute,
   signUpRoute,
   forgotRoute,

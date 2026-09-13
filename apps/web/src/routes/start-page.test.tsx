@@ -2,15 +2,15 @@ import { createMemoryHistory, RouterProvider } from '@tanstack/react-router'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import example from '../../../../presets/example/informatik-bsc-example.json'
+import example from '../../../../packages/shared/examples/informatik-bsc-example.json'
 import i18n from '../i18n/index.ts'
 import { createAppRouter } from '../router.tsx'
 import { createGuestStore, GuestStoreContext } from '../store/guest-store.ts'
-import { DRAFT_KEY } from './custom-preset-page.tsx'
+import { DRAFT_KEY } from './start-page.tsx'
 
 const originalClipboard = Object.getOwnPropertyDescriptor(navigator, 'clipboard')
 
-function renderApp(path = '/start/custom') {
+function renderApp(path = '/start') {
   const store = createGuestStore(window.localStorage)
   const router = createAppRouter(createMemoryHistory({ initialEntries: [path] }))
   const user = userEvent.setup()
@@ -62,14 +62,12 @@ afterEach(() => {
   window.sessionStorage.clear()
 })
 
-describe('custom preset page', () => {
-  it('is linked from the start page', async () => {
-    const { user } = renderApp('/start')
-    await user.click(await screen.findByRole('link', { name: 'Eigenen Studiengang hinzufügen' }))
-    expect(
-      await screen.findByRole('heading', { level: 1, name: 'Eigenen Studiengang hinzufügen' }),
-    ).toBeInTheDocument()
+describe('programme flow on the start page', () => {
+  it('is where visitors without a plan land', async () => {
+    renderApp('/')
+    expect(await screen.findByRole('heading', { level: 1, name: 'Studienplan anlegen' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: '1. Studiengang beschreiben' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Zurück zu deinem Plan' })).not.toBeInTheDocument()
   })
 
   it('generates and copies the prompt', async () => {
@@ -152,7 +150,7 @@ describe('custom preset page', () => {
     await i18n.changeLanguage('en')
     const { user } = renderApp()
     expect(
-      await screen.findByRole('heading', { level: 1, name: 'Add your own programme' }),
+      await screen.findByRole('heading', { level: 1, name: 'Create your study plan' }),
     ).toBeInTheDocument()
     await user.type(screen.getByLabelText('University'), 'Example University')
     await user.type(screen.getByLabelText('Degree programme'), 'Computer Science')

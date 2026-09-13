@@ -12,7 +12,7 @@ const input = {
 } as const
 
 const example = JSON.parse(
-  readFileSync(new URL('../../../../presets/example/informatik-bsc-example.json', import.meta.url), 'utf8'),
+  readFileSync(new URL('../../examples/informatik-bsc-example.json', import.meta.url), 'utf8'),
 ) as Record<string, unknown>
 
 const withDetails = {
@@ -92,6 +92,25 @@ describe('extraction prompt', () => {
   })
 })
 
+describe('update prompt', () => {
+  it('asks to keep the codes of the current plan when updating', () => {
+    const prompt = buildExtractionPrompt(input, {
+      existingModules: [
+        { code: 'INF-101', name: 'Grundlagen der Programmierung' },
+        { code: 'MAT-101', name: 'Lineare Algebra I' },
+      ],
+    })
+    expect(prompt).toContain('# Existing plan')
+    expect(prompt).toContain('- `MAT-101`: Lineare Algebra I')
+    expect(prompt).toContain('Keep exactly these codes for modules that continue')
+    expect(prompt.indexOf('# Existing plan')).toBeLessThan(prompt.indexOf('# Output format'))
+  })
+
+  it('has no update section for a new programme', () => {
+    expect(buildExtractionPrompt(input)).not.toContain('# Existing plan')
+  })
+})
+
 describe('LLM answer', () => {
   it('finds the JSON in a fenced answer with chatter around it and applies the student input', () => {
     const answer = `Here is the result:\n\n\`\`\`json\n${JSON.stringify({ ...withDetails, transitions: [] })}\n\`\`\`\nLet me know!`
@@ -109,7 +128,7 @@ describe('LLM answer', () => {
       degree: 'msc',
     })
     expect(result.preset.poVersion).toBe('PO 2025')
-    expect(result.preset.transitions).toBeUndefined()
+    expect('transitions' in result.preset).toBe(false)
     expect(result.preset.modules[0]?.details?.courses).toHaveLength(2)
     expect(result.warnings).toContainEqual({
       kind: 'modules_without_details',

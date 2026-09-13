@@ -1,16 +1,22 @@
-import { createPlanFromPreset, moveModule, type Plan } from '@study-plan/shared'
+import { createPlanFromPreset, moveModule, type Plan, type Preset } from '@study-plan/shared'
 import { createMemoryHistory, RouterProvider } from '@tanstack/react-router'
 import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
-import { findPreset } from '../presets.ts'
 import { createAppRouter } from '../router.tsx'
 import { createGuestStore, GuestStoreContext } from '../store/guest-store.ts'
+import { examplePreset, examplePreset2027, luhPreset } from '../test/fixtures.ts'
 import i18n from './index.ts'
 
+const PRESETS: Record<string, Preset> = {
+  [examplePreset.id]: examplePreset,
+  [examplePreset2027.id]: examplePreset2027,
+  [luhPreset.id]: luhPreset,
+}
+
 function planFrom(id: string): Plan {
-  const preset = findPreset(id)?.preset
-  if (!preset) throw new Error(`expected the bundled preset ${id}`)
+  const preset = PRESETS[id]
+  if (!preset) throw new Error(`expected the example preset ${id}`)
   return createPlanFromPreset(preset, {
     id: 'plan-test',
     startTerm: { season: 'winter', year: 2026 },

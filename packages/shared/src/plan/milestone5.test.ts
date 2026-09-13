@@ -8,12 +8,10 @@ import { applyPresetUpdate, diffPresetUpdate, hasPresetChanges } from './preset-
 import { forkPlan, toSharedPlan } from './share.ts'
 
 const loadPreset = (path: string) =>
-  presetSchema.parse(
-    JSON.parse(readFileSync(new URL(`../../../../presets/${path}`, import.meta.url), 'utf8')),
-  )
+  presetSchema.parse(JSON.parse(readFileSync(new URL(`../../examples/${path}`, import.meta.url), 'utf8')))
 
-const luh = loadPreset('luh/technische-informatik-bsc-2026.json')
-const example = loadPreset('example/informatik-bsc-example.json')
+const luh = loadPreset('luh-technische-informatik-bsc-2026.json')
+const example = loadPreset('informatik-bsc-example.json')
 
 const planFor = (preset: Preset): Plan =>
   createPlanFromPreset(preset, {

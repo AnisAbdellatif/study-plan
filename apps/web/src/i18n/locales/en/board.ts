@@ -8,7 +8,7 @@ export const board = {
     importGrades: 'Import grades…',
     sharePlan: 'Share plan…',
     print: 'Print or save as PDF',
-    switchPo: 'Switch examination regulations…',
+    updateProgramme: 'Update programme data…',
     addSemester: 'Add semester',
     semesterAdded: 'Semester added',
     removeLastSemester: 'Remove last semester',

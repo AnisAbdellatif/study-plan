@@ -92,16 +92,6 @@ export const dialogs = {
     createNew: 'Create new share link',
     revoke: 'Turn off share link',
   },
-  presetUpdate: {
-    banner:
-      'There’s an updated template for {{programme}} ({{poVersion}}, {{handbookVersion}}). Look at the changes before you update your plan.',
-    review: 'See changes',
-    later: 'Later',
-    title: 'Update template',
-    description: 'Your placements, results, and exam dates are kept wherever they still fit.',
-    apply: 'Update plan',
-    announced: 'Plan updated to the new template',
-  },
   presetDiff: {
     added: 'New modules ({{number}})',
     addedHint: 'They go to “Not planned”.',
@@ -143,19 +133,6 @@ export const dialogs = {
       retakePassedExams: 'Grade improvement',
       supplementaryExamOnLastAttempt: 'Supplementary oral exam on the last attempt',
     },
-  },
-  poSwitch: {
-    title: 'Switch examination regulations',
-    description: 'From {{from}} to {{to}}. See what carries over before you switch.',
-    newPo: 'New examination regulations',
-    mapped: 'Carried-over modules ({{number}})',
-    mappedHint:
-      'They have a different name in the new examination regulations and keep their place, result, and exam date.',
-    withResult: '(with result)',
-    disclaimer:
-      'What your examination office recognizes is what counts. Export your plan first if you want to keep the old version.',
-    confirm: 'Switch examination regulations',
-    announced: 'Plan switched to {{poVersion}}',
   },
   importPlan: {
     label: 'Import',

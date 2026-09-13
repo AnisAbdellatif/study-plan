@@ -12,10 +12,7 @@ import { presetSchema } from '../schema/preset.ts'
 
 const preset = presetSchema.parse(
   JSON.parse(
-    readFileSync(
-      new URL('../../../../presets/luh/technische-informatik-bsc-2026.json', import.meta.url),
-      'utf8',
-    ),
+    readFileSync(new URL('../../examples/luh-technische-informatik-bsc-2026.json', import.meta.url), 'utf8'),
   ),
 )
 

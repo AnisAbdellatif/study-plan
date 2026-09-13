@@ -5,7 +5,7 @@ import { graded } from '../engine/test-support.ts'
 import { type Preset, presetSchema } from './preset.ts'
 
 const example: Preset = JSON.parse(
-  readFileSync(new URL('../../../../presets/example/informatik-bsc-example.json', import.meta.url), 'utf8'),
+  readFileSync(new URL('../../examples/informatik-bsc-example.json', import.meta.url), 'utf8'),
 )
 
 const clone = (): Preset => structuredClone(example)

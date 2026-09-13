@@ -12,12 +12,9 @@ import { createMemoryHistory, RouterProvider } from '@tanstack/react-router'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { currentPresets, findPreset } from '../presets.ts'
 import { createAppRouter } from '../router.tsx'
 import { createGuestStore, EXPORT_KEY, GuestStoreContext, STORAGE_KEY } from '../store/guest-store.ts'
-
-const preset = findPreset('example/informatik-bsc-example')?.preset
-if (!preset) throw new Error('expected a bundled preset')
+import { examplePreset2027, luhPreset, examplePreset as preset } from '../test/fixtures.ts'
 
 const makePlan = (): Plan =>
   createPlanFromPreset(preset, {
@@ -45,21 +42,32 @@ async function openCardMenu(user: ReturnType<typeof userEvent.setup>, moduleName
 }
 
 describe('onboarding', () => {
-  it('sends visitors without a plan to the start page and creates a plan from a preset', async () => {
-    const { user, store } = renderApp()
+  it('sends visitors without a plan to the programme flow and creates a plan from the example', async () => {
+    const { user, store, router } = renderApp()
     expect(await screen.findByRole('heading', { name: 'Studienplan anlegen' })).toBeInTheDocument()
-    expect(screen.getByRole('option', { name: /fiktives Beispiel/ })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/start')
+    expect(screen.getByRole('heading', { name: '1. Studiengang beschreiben' })).toBeInTheDocument()
+    expect(screen.getByText(/Ein Sprachmodell deiner Wahl liest deine Prüfungsordnung/)).toBeInTheDocument()
 
-    await user.click(screen.getByLabelText('Wintersemester'))
-    await user.click(screen.getByRole('button', { name: 'Plan anlegen' }))
+    await user.click(screen.getByRole('button', { name: 'Mit Beispiel ausprobieren' }))
 
     expect(await screen.findByRole('heading', { name: '1. Semester' })).toBeInTheDocument()
     const plan = store.getState().plan
-    expect(plan?.startTerm.season).toBe('winter')
+    expect(plan?.preset.id).toBe('example/informatik-bsc-example')
     expect(window.localStorage.getItem(STORAGE_KEY)).toContain('"format":"study-plan.guest"')
-    // The LUH preset is listed first and selected by default
-    expect(plan?.preset.id).toBe('luh/technische-informatik-bsc-2026')
-    expect(within(column(/^1\. Semester/)).getByText('Programmieren I')).toBeInTheDocument()
+    expect(within(column(/^1\. Semester/)).getByText('Grundlagen der Programmierung')).toBeInTheDocument()
+  })
+
+  it('asks before the example replaces an existing plan', async () => {
+    const { user, store } = renderApp({ path: '/start', plan: makePlan() })
+    expect(await screen.findByRole('link', { name: 'Zurück zu deinem Plan' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Mit Beispiel ausprobieren' }))
+    const dialog = await screen.findByRole('alertdialog', { name: 'Bestehenden Plan ersetzen?' })
+    expect(store.getState().plan?.id).toBe('plan-test')
+
+    await user.click(within(dialog).getByRole('button', { name: 'Ersetzen' }))
+    await waitFor(() => expect(store.getState().plan?.id).not.toBe('plan-test'))
+    expect(await screen.findByRole('heading', { name: '1. Semester' })).toBeInTheDocument()
   })
 })
 
@@ -196,9 +204,7 @@ describe('export and import', () => {
 
 describe('presets with made-up module codes', () => {
   it('hides the codes on cards and in the grade dialog, and groups composite grades', async () => {
-    const luh = findPreset('luh/technische-informatik-bsc-2026')?.preset
-    if (!luh) throw new Error('expected the LUH preset')
-    const plan = createPlanFromPreset(luh, {
+    const plan = createPlanFromPreset(luhPreset, {
       id: 'luh',
       startTerm: { season: 'winter', year: 2026 },
       now: new Date('2026-09-13T10:00:00Z'),
@@ -391,45 +397,15 @@ describe('board menu actions', () => {
   })
 })
 
-describe('preset updates on the board', () => {
-  it('offers the changes of a newer preset and applies them', async () => {
-    const outdated = makePlan()
-    outdated.modules = outdated.modules.map((module) =>
-      module.code === 'INF-101' ? { ...module, name: 'Programmieren 1 (alt)' } : module,
-    )
-    const { user, store } = renderApp({ plan: outdated })
-
-    expect(await screen.findByText(/gibt es eine aktualisierte Vorlage/)).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Änderungen ansehen' }))
-    const dialog = await screen.findByRole('dialog', { name: 'Vorlage aktualisieren' })
-    expect(dialog).toHaveTextContent('Grundlagen der Programmierung: Name')
-
-    await user.click(within(dialog).getByRole('button', { name: 'Plan aktualisieren' }))
-    await waitFor(() =>
-      expect(store.getState().plan?.modules.find((module) => module.code === 'INF-101')?.name).toBe(
-        'Grundlagen der Programmierung',
-      ),
-    )
-    expect(screen.queryByText(/gibt es eine aktualisierte Vorlage/)).not.toBeInTheDocument()
-  })
-})
-
 describe('milestone 6', () => {
-  const preset2027 = findPreset('example/informatik-bsc-example-2027')?.preset
-  const luh = findPreset('luh/technische-informatik-bsc-2026')?.preset
-  if (!preset2027 || !luh) throw new Error('expected bundled presets')
+  const preset2027 = examplePreset2027
+  const luh = luhPreset
   const planFrom = (source: typeof preset2027) =>
     createPlanFromPreset(source, {
       id: 'plan-test',
       startTerm: { season: 'winter', year: 2026 },
       now: new Date('2026-09-13T10:00:00Z'),
     })
-
-  it('offers only the newest PO for new plans', () => {
-    const ids = currentPresets.map((entry) => entry.preset.id)
-    expect(ids).toContain('example/informatik-bsc-example-2027')
-    expect(ids).not.toContain('example/informatik-bsc-example')
-  })
 
   it('records several attempts and warns before the last one', async () => {
     const { user, store } = renderApp({ plan: planFrom(preset2027) })
@@ -460,30 +436,6 @@ describe('milestone 6', () => {
 
     await waitFor(() => expect(screen.getByTestId('overall-grade')).toHaveTextContent('2,3'))
     expect(within(column(/^1\. Semester/)).queryByText('Letzter Versuch')).not.toBeInTheDocument()
-  })
-
-  it('switches a plan to the newer PO after a preview', async () => {
-    const { user, store } = renderApp({
-      plan: setModuleResult(makePlan(), 'MAT-101', { kind: 'graded', grade: 1.7 }),
-    })
-    await user.click(await screen.findByRole('button', { name: 'Weitere Aktionen' }))
-    await user.click(await screen.findByRole('menuitem', { name: 'Prüfungsordnung wechseln…' }))
-    const dialog = await screen.findByRole('dialog', { name: 'Prüfungsordnung wechseln' })
-    expect(within(dialog).getByText('Lineare Algebra I → Lineare Algebra (mit Ergebnis)')).toBeInTheDocument()
-    expect(
-      within(dialog).getByText(
-        /IT-Sicherheit: bleibt mit deinem Ergebnis im Plan|IT-Sicherheit: wird aus dem Plan entfernt/,
-      ),
-    ).toBeInTheDocument()
-
-    await user.click(within(dialog).getByRole('button', { name: 'Prüfungsordnung wechseln' }))
-    await waitFor(() => expect(store.getState().plan?.preset.id).toBe('example/informatik-bsc-example-2027'))
-    expect(screen.getAllByText(/PO 2027 \(fiktiv\)/).length).toBeGreaterThan(0)
-    expect(screen.getByTestId('overall-grade')).toHaveTextContent('1,7')
-
-    await user.click(screen.getByRole('button', { name: 'Weitere Aktionen' }))
-    expect(await screen.findByRole('menuitem', { name: 'Noten importieren…' })).toBeInTheDocument()
-    expect(screen.queryByRole('menuitem', { name: 'Prüfungsordnung wechseln…' })).not.toBeInTheDocument()
   })
 
   it('shows the credits towards the Bachelorarbeit admission', async () => {

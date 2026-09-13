@@ -3,18 +3,17 @@ import { createMemoryHistory, RouterProvider } from '@tanstack/react-router'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
-import { findPreset } from '../presets.ts'
 import { createAppRouter } from '../router.tsx'
 import { createGuestStore, GuestStoreContext } from '../store/guest-store.ts'
+import { examplePreset } from '../test/fixtures.ts'
 import { LOCALE_STORAGE_KEY } from './config.ts'
 import i18n from './index.ts'
 
 function renderAt(path: string, withPlan = false) {
   const store = createGuestStore(window.localStorage)
-  const preset = findPreset('example/informatik-bsc-example')?.preset
-  if (withPlan && preset) {
+  if (withPlan) {
     store.replacePlan(
-      createPlanFromPreset(preset, {
+      createPlanFromPreset(examplePreset, {
         id: 'plan-test',
         startTerm: { season: 'winter', year: 2026 },
         now: new Date('2026-09-13T10:00:00Z'),

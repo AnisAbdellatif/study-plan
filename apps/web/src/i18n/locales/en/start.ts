@@ -4,23 +4,18 @@ import type { Messages } from '../types.ts'
 export const start = {
   title: 'Create your study plan',
   intro:
-    'Choose your degree programme and your first semester. Modules are pre-sorted following the module handbook, and you can move them freely afterwards. You don’t need an account: your plan is only saved in this browser.',
+    'You add your own degree programme: a language model of your choice reads your examination regulations and module handbook, and your plan is created from its answer. Modules are pre-sorted following the recommended study plan, and you can move them freely afterwards. You don’t need an account: your plan is only saved in this browser.',
   loadError:
     'Your saved plan couldn’t be read. A copy of the data stays in the browser. You can import an exported plan or start over.',
   dismiss: 'Dismiss',
-  programme: 'Degree programme',
-  fictional: '(fictional example)',
-  semesterCount_one: '{{count}} semester',
-  semesterCount_other: '{{count}} semesters',
-  fictionalNote: 'Made up, not based on any real examination regulations.',
-  customMissing: 'Your university or programme is missing?',
-  customLink: 'Add your own programme',
+  tryExample: 'Try it with an example',
+  exampleNote:
+    'The example is a made-up computer science programme that isn’t based on any real examination regulations. Your plan starts in the current semester.',
   startTerm: 'Start of studies',
   winter: 'Winter semester',
   summer: 'Summer semester',
   year: 'Year',
   semesterTerm: 'Semester {{number}}: {{term}}',
-  submit: 'Create plan',
   import: 'Import plan from file',
   haveAccount: 'Already have an account? Sign in',
   backToPlan: 'Back to your plan',

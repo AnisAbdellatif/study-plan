@@ -16,9 +16,7 @@ import { summarizePlan } from './summary.ts'
 import { addTerms, formatTerm, semesterIndexAt, termAt } from './terms.ts'
 
 const preset = presetSchema.parse(
-  JSON.parse(
-    readFileSync(new URL('../../../../presets/example/informatik-bsc-example.json', import.meta.url), 'utf8'),
-  ),
+  JSON.parse(readFileSync(new URL('../../examples/informatik-bsc-example.json', import.meta.url), 'utf8')),
 )
 
 const newPlan = () =>

@@ -122,14 +122,6 @@ function* walkAggregation(node: AggregationNode): Generator<{ node: AggregationN
   }
 }
 
-export const transitionSchema = z.object({
-  fromPresetId: presetIdSchema,
-  moduleMap: z.array(z.object({ from: z.string().min(1), to: z.string().min(1) })),
-  /** Shown to students before they switch, e.g. where the official transition rules are published. */
-  notes: z.string().optional(),
-})
-export type PresetTransition = z.infer<typeof transitionSchema>
-
 export const prerequisiteCodes = (prerequisite: Prerequisite): string[] =>
   typeof prerequisite === 'string' ? [prerequisite] : prerequisite.anyOf
 
@@ -137,7 +129,7 @@ export const presetSchema = z
   .object({
     $schema: z.string().optional(),
     schemaVersion: z.literal(1),
-    /** "<university>/<programme>-<po-year>", matching the file path under presets/. */
+    /** "<university>/<programme>", e.g. "custom/informatik-bsc-1a2b3c4d" for extracted programmes. */
     id: presetIdSchema,
     university: z.object({ slug: slugSchema, name: z.string().min(1) }),
     programme: z.object({ slug: slugSchema, name: z.string().min(1), degree: z.enum(['bsc', 'msc']) }),
@@ -161,11 +153,6 @@ export const presetSchema = z
         supplementaryExamOnLastAttempt: z.boolean().optional(),
       })
       .optional(),
-    /**
-     * Ways to move a plan from an older preset (an earlier PO) to this one. `moduleMap` lists modules that
-     * continue under a different code; modules with the same code carry over without an entry.
-     */
-    transitions: z.array(transitionSchema).optional(),
     /** Free-text maintainer notes. JSON has no comments, so they live here. */
     notes: z.string().optional(),
     gradeRules: gradeRulesSchema,
@@ -216,31 +203,6 @@ export const presetSchema = z
             message: `Unknown module "${code}"`,
           })
         }
-      }
-    })
-
-    preset.transitions?.forEach((transition, index) => {
-      const path = ['transitions', index]
-      if (transition.fromPresetId === preset.id) {
-        ctx.addIssue({ code: 'custom', path, message: 'A preset cannot transition from itself' })
-      }
-      const sources = new Set<string>()
-      const targets = new Set<string>()
-      for (const { from, to } of transition.moduleMap) {
-        if (!modules.has(to)) {
-          ctx.addIssue({
-            code: 'custom',
-            path,
-            message: `Transition target "${to}" is not a module of this preset`,
-          })
-        }
-        if (sources.has(from))
-          ctx.addIssue({ code: 'custom', path, message: `Module "${from}" is mapped twice` })
-        if (targets.has(to)) {
-          ctx.addIssue({ code: 'custom', path, message: `Several modules map to "${to}"` })
-        }
-        sources.add(from)
-        targets.add(to)
       }
     })
 

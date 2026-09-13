@@ -2,10 +2,6 @@ import type { customPreset as de } from '../de/customPreset.ts'
 import type { Messages } from '../types.ts'
 
 export const customPreset = {
-  title: 'Add your own programme',
-  intro:
-    'Your programme isn’t listed? A language model of your choice reads the examination regulations and the module handbook for you. You then create your plan here from its answer.',
-  back: 'Back to the selection',
   copied: 'Copied',
   copyFailed: 'Copying didn’t work. Select the text and copy it yourself.',
   describe: {
@@ -103,5 +99,28 @@ export const customPreset = {
   create: {
     heading: '4. Create the plan',
     submit: 'Create plan',
+  },
+  update: {
+    title: 'Update programme data',
+    back: 'Back to your plan',
+    intro:
+      'Here a language model reads the current documents of your programme again. Before your plan changes, you see exactly what changes. Use this, for example:',
+    whenNewPo: 'when new examination regulations apply to you,',
+    whenHandbook: 'when the module handbook was updated,',
+    whenCorrection: 'when something in your plan was read incorrectly.',
+    describeIntro: 'These details come from your plan “{{plan}}”. Correct them if something changed.',
+    poVersionHint:
+      'Currently: {{poVersion}}. Leave the field empty and the language model takes the version from the new documents.',
+    promptNote:
+      'The prompt lists the modules of your plan. The language model keeps their module numbers so your results carry over.',
+    changesHeading: '4. Review the changes',
+    kept: 'Grades, placements and exam dates are kept wherever they still fit.',
+    noChanges: 'This answer doesn’t change anything in your plan.',
+    submit: 'Update plan',
+    confirmTitle: 'Update your plan?',
+    confirmDescription:
+      'Your plan switches to the new programme data. Export it first if you want to keep the current version.',
+    confirm: 'Update',
+    announced: 'Plan updated to {{poVersion}}',
   },
 } satisfies Messages<typeof de>

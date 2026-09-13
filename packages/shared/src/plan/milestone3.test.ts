@@ -10,12 +10,10 @@ import { validatePlan } from './validation.ts'
 import { analyzeWhatIf } from './what-if.ts'
 
 const loadPreset = (path: string) =>
-  presetSchema.parse(
-    JSON.parse(readFileSync(new URL(`../../../../presets/${path}`, import.meta.url), 'utf8')),
-  )
+  presetSchema.parse(JSON.parse(readFileSync(new URL(`../../examples/${path}`, import.meta.url), 'utf8')))
 
-const luh = loadPreset('luh/technische-informatik-bsc-2026.json')
-const example = loadPreset('example/informatik-bsc-example.json')
+const luh = loadPreset('luh-technische-informatik-bsc-2026.json')
+const example = loadPreset('informatik-bsc-example.json')
 
 const planFor = (preset: typeof luh, season: 'winter' | 'summer' = 'winter'): Plan =>
   createPlanFromPreset(preset, {

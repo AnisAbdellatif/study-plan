@@ -36,7 +36,10 @@ const config = loadConfig({
 
 const preset = presetSchema.parse(
   JSON.parse(
-    readFileSync(new URL('../../../presets/example/informatik-bsc-example.json', import.meta.url), 'utf8'),
+    readFileSync(
+      new URL('../../../packages/shared/examples/informatik-bsc-example.json', import.meta.url),
+      'utf8',
+    ),
   ),
 )
 

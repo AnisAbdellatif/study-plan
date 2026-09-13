@@ -5,17 +5,14 @@ See [project.md](project.md) for the brief and [assessment.md](assessment.md) fo
 
 ## Status
 
-Milestone 6 of the assessment: exam attempts, thesis admission, PO switches, e-mail reminders and community presets, on top of sharing, grade import and accounts.
+Milestone 6 of the assessment, with programme data extracted by each student's own LLM instead of bundled presets: exam attempts, thesis admission, plan updates for new POs, e-mail reminders, on top of sharing, grade import and accounts.
 
 - Exam attempts: every module keeps its attempts, including no-shows and withdrawals. Presets define attempt limits and whether passed exams can be retaken, and the board warns before the last attempt and when attempts run out.
 - Thesis admission: for modules with a credit requirement, such as the Bachelorarbeit, the board shows the credits earned and forecasts the semester in which the plan reaches them.
-- PO switch: a newer preset can declare a transition from an older one. Students preview which modules carry over with their results, then switch; new plans only offer the newest PO.
 - E-mail reminders: opt-in on the account page. 3 days before the last withdrawal day and 7 days before an exam, with module names and dates only, a one-click unsubscribe header and an unsubscribe page.
-- Community presets: [presets/README.md](presets/README.md) explains sources and modelling, `bun run presets:new` creates a skeleton, and GitHub has an issue form and a pull request checklist.
 - `apps/api`: Hono API on Bun with Better Auth and Drizzle; plans per account with revisions; share links; reminders; data export and account deletion.
 - `apps/web`: React app that works without an account and syncs with one.
-- `packages/shared`: Zod schemas, the grade engine, plan validation, attempts, what-if solver, deadlines, grade import, preset updates and PO switches.
-- `presets/`: Technische Informatik B.Sc. at Leibniz Universität Hannover and two fictional example POs, guarded by `presets.lock.json` and `CHANGELOG.md`.
+- `packages/shared`: Zod schemas, the grade engine, plan validation, attempts, what-if solver, deadlines, grade import, programme extraction and plan updates.
 
 ## Requirements
 
@@ -32,10 +29,6 @@ bun run test
 bun run typecheck
 bun run lint
 bun run build
-bun run presets:validate
-bun run presets:check    # fails when a preset changed without updating presets.lock.json
-bun run presets:lock
-bun run presets:new tum/informatik-bsc-2024   # preset skeleton, see presets/README.md
 bun run db:generate      # SQL migration after changing apps/api/src/db/schema.ts
 ```
 
@@ -66,18 +59,20 @@ Before publishing:
 2. Conclude data processing agreements (Art. 28 DSGVO) with the hosting provider and the mail provider.
 3. Make sure the web server's own logs match the retention stated in the Datenschutzerklärung.
 
-## Custom programmes
+## Programme data
 
-Students whose university or programme has no bundled preset can add their own at `/start/custom`:
+There are no bundled programme presets. Every student builds the data for their own programme on the start page:
 
 1. They enter the university, programme, degree and optionally the PO version.
 2. The app generates a prompt (`buildExtractionPrompt` in `packages/shared/src/custom-preset/prompt.ts`). The student gives it to an LLM of their choice together with the Prüfungsordnung and the Modulkatalog. The app itself never contacts an LLM.
-3. The student pastes the answer. `parseCustomPreset` finds the JSON, validates it against the preset schema and shows either the problems (with a follow-up message for the LLM) or a preview.
-4. A plan is created from the result, exactly as from a bundled preset.
+3. The student pastes the answer. `parseCustomPreset` finds the JSON, validates it against the programme schema (`packages/shared/src/schema/preset.ts`) and shows either the problems (with a follow-up message for the LLM) or a preview.
+4. A plan is created from the result.
 
-The prompt asks for everything the planner uses: modules with credits, grading, offering, recommended semester, prerequisites and credit requirements, areas, exam rules (withdrawal deadline, attempts, retakes, supplementary exam) and the grade calculation as an aggregation tree. It also asks for the Modulkatalog details of every module (people, languages, SWS and courses, workload, exam forms, requirements, learning outcomes, content, literature and any other catalog field), which the board shows under "Moduldetails". The prompt embeds the JSON Schema generated from the Zod schema, so it changes automatically with the schema. It is written in English because models follow English instructions most reliably; extracted names and texts stay in the documents' language.
+The prompt asks for everything the planner uses: modules with credits, grading, offering, recommended semester, prerequisites and credit requirements, areas, exam rules (withdrawal deadline, attempts, retakes, supplementary exam) and the grade calculation as an aggregation tree. It also asks for the Modulkatalog details of every module (people, languages, SWS and courses, workload, exam forms, requirements, learning outcomes, content, literature and any other catalog field), shown on the board under "Moduldetails". The prompt embeds the JSON Schema generated from the Zod schema at runtime, so it follows schema changes automatically. It is written in English because models follow English instructions most reliably; extracted names and texts stay in the documents' language.
 
-An extracted preset can be downloaded and, after checking, contributed like any other preset (see [presets/README.md](presets/README.md)).
+When the PO or the Modulkatalog changes, the student updates the plan from the board menu: the app generates the prompt again with the plan's current module codes, the LLM keeps those codes for modules that continue, and the student sees which modules are added, removed or changed before applying the update. Grades, placements and exam dates are kept wherever they still fit.
+
+Visitors who want to look around first can open a demo plan from a fictional programme. The example programmes in `packages/shared/examples/` serve the demo and the tests; the LUH file there is a real PO used to test the grade engine.
 
 ## Languages
 
@@ -93,7 +88,7 @@ The web app is available in German and English; e-mails follow the language of t
 
 ## How grades are computed
 
-Grade rules are data in each preset, not code. The engine in `packages/shared/src/engine/compute.ts` supports:
+Grade rules are part of each programme's data, not code. The engine in `packages/shared/src/engine/compute.ts` supports:
 
 - credit-weighted or fixed-proportion aggregation, nested to any depth
 - per-module weight factors, such as a double-weighted thesis

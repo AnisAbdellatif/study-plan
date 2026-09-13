@@ -4,10 +4,10 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { decideLocaleSync } from '../components/locale-sync.tsx'
-import { findPreset } from '../presets.ts'
 import { createAppRouter } from '../router.tsx'
 import { describeAuthError } from '../routes/auth-pages.tsx'
 import { createGuestStore, GuestStoreContext } from '../store/guest-store.ts'
+import { examplePreset } from '../test/fixtures.ts'
 import i18n from './index.ts'
 
 function renderApp(path: string) {
@@ -33,11 +33,11 @@ describe('account, start and shared pages in English', () => {
   it('shows the start page', async () => {
     renderApp('/start')
     expect(await screen.findByRole('heading', { name: 'Create your study plan' })).toBeInTheDocument()
-    expect(screen.getByText('Winter semester')).toBeInTheDocument()
-    expect(screen.getByText('Summer semester')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '1. Describe your programme' })).toBeInTheDocument()
+    expect(screen.getByLabelText('University')).toBeInTheDocument()
     expect(screen.getByLabelText('Degree programme')).toBeInTheDocument()
-    expect(screen.getByText(/^Semester 1: (Winter|Summer) \d{4}/)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Create plan' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Create prompt' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Try it with an example' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Already have an account? Sign in' })).toBeInTheDocument()
   })
 
@@ -80,9 +80,7 @@ describe('account, start and shared pages in English', () => {
   })
 
   it('shows a shared plan', async () => {
-    const preset = findPreset('example/informatik-bsc-example')?.preset
-    if (!preset) throw new Error('expected a bundled preset')
-    const plan = createPlanFromPreset(preset, {
+    const plan = createPlanFromPreset(examplePreset, {
       id: 'plan-test',
       startTerm: { season: 'winter', year: 2026 },
       now: new Date('2026-09-13T10:00:00Z'),

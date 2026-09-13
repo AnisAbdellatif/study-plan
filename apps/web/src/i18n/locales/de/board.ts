@@ -5,7 +5,7 @@ export const board = {
     importGrades: 'Noten importieren…',
     sharePlan: 'Plan teilen…',
     print: 'Drucken oder als PDF speichern',
-    switchPo: 'Prüfungsordnung wechseln…',
+    updateProgramme: 'Studiengangsdaten aktualisieren…',
     addSemester: 'Semester hinzufügen',
     semesterAdded: 'Semester hinzugefügt',
     removeLastSemester: 'Letztes Semester entfernen',

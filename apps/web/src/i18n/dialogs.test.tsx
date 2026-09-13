@@ -2,10 +2,8 @@ import {
   createGuestDocument,
   createPlanFromPreset,
   findModule,
-  findTransitions,
   type Plan,
   type Preset,
-  setModuleResult,
 } from '@study-plan/shared'
 import { createMemoryHistory, RouterProvider } from '@tanstack/react-router'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
@@ -13,14 +11,19 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { GradeDialog } from '../components/board/grade-dialog.tsx'
 import { ImportGradesDialog } from '../components/board/import-grades-dialog.tsx'
-import { PoSwitchDialog } from '../components/board/po-switch-dialog.tsx'
-import { findPreset, presets } from '../presets.ts'
 import { createAppRouter } from '../router.tsx'
 import { createGuestStore, GuestStoreContext } from '../store/guest-store.ts'
+import { examplePreset, examplePreset2027, luhPreset } from '../test/fixtures.ts'
 import i18n from './index.ts'
 
+const PRESETS: Record<string, Preset> = {
+  [examplePreset.id]: examplePreset,
+  [examplePreset2027.id]: examplePreset2027,
+  [luhPreset.id]: luhPreset,
+}
+
 const presetById = (id: string): Preset => {
-  const preset = findPreset(id)?.preset
+  const preset = PRESETS[id]
   if (!preset) throw new Error(`expected the preset ${id}`)
   return preset
 }
@@ -102,33 +105,6 @@ describe('dialogs in English', () => {
     expect(within(select).getByRole('option', { name: 'Failed' })).toHaveValue('failed')
   })
 
-  it('previews and applies a switch of the examination regulations', async () => {
-    const plan = setModuleResult(planFrom('example/informatik-bsc-example'), 'MAT-101', {
-      kind: 'graded',
-      grade: 1.7,
-    })
-    const transitions = findTransitions(
-      plan,
-      presets.map((entry) => entry.preset),
-    )
-    const { store, user } = renderWithStore(plan, (current) => (
-      <PoSwitchDialog plan={current} transitions={transitions} open onOpenChange={() => {}} />
-    ))
-
-    const dialog = await screen.findByRole('dialog', { name: 'Switch examination regulations' })
-    expect(dialog).toHaveTextContent(/^Switch examination regulationsFrom .+ to .+\. See what carries over/)
-    expect(within(dialog).getByText(/^Carried-over modules \(\d+\)$/)).toBeInTheDocument()
-    expect(within(dialog).getByText('Lineare Algebra I → Lineare Algebra (with result)')).toBeInTheDocument()
-    expect(
-      within(dialog).getByText(
-        /IT-Sicherheit: stays in your plan with your result|IT-Sicherheit: will be removed from your plan/,
-      ),
-    ).toBeInTheDocument()
-
-    await user.click(within(dialog).getByRole('button', { name: 'Switch examination regulations' }))
-    await waitFor(() => expect(store.getState().plan?.preset.id).toBe('example/informatik-bsc-example-2027'))
-  })
-
   it('imports grades written with a decimal point and English result words', async () => {
     const { store, user } = renderWithStore(planFrom('example/informatik-bsc-example'), (plan) => (
       <ImportGradesDialog plan={plan} open onOpenChange={() => {}} />
@@ -194,20 +170,5 @@ describe('dialogs in English', () => {
       'href',
       '/sign-up',
     )
-  })
-
-  it('offers an updated template in English', async () => {
-    const outdated = planFrom('example/informatik-bsc-example')
-    outdated.modules = outdated.modules.map((module) =>
-      module.code === 'INF-101' ? { ...module, name: 'Programmieren 1 (alt)' } : module,
-    )
-    const { user } = renderApp({ plan: outdated })
-
-    expect(await screen.findByText(/There’s an updated template for/)).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'See changes' }))
-    const dialog = await screen.findByRole('dialog', { name: 'Update template' })
-    expect(dialog).toHaveTextContent('Changed modules (1)')
-    expect(dialog).toHaveTextContent('Grundlagen der Programmierung: Name')
-    expect(within(dialog).getByRole('button', { name: 'Update plan' })).toBeInTheDocument()
   })
 })

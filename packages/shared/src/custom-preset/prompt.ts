@@ -105,11 +105,36 @@ const EXAMPLE = {
   areas: [{ id: 'grundlagen', name: 'Grundlagen', minCredits: 8, moduleCodes: ['INF-101'] }],
 }
 
+function existingSection(modules: ExtractionPromptOptions['existingModules']): string {
+  if (!modules?.length) return ''
+  const list = modules.map((module) => `- \`${module.code}\`: ${module.name}`).join('\n')
+  return `# Existing plan
+
+The student already has a plan for this programme and wants to update it, for example to a newer PO or an updated Modulkatalog. These are the modules of the current plan:
+
+${list}
+
+Keep exactly these codes for modules that continue in the documents, including modules that the new PO or its transition rules (Übergangsbestimmungen, Äquivalenzliste) declare equivalent under a new name or number. This rule takes precedence over official module numbers: if the official number changed, keep the old code and record the new number in \`details.additionalFields\` as {"label": "Modulnummer", "value": "..."}. Create new codes only for modules that did not exist before, and never reuse an old code for a different module. In \`notes\`, list which old modules continue under a new name and which no longer exist.
+
+`
+}
+
 /**
  * The instructions a student gives an LLM of their choice together with the Prüfungsordnung and the
  * Modulkatalog. English works best across models; extracted texts stay in the documents' language.
  */
-export function buildExtractionPrompt(input: CustomProgrammeInput): string {
+export interface ExtractionPromptOptions {
+  /**
+   * Modules of the student's current plan when they update it, e.g. to a newer PO or an updated Modulkatalog.
+   * The LLM keeps these codes for modules that continue, so results and placements carry over.
+   */
+  existingModules?: readonly { code: string; name: string }[]
+}
+
+export function buildExtractionPrompt(
+  input: CustomProgrammeInput,
+  options: ExtractionPromptOptions = {},
+): string {
   const programme = [
     `- University: ${input.universityName.trim()}`,
     `- Degree programme: ${input.programmeName.trim()}`,
@@ -128,7 +153,7 @@ The student attached two official documents:
 The programme:
 ${programme}
 
-Read both documents completely before answering. If a document is missing or unreadable, say so in one sentence instead of guessing.
+${existingSection(options.existingModules)}Read both documents completely before answering. If a document is missing or unreadable, say so in one sentence instead of guessing.
 
 # Output format
 

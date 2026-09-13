@@ -4,12 +4,9 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import i18n from '../../i18n/index.ts'
-import { findPreset } from '../../presets.ts'
 import { createAppRouter } from '../../router.tsx'
 import { createGuestStore, GuestStoreContext } from '../../store/guest-store.ts'
-
-const preset = findPreset('example/informatik-bsc-example')?.preset
-if (!preset) throw new Error('expected a bundled preset')
+import { examplePreset as preset } from '../../test/fixtures.ts'
 
 const DETAILS: ModuleDetails = {
   englishName: 'Introduction to Programming',

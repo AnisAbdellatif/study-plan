@@ -1,8 +1,4 @@
 export const customPreset = {
-  title: 'Eigenen Studiengang hinzufügen',
-  intro:
-    'Dein Studiengang ist nicht dabei? Ein Sprachmodell deiner Wahl liest die Prüfungsordnung und den Modulkatalog für dich aus. Aus seiner Antwort legst du hier deinen Plan an.',
-  back: 'Zurück zur Auswahl',
   copied: 'Kopiert',
   copyFailed: 'Kopieren hat nicht geklappt. Markiere den Text und kopiere ihn selbst.',
   describe: {
@@ -100,5 +96,29 @@ export const customPreset = {
   create: {
     heading: '4. Plan anlegen',
     submit: 'Plan anlegen',
+  },
+  update: {
+    title: 'Studiengangsdaten aktualisieren',
+    back: 'Zurück zu deinem Plan',
+    intro:
+      'Hier liest ein Sprachmodell die aktuellen Dokumente deines Studiengangs neu aus. Bevor sich dein Plan ändert, siehst du genau, was sich ändert. Das brauchst du zum Beispiel:',
+    whenNewPo: 'wenn für dich eine neue Prüfungsordnung gilt,',
+    whenHandbook: 'wenn der Modulkatalog aktualisiert wurde,',
+    whenCorrection: 'wenn in deinem Plan etwas falsch ausgelesen wurde.',
+    describeIntro:
+      'Die Angaben stammen aus deinem Plan „{{plan}}“. Korrigiere sie, falls sich etwas geändert hat.',
+    poVersionHint:
+      'Aktuell: {{poVersion}}. Lass das Feld leer, dann übernimmt das Sprachmodell die Version aus den neuen Dokumenten.',
+    promptNote:
+      'Der Prompt enthält die Module deines Plans. Das Sprachmodell behält ihre Modulnummern bei, damit deine Ergebnisse erhalten bleiben.',
+    changesHeading: '4. Änderungen prüfen',
+    kept: 'Noten, Platzierungen und Prüfungstermine bleiben erhalten, wo sie noch passen.',
+    noChanges: 'Mit dieser Antwort ändert sich nichts an deinem Plan.',
+    submit: 'Plan aktualisieren',
+    confirmTitle: 'Plan aktualisieren?',
+    confirmDescription:
+      'Dein Plan wird auf die neuen Studiengangsdaten umgestellt. Exportiere ihn vorher, wenn du den alten Stand behalten willst.',
+    confirm: 'Aktualisieren',
+    announced: 'Plan auf {{poVersion}} aktualisiert',
   },
 }

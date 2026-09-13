@@ -8,20 +8,18 @@ import { creditRequirements } from './eligibility.ts'
 import { mergeImportAttempts } from './grade-import.ts'
 import { findModule, moveModule, PlanError, setExamDate, setModuleResult } from './operations.ts'
 import { createPlanFromPreset, type Plan, planSchema } from './plan.ts'
-import { findTransitions, previewPoSwitch, switchPo } from './po-switch.ts'
-import { diffPresetUpdate, hasPresetChanges } from './preset-update.ts'
+import { diffPresetUpdate } from './preset-update.ts'
 import { validatePlan } from './validation.ts'
 
 const readPreset = (path: string) =>
-  JSON.parse(readFileSync(new URL(`../../../../presets/${path}`, import.meta.url), 'utf8')) as Record<
+  JSON.parse(readFileSync(new URL(`../../examples/${path}`, import.meta.url), 'utf8')) as Record<
     string,
     unknown
   >
 const loadPreset = (path: string) => presetSchema.parse(readPreset(path))
 
-const luh = loadPreset('luh/technische-informatik-bsc-2026.json')
-const example = loadPreset('example/informatik-bsc-example.json')
-const example2027 = loadPreset('example/informatik-bsc-example-2027.json')
+const luh = loadPreset('luh-technische-informatik-bsc-2026.json')
+const example = loadPreset('informatik-bsc-example.json')
 
 const planFor = (preset: Preset): Plan =>
   createPlanFromPreset(preset, {
@@ -156,7 +154,7 @@ describe('attempts', () => {
 describe('credit requirements', () => {
   const withRequirement = (credits: number) =>
     presetSchema.parse({
-      ...readPreset('example/informatik-bsc-example.json'),
+      ...readPreset('informatik-bsc-example.json'),
       modules: example.modules.map((module) =>
         module.code === 'BA-601' ? { ...module, requiresCredits: credits } : module,
       ),
@@ -200,117 +198,6 @@ describe('credit requirements', () => {
   })
 })
 
-describe('PO switch', () => {
-  const oldPlan = () => {
-    let plan = planFor(example)
-    plan = setModuleResult(plan, 'MAT-101', { kind: 'graded', grade: 1.7 })
-    plan = setExamDate(plan, 'INF-201', '2028-02-14')
-    plan = setModuleResult(plan, 'WP-402', { kind: 'graded', grade: 2.0 })
-    return plan
-  }
-
-  it('offers the newer PO and previews mapped, removed and new modules', () => {
-    const plan = oldPlan()
-    const [available, ...rest] = findTransitions(plan, [example, example2027])
-    expect(rest).toEqual([])
-    expect(available?.preset.id).toBe('example/informatik-bsc-example-2027')
-    if (!available) return
-
-    const preview = previewPoSwitch(plan, available.preset, available.transition)
-    expect(preview.mapped).toEqual([
-      {
-        from: 'MAT-101',
-        fromName: 'Lineare Algebra I',
-        to: 'MAT-111',
-        toName: 'Lineare Algebra',
-        hasResult: true,
-      },
-      {
-        from: 'INF-201',
-        fromName: 'Rechnerarchitektur',
-        to: 'INF-211',
-        toName: 'Rechnerarchitektur und Betriebssysteme',
-        hasResult: false,
-      },
-    ])
-    expect(preview.diff.removed).toEqual([{ code: 'WP-402', name: 'IT-Sicherheit', kept: true }])
-    expect(preview.diff.added.map((module) => module.code)).toEqual(['WP-403'])
-    expect(preview.diff.changed).toEqual([
-      { code: 'MAT-111', name: 'Lineare Algebra', fields: ['name'], resultCleared: false },
-      {
-        code: 'INF-211',
-        name: 'Rechnerarchitektur und Betriebssysteme',
-        fields: ['name', 'credits'],
-        resultCleared: false,
-      },
-    ])
-    expect(findTransitions(switchPo(plan, available.preset, available.transition), [example2027])).toEqual([])
-  })
-
-  it('keeps results, placements and exam dates under the new codes', () => {
-    const plan = oldPlan()
-    const transition = example2027.transitions?.[0]
-    if (!transition) throw new Error('expected a transition')
-    const switched = switchPo(plan, example2027, transition)
-
-    expect(planSchema.safeParse(switched).success).toBe(true)
-    expect(switched.preset.id).toBe(example2027.id)
-    expect(switched.preset.maxAttempts).toBe(3)
-    const byCode = new Map(switched.modules.map((module) => [module.code, module]))
-    expect(byCode.get('MAT-111')?.attempts).toEqual([{ attemptNo: 1, result: 'passed', grade: 1.7 }])
-    expect(byCode.get('INF-211')).toMatchObject({ credits: 8, examDate: '2028-02-14' })
-    expect(byCode.get('WP-402')?.retired).toBe(true)
-    expect(byCode.has('MAT-101')).toBe(false)
-    expect(switched.semesters[0]?.moduleCodes).toContain('MAT-111')
-    expect(switched.semesters[2]?.moduleCodes).toContain('INF-211')
-    expect(switched.backlog).toEqual(['WP-403'])
-    expect(computeOverall(switched.rules, switched.modules).value).toBe('1.7')
-    expect(hasPresetChanges(diffPresetUpdate(switched, example2027))).toBe(false)
-
-    expect(() => switchPo(switched, example2027, transition)).toThrow()
-  })
-
-  it('keeps the module with results when a mapping targets an existing code', () => {
-    const plan = setModuleResult(planFor(example), 'WP-402', { kind: 'graded', grade: 2.0 })
-    const switched = switchPo(plan, example2027, {
-      fromPresetId: example.id,
-      moduleMap: [{ from: 'WP-402', to: 'INF-202' }],
-    })
-    expect(planSchema.safeParse(switched).success).toBe(true)
-    const module = switched.modules.find((m) => m.code === 'INF-202')
-    expect(module?.attempts).toEqual([{ attemptNo: 1, result: 'passed', grade: 2.0 }])
-    expect(switched.semesters[4]?.moduleCodes).toContain('INF-202')
-    expect(switched.semesters[3]?.moduleCodes).not.toContain('INF-202')
-  })
-
-  it('validates transitions in the preset schema', () => {
-    const base = readPreset('example/informatik-bsc-example-2027.json')
-    const broken = presetSchema.safeParse({
-      ...base,
-      transitions: [
-        {
-          fromPresetId: base.id,
-          moduleMap: [
-            { from: 'A', to: 'NOPE' },
-            { from: 'A', to: 'INF-101' },
-            { from: 'B', to: 'INF-101' },
-          ],
-        },
-      ],
-    })
-    expect(broken.success).toBe(false)
-    const messages = broken.error?.issues.map((issue) => issue.message) ?? []
-    expect(messages).toEqual(
-      expect.arrayContaining([
-        'A preset cannot transition from itself',
-        'Transition target "NOPE" is not a module of this preset',
-        'Module "A" is mapped twice',
-        'Several modules map to "INF-101"',
-      ]),
-    )
-  })
-})
-
 describe('reminders', () => {
   const plan = setExamDate(planFor(example), 'INF-101', '2027-02-15')
 
@@ -334,7 +221,7 @@ describe('module details in preset updates', () => {
   it('reports changed Modulkatalog details and takes them over', () => {
     const plan = planFor(example)
     const updated = presetSchema.parse({
-      ...readPreset('example/informatik-bsc-example.json'),
+      ...readPreset('informatik-bsc-example.json'),
       modules: example.modules.map((module) =>
         module.code === 'INF-101'
           ? { ...module, details: { lecturers: ['Prof. Dr. Ada Lovelace'] } }

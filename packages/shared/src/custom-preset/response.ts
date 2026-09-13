@@ -106,7 +106,7 @@ export function parseCustomPreset(
 
   const universitySlug = slugify(input.universityName, 'university')
   const programmeSlug = slugify(`${input.programmeName}-${input.degree}`, 'programme')
-  const { $schema: _schema, transitions: _transitions, ...rest } = data
+  const { $schema: _schema, ...rest } = data
   const candidate = {
     ...rest,
     schemaVersion: 1,

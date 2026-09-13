@@ -1,7 +1,6 @@
 {
-  "$schema": "../preset.schema.json",
   "schemaVersion": 1,
-  "id": "example/informatik-bsc-example-2027",
+  "id": "example/informatik-bsc-example",
   "university": {
     "slug": "example",
     "name": "Beispiel-Universität"
@@ -11,34 +10,16 @@
     "name": "Informatik",
     "degree": "bsc"
   },
-  "poVersion": "PO 2027 (fiktiv)",
-  "handbookVersion": "Modulhandbuch WS 2027/28 (fiktiv)",
+  "poVersion": "PO 2024 (fiktiv)",
+  "handbookVersion": "Modulhandbuch WS 2024/25 (fiktiv)",
   "standardSemesters": 6,
   "totalCredits": 180,
   "creditLabel": "ECTS",
   "codesAreOfficial": true,
   "examRules": {
-    "withdrawalDaysBeforeExam": 7,
-    "maxAttempts": 3,
-    "retakePassedExams": false
+    "withdrawalDaysBeforeExam": 7
   },
-  "transitions": [
-    {
-      "fromPresetId": "example/informatik-bsc-example",
-      "moduleMap": [
-        {
-          "from": "MAT-101",
-          "to": "MAT-111"
-        },
-        {
-          "from": "INF-201",
-          "to": "INF-211"
-        }
-      ],
-      "notes": "Fiktive Übergangsregelung: Lineare Algebra I und Rechnerarchitektur werden mit Note übernommen. IT-Sicherheit entfällt; ein bereits abgelegtes Ergebnis bleibt im Plan, zählt aber nicht mehr."
-    }
-  ],
-  "notes": "Fictional successor of example/informatik-bsc-example for tests and demos of a PO switch. Lineare Algebra I continues as Lineare Algebra (new code, same credits), Rechnerarchitektur becomes Rechnerarchitektur und Betriebssysteme (new code, 8 ECTS), IT-Sicherheit is dropped and Maschinelles Lernen is new. Attempt limits: 3 attempts, no retakes of passed exams.",
+  "notes": "Fictional example preset. It is not based on any real Prüfungsordnung and lists only a subset of modules. It exists to exercise every rule the engine supports: truncated group grades, a Streichregel, a double-weighted thesis and an ungraded module.",
   "gradeRules": {
     "allowedValues": [1.0, 1.3, 1.7, 2.0, 2.3, 2.7, 3.0, 3.3, 3.7, 4.0, 5.0],
     "passThreshold": 4.0,
@@ -73,7 +54,7 @@
               },
               {
                 "kind": "module",
-                "code": "MAT-111"
+                "code": "MAT-101"
               },
               {
                 "kind": "module",
@@ -94,7 +75,7 @@
             "children": [
               {
                 "kind": "module",
-                "code": "INF-211"
+                "code": "INF-201"
               },
               {
                 "kind": "module",
@@ -106,7 +87,7 @@
               },
               {
                 "kind": "module",
-                "code": "WP-403"
+                "code": "WP-402"
               }
             ]
           }
@@ -142,8 +123,8 @@
       "prerequisites": ["INF-101"]
     },
     {
-      "code": "MAT-111",
-      "name": "Lineare Algebra",
+      "code": "MAT-101",
+      "name": "Lineare Algebra I",
       "credits": 9,
       "grading": "graded",
       "countsTowardAverage": true,
@@ -162,9 +143,9 @@
       "typicalSemester": 2
     },
     {
-      "code": "INF-211",
-      "name": "Rechnerarchitektur und Betriebssysteme",
-      "credits": 8,
+      "code": "INF-201",
+      "name": "Rechnerarchitektur",
+      "credits": 6,
       "grading": "graded",
       "countsTowardAverage": true,
       "category": "Pflicht",
@@ -180,7 +161,7 @@
       "category": "Pflicht",
       "offering": "summer",
       "typicalSemester": 4,
-      "prerequisites": ["MAT-111"]
+      "prerequisites": ["MAT-101"]
     },
     {
       "code": "SQ-101",
@@ -203,15 +184,14 @@
       "typicalSemester": 5
     },
     {
-      "code": "WP-403",
-      "name": "Maschinelles Lernen",
+      "code": "WP-402",
+      "name": "IT-Sicherheit",
       "credits": 6,
       "grading": "graded",
       "countsTowardAverage": true,
       "category": "Wahlpflicht",
       "offering": "summer",
-      "typicalSemester": 5,
-      "prerequisites": ["MAT-111"]
+      "typicalSemester": 5
     },
     {
       "code": "BA-601",
@@ -228,15 +208,15 @@
     {
       "id": "pflicht",
       "name": "Pflichtbereich",
-      "minCredits": 50,
-      "moduleCodes": ["INF-101", "INF-102", "MAT-111", "MAT-102", "INF-211", "INF-202"]
+      "minCredits": 48,
+      "moduleCodes": ["INF-101", "INF-102", "MAT-101", "MAT-102", "INF-201", "INF-202"]
     },
     {
       "id": "wahlpflicht",
       "name": "Wahlpflichtbereich",
       "minCredits": 6,
       "maxCredits": 12,
-      "moduleCodes": ["WP-401", "WP-403"]
+      "moduleCodes": ["WP-401", "WP-402"]
     },
     {
       "id": "schluesselqualifikationen",
