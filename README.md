@@ -46,7 +46,8 @@ API (`apps/api`, environment variables):
 - `WEB_DIST`: path to `apps/web/dist` to serve the web app from the API process.
 - `IP_ADDRESS_HEADER`: behind a reverse proxy that sets it, e.g. `x-forwarded-for`, so rate limiting sees client IPs.
 - `PORT`: defaults to 3000.
-- `ADMIN_EMAILS`: comma-separated e-mail addresses of verified accounts that may open the admin dashboard at `/admin`. Everyone else gets a 404. The dashboard shows account and usage numbers but never grades or plan contents, and logs every action.
+- `SUPERADMIN_EMAIL`, `SUPERADMIN_PASSWORD` (at least 10 characters), optional `SUPERADMIN_NAME`: the superadmin account, required in production. On the first start the API creates it as a verified account; if an account with that address already exists, it is promoted instead and keeps its password. Once a superadmin exists these values are ignored, so change the password through "Forgot password" afterwards. In development they default to `admin@example.com` / `development-admin-password`.
+- Admin dashboard at `/admin`, for accounts with the admin or superadmin role; everyone else gets a 404. It shows account and usage numbers but never grades or plan contents, and logs every action. Admins manage student accounts. The superadmin additionally creates admins, grants and removes admin rights, and deletes admin accounts. Exactly one superadmin exists (enforced by the database); nobody can delete, demote, sign out or otherwise act on it, including the superadmin itself.
 - `REMINDER_INTERVAL_MINUTES`: how often the API checks for due reminder e-mails, default 60. `0` turns the reminder job off, e.g. when a second API process runs next to the first. Reminders are claimed in the database before sending, so parallel runs never send one twice.
 
 Migrations run automatically when the API starts.
@@ -58,6 +59,25 @@ Before publishing:
 1. Set the operator details above and check both legal pages. They are a starting point, not legal advice.
 2. Conclude data processing agreements (Art. 28 DSGVO) with the hosting provider and the mail provider.
 3. Make sure the web server's own logs match the retention stated in the Datenschutzerklärung.
+
+## Deployment
+
+The `Dockerfile` builds one image: the API, which also serves the built web app. `deploy/compose.yaml` runs it on a VPS together with PostgreSQL and Caddy, which obtains the HTTPS certificate. PostgreSQL is only reachable from the app container.
+
+Every push to `main` runs the checks. When they pass, CI builds the image, pushes it to `ghcr.io/<owner>/<repository>` (tagged with the commit SHA and `latest`), copies `deploy/compose.yaml` and `deploy/Caddyfile` to the VPS over SSH, pulls the image and restarts with `docker compose up --wait`. A failing health check fails the deploy.
+
+One-time setup:
+
+1. On the VPS: install Docker with the compose plugin, create a deploy user in the `docker` group, create the directory (default `/opt/study-plan`) and put a filled-in copy of `deploy/.env.example` there as `.env`. Point the domain at the VPS and open ports 80 and 443.
+2. In the GitHub repository, under Settings → Secrets and variables → Actions:
+   - Variables: `DEPLOY_HOST`, `DEPLOY_USER`, optional `DEPLOY_PORT` (22) and `DEPLOY_PATH` (`/opt/study-plan`), plus the `VITE_OPERATOR_*` variables above, which are compiled into the web app.
+   - Secrets: `DEPLOY_SSH_KEY` (a private key whose public key is in the deploy user's `authorized_keys`) and `DEPLOY_KNOWN_HOSTS` (output of `ssh-keyscan -p <port> <host>`).
+   The deploy job is skipped until `DEPLOY_HOST` is set; the image is still built.
+3. After the first deploy, sign in with `SUPERADMIN_EMAIL` and change the password.
+
+Rolling back: on the VPS, `APP_TAG=<older commit sha> docker compose up -d`. Back up the database with `docker compose exec postgres pg_dump -U studyplan studyplan > backup.sql`.
+
+Building locally: `docker build -t study-plan .`
 
 ## Programme data
 

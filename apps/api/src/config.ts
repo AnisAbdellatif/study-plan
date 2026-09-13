@@ -21,10 +21,18 @@ const envSchema = z.object({
    */
   IP_ADDRESS_HEADER: z.string().min(1).optional(),
   /** How often reminder e-mails are checked, in minutes. 0 turns reminders off for this process. */
-  /** Comma-separated e-mail addresses of verified accounts that may open the admin dashboard. */
-  ADMIN_EMAILS: z.string().default(''),
   REMINDER_INTERVAL_MINUTES: z.coerce.number().int().min(0).max(1440).default(60),
+  /**
+   * The superadmin account created on first start. The password is only used to create the account; change it
+   * afterwards through the normal password reset.
+   */
+  SUPERADMIN_EMAIL: z.email().optional(),
+  SUPERADMIN_PASSWORD: z.string().min(10).max(128).optional(),
+  SUPERADMIN_NAME: z.string().trim().min(1).max(100).default('Superadmin'),
 })
+
+/** Local development only, so a fresh checkout has a working admin account. */
+const DEVELOPMENT_SUPERADMIN = { email: 'admin@example.com', password: 'development-admin-password' }
 
 export interface Config {
   env: 'development' | 'test' | 'production'
@@ -38,10 +46,10 @@ export interface Config {
   mailFrom: string
   webDist: string | undefined
   ipAddressHeaders: string[] | undefined
-  /** Lower-case e-mail addresses with admin access. Empty means nobody. */
-  adminEmails: string[]
   /** 0 when reminders are off. */
   reminderIntervalMinutes: number
+  /** Seed for the superadmin account; undefined in tests, which create it themselves. */
+  superadmin: { email: string; password: string; name: string } | undefined
 }
 
 export function loadConfig(source: Record<string, string | undefined> = process.env): Config {
@@ -53,9 +61,16 @@ export function loadConfig(source: Record<string, string | undefined> = process.
       env.SMTP_URL ? null : 'SMTP_URL',
       source.DATABASE_URL ? null : 'DATABASE_URL',
       source.PUBLIC_URL ? null : 'PUBLIC_URL',
+      env.SUPERADMIN_EMAIL ? null : 'SUPERADMIN_EMAIL',
+      env.SUPERADMIN_PASSWORD ? null : 'SUPERADMIN_PASSWORD',
     ].filter((name): name is string => name !== null)
     if (missing.length > 0) throw new Error(`Missing required production settings: ${missing.join(', ')}`)
   }
+
+  const superadminEmail =
+    env.SUPERADMIN_EMAIL ?? (env.NODE_ENV === 'development' ? DEVELOPMENT_SUPERADMIN.email : undefined)
+  const superadminPassword =
+    env.SUPERADMIN_PASSWORD ?? (env.NODE_ENV === 'development' ? DEVELOPMENT_SUPERADMIN.password : undefined)
 
   return {
     env: env.NODE_ENV,
@@ -68,9 +83,10 @@ export function loadConfig(source: Record<string, string | undefined> = process.
     mailFrom: env.MAIL_FROM,
     webDist: env.WEB_DIST,
     ipAddressHeaders: env.IP_ADDRESS_HEADER?.split(',').map((header) => header.trim().toLowerCase()),
-    adminEmails: env.ADMIN_EMAILS.split(',')
-      .map((email) => email.trim().toLowerCase())
-      .filter((email) => email.length > 0),
     reminderIntervalMinutes: env.REMINDER_INTERVAL_MINUTES,
+    superadmin:
+      superadminEmail && superadminPassword
+        ? { email: superadminEmail.toLowerCase(), password: superadminPassword, name: env.SUPERADMIN_NAME }
+        : undefined,
   }
 }

@@ -7,7 +7,14 @@ import { createAuthClient } from 'better-auth/react'
  */
 export const authClient = createAuthClient({
   basePath: '/api/auth',
-  plugins: [inferAdditionalFields({ user: { locale: { type: 'string', required: false } } })],
+  plugins: [
+    inferAdditionalFields({
+      user: {
+        locale: { type: 'string', required: false },
+        role: { type: 'string', required: false, input: false },
+      },
+    }),
+  ],
 })
 
 export type AuthSession = typeof authClient.$Infer.Session

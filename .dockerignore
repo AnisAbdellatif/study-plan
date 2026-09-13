@@ -1,0 +1,13 @@
+.git
+.github
+.claude
+**/node_modules
+**/dist
+**/coverage
+**/.data
+**/.env
+**/.env.*
+**/*.log
+**/*.test.ts
+**/*.test.tsx
+deploy

@@ -9,6 +9,7 @@ import { loadConfig } from './config.ts'
 import { openDatabase } from './db/connection.ts'
 import { createConsoleMailer, createSmtpMailer } from './mail.ts'
 import { startReminderScheduler } from './reminders.ts'
+import { ensureSuperadmin } from './roles.ts'
 
 const config = loadConfig()
 const database = await openDatabase(config.databaseUrl)
@@ -16,6 +17,11 @@ await database.migrate()
 
 const mailer = config.smtpUrl ? createSmtpMailer(config.smtpUrl, config.mailFrom) : createConsoleMailer()
 const auth = createAuth({ config, db: database.db, mailer })
+
+if (config.superadmin) {
+  const outcome = await ensureSuperadmin(database.db, auth, config.superadmin)
+  if (outcome !== 'exists') console.info(`[api] superadmin ${config.superadmin.email} ${outcome}`)
+}
 const app = createApp({
   config,
   db: database.db,

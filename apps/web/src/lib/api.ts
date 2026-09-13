@@ -134,10 +134,14 @@ export interface AdminStats {
   reminders: { enabled: number; sentLast30Days: number }
 }
 
+/** `superadmin` is the one account created from the server environment; it also manages admins. */
+export type UserRole = 'user' | 'admin' | 'superadmin'
+
 export interface AdminUser {
   id: string
   email: string
   emailVerified: boolean
+  role: UserRole
   createdAt: string
   lastActiveAt: string | null
   plans: number
@@ -145,24 +149,46 @@ export interface AdminUser {
   reminders: boolean
 }
 
-export type AdminAction = 'send_verification_email' | 'revoke_shares' | 'sign_out' | 'delete_user'
+export type AdminAction =
+  | 'send_verification_email'
+  | 'revoke_shares'
+  | 'sign_out'
+  | 'delete_user'
+  | 'grant_admin'
+  | 'revoke_admin'
 
 export interface AdminAuditEntry {
   id: string
   adminEmail: string
-  action: AdminAction
+  action: AdminAction | 'create_admin'
   targetUserId: string
   createdAt: string
+}
+
+export interface NewAdmin {
+  email: string
+  name?: string
+  password: string
 }
 
 const adminUser = (id: string) => `/api/admin/users/${encodeURIComponent(id)}`
 
 /** Operator tools. Every call answers 404 for accounts without admin access. */
 export const adminApi = {
-  me: (): Promise<{ email: string }> => request<{ email: string }>('/api/admin/me'),
+  me: (): Promise<{ email: string; role: Exclude<UserRole, 'user'> }> => request('/api/admin/me'),
   stats: (): Promise<AdminStats> => request<AdminStats>('/api/admin/stats'),
-  users: async (query: string): Promise<AdminUser[]> =>
-    (await request<{ users: AdminUser[] }>(`/api/admin/users?q=${encodeURIComponent(query)}`)).users,
+  users: async (query: string, { adminsOnly = false } = {}): Promise<AdminUser[]> =>
+    (
+      await request<{ users: AdminUser[] }>(
+        `/api/admin/users?q=${encodeURIComponent(query)}${adminsOnly ? '&role=admin' : ''}`,
+      )
+    ).users,
+  /** Superadmin only. */
+  setRole: (id: string, role: 'admin' | 'user'): Promise<{ role: UserRole }> =>
+    request<{ role: UserRole }>(`${adminUser(id)}/role`, { method: 'PUT', body: JSON.stringify({ role }) }),
+  /** Superadmin only. */
+  createAdmin: (admin: NewAdmin): Promise<{ id: string }> =>
+    request<{ id: string }>('/api/admin/admins', { method: 'POST', body: JSON.stringify(admin) }),
   audit: async (): Promise<AdminAuditEntry[]> =>
     (await request<{ entries: AdminAuditEntry[] }>('/api/admin/audit')).entries,
   sendVerificationEmail: (id: string): Promise<void> =>

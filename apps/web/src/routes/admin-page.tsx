@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { type FormEvent, useCallback, useEffect, useId, useState } from 'react'
+import { type FormEvent, type ReactNode, useCallback, useEffect, useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../components/ui/button.tsx'
 import { ConfirmDialog } from '../components/ui/dialog.tsx'
@@ -11,9 +11,14 @@ import {
   type AdminUser,
   ApiError,
   adminApi,
+  type UserRole,
 } from '../lib/api.ts'
 
 const cardClass = 'rounded-xl bg-white p-4 ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800'
+const inputClass =
+  'mt-1 h-10 w-full rounded-lg bg-white px-3 text-sm ring-1 ring-zinc-300 ring-inset focus-visible:outline-2 focus-visible:outline-indigo-500 dark:bg-zinc-950 dark:ring-zinc-700'
+
+type ViewerRole = Exclude<UserRole, 'user'>
 
 // Formatters are looked up per call so they follow language changes; each locale builds them once.
 const formatters = new Map<
@@ -117,34 +122,79 @@ interface PendingAction {
   action: AdminAction
 }
 
-function Accounts({ selfEmail, onChanged }: { selfEmail: string; onChanged: () => void }) {
-  const searchId = useId()
-  const [query, setQuery] = useState('')
-  const [users, setUsers] = useState<AdminUser[] | null>(null)
-  const [message, setMessage] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null)
-  const [pending, setPending] = useState<PendingAction | null>(null)
-  const { t } = useTranslation('admin')
+type Message = { tone: 'ok' | 'error'; text: string }
 
-  const load = useCallback(
-    async (value: string) => {
-      try {
-        setUsers(await adminApi.users(value))
-      } catch {
-        setMessage({ tone: 'error', text: t('accounts.loadError') })
+function StatusMessage({ message }: { message: Message | null }) {
+  if (!message) return null
+  return (
+    <p
+      role="status"
+      className={
+        message.tone === 'ok'
+          ? 'text-sm text-emerald-800 dark:text-emerald-300'
+          : 'text-sm text-red-700 dark:text-red-400'
       }
-    },
-    [t],
+    >
+      {message.text}
+    </p>
   )
+}
 
-  useEffect(() => {
-    void load('')
-  }, [load])
+function RoleBadge({ role }: { role: UserRole }) {
+  const { t } = useTranslation('admin')
+  if (role === 'user') return null
+  return (
+    <span
+      className={
+        role === 'superadmin'
+          ? 'ml-2 rounded bg-indigo-600 px-1.5 py-0.5 text-xs font-medium text-white dark:bg-indigo-400 dark:text-zinc-950'
+          : 'ml-2 rounded bg-indigo-100 px-1.5 py-0.5 text-xs font-medium text-indigo-800 dark:bg-indigo-400/20 dark:text-indigo-200'
+      }
+    >
+      {t(`roles.${role}`)}
+    </span>
+  )
+}
 
-  const search = (event: FormEvent) => {
-    event.preventDefault()
-    setMessage(null)
-    void load(query.trim())
+/**
+ * What the viewer may do with an account, mirroring the API: nobody touches the superadmin or their own account,
+ * and only the superadmin manages admins.
+ */
+function accessTo(viewer: ViewerRole, target: AdminUser, selfEmail: string) {
+  if (target.email.toLowerCase() === selfEmail.toLowerCase()) return 'self'
+  if (target.role === 'superadmin') return 'protected'
+  if (target.role === 'admin' && viewer !== 'superadmin') return 'superadminOnly'
+  return 'manage'
+}
+
+const ERROR_MESSAGES = {
+  cannot_modify_self: 'messages.cannotModifySelf',
+  already_verified: 'messages.alreadyVerified',
+  protected_account: 'messages.protectedAccount',
+  requires_superadmin: 'messages.requiresSuperadmin',
+  not_verified: 'messages.notVerified',
+  user_exists: 'messages.userExists',
+  invalid_request: 'messages.invalid',
+} as const
+
+const isKnownError = (code: string): code is keyof typeof ERROR_MESSAGES =>
+  Object.hasOwn(ERROR_MESSAGES, code)
+
+function useErrorMessage() {
+  const { t } = useTranslation('admin')
+  return (error: unknown): Message => {
+    const key =
+      error instanceof ApiError && isKnownError(error.code) ? ERROR_MESSAGES[error.code] : 'messages.failed'
+    return { tone: 'error', text: t(key) }
   }
+}
+
+/** Runs a confirmed account action and reports the outcome; the dialog is rendered by the caller. */
+function useAccountActions(onChanged: () => void) {
+  const { t } = useTranslation('admin')
+  const describeError = useErrorMessage()
+  const [message, setMessage] = useState<Message | null>(null)
+  const [pending, setPending] = useState<PendingAction | null>(null)
 
   const run = async ({ user, action }: PendingAction) => {
     setMessage(null)
@@ -156,39 +206,109 @@ function Accounts({ selfEmail, onChanged }: { selfEmail: string; onChanged: () =
           break
         case 'revoke_shares': {
           const { revoked } = await adminApi.revokeShares(user.id)
-          setMessage({
-            tone: 'ok',
-            text: t('messages.revoked', { count: revoked, email: user.email }),
-          })
+          setMessage({ tone: 'ok', text: t('messages.revoked', { count: revoked, email: user.email }) })
           break
         }
         case 'sign_out': {
           const { sessions } = await adminApi.signOut(user.id)
-          setMessage({
-            tone: 'ok',
-            text: t('messages.signedOut', { count: sessions, email: user.email }),
-          })
+          setMessage({ tone: 'ok', text: t('messages.signedOut', { count: sessions, email: user.email }) })
           break
         }
         case 'delete_user':
           await adminApi.deleteUser(user.id)
           setMessage({ tone: 'ok', text: t('messages.deleted', { email: user.email }) })
           break
+        case 'grant_admin':
+          await adminApi.setRole(user.id, 'admin')
+          setMessage({ tone: 'ok', text: t('messages.granted', { email: user.email }) })
+          break
+        case 'revoke_admin':
+          await adminApi.setRole(user.id, 'user')
+          setMessage({ tone: 'ok', text: t('messages.revokedAdmin', { email: user.email }) })
+          break
       }
     } catch (error) {
-      const code = error instanceof ApiError ? error.code : ''
-      setMessage({
-        tone: 'error',
-        text:
-          code === 'cannot_modify_self'
-            ? t('messages.cannotModifySelf')
-            : code === 'already_verified'
-              ? t('messages.alreadyVerified')
-              : t('messages.failed'),
-      })
+      setMessage(describeError(error))
     }
-    await load(query.trim())
     onChanged()
+  }
+
+  const dialog = (
+    <ConfirmDialog
+      open={pending !== null}
+      onOpenChange={(open) => {
+        if (!open) setPending(null)
+      }}
+      title={pending ? t(`confirm.${pending.action}.title`) : ''}
+      description={pending ? t(`confirm.${pending.action}.description`, { email: pending.user.email }) : ''}
+      confirmLabel={pending ? t(`confirm.${pending.action}.label`) : ''}
+      destructive={pending?.action === 'delete_user'}
+      onConfirm={() => {
+        if (pending) void run(pending)
+        setPending(null)
+      }}
+    />
+  )
+
+  return { message, setMessage, request: setPending, dialog }
+}
+
+function ActionButton({
+  children,
+  danger = false,
+  onClick,
+}: {
+  children: ReactNode
+  danger?: boolean
+  onClick: () => void
+}) {
+  return (
+    <Button
+      size="sm"
+      variant="ghost"
+      className={danger ? 'text-red-700 dark:text-red-400' : undefined}
+      onClick={onClick}
+    >
+      {children}
+    </Button>
+  )
+}
+
+interface SectionProps {
+  viewer: ViewerRole
+  selfEmail: string
+  version: number
+  onChanged: () => void
+}
+
+function Accounts({ viewer, selfEmail, version, onChanged }: SectionProps) {
+  const searchId = useId()
+  const [query, setQuery] = useState('')
+  const [activeQuery, setActiveQuery] = useState('')
+  const [users, setUsers] = useState<AdminUser[] | null>(null)
+  const { message, setMessage, request, dialog } = useAccountActions(onChanged)
+  const { t } = useTranslation('admin')
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a new version reloads the list after a change.
+  useEffect(() => {
+    let active = true
+    adminApi
+      .users(activeQuery)
+      .then((next) => {
+        if (active) setUsers(next)
+      })
+      .catch(() => {
+        if (active) setMessage({ tone: 'error', text: t('accounts.loadError') })
+      })
+    return () => {
+      active = false
+    }
+  }, [activeQuery, version, setMessage, t])
+
+  const search = (event: FormEvent) => {
+    event.preventDefault()
+    setMessage(null)
+    setActiveQuery(query.trim())
   }
 
   return (
@@ -206,23 +326,12 @@ function Accounts({ selfEmail, onChanged }: { selfEmail: string; onChanged: () =
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            className="mt-1 h-10 w-full rounded-lg bg-white px-3 text-sm ring-1 ring-zinc-300 ring-inset focus-visible:outline-2 focus-visible:outline-indigo-500 dark:bg-zinc-950 dark:ring-zinc-700"
+            className={inputClass}
           />
         </div>
         <Button type="submit">{t('accounts.submit')}</Button>
       </form>
-      {message ? (
-        <p
-          role="status"
-          className={
-            message.tone === 'ok'
-              ? 'text-sm text-emerald-800 dark:text-emerald-300'
-              : 'text-sm text-red-700 dark:text-red-400'
-          }
-        >
-          {message.text}
-        </p>
-      ) : null}
+      <StatusMessage message={message} />
       <div className={`${cardClass} overflow-x-auto p-0`}>
         {users === null ? (
           <p className="p-4 text-sm">{t('loading', { ns: 'common' })}</p>
@@ -242,15 +351,16 @@ function Accounts({ selfEmail, onChanged }: { selfEmail: string; onChanged: () =
             </thead>
             <tbody>
               {users.map((user) => {
-                const self = user.email.toLowerCase() === selfEmail.toLowerCase()
+                const access = accessTo(viewer, user, selfEmail)
                 return (
                   <tr key={user.id} className="border-t border-zinc-200 align-top dark:border-zinc-800">
                     <td className="px-4 py-2">
                       <span className="font-medium break-all">{user.email}</span>
+                      <RoleBadge role={user.role} />
                       <span className="block text-xs text-zinc-600 dark:text-zinc-400">
                         {user.emailVerified ? t('accounts.verified') : t('accounts.unverified')}
                         {user.reminders ? ` · ${t('accounts.remindersOn')}` : ''}
-                        {self ? ` · ${t('accounts.self')}` : ''}
+                        {access === 'self' ? ` · ${t('accounts.self')}` : ''}
                       </span>
                     </td>
                     <td className="px-2 py-2 tabular-nums">
@@ -262,46 +372,45 @@ function Accounts({ selfEmail, onChanged }: { selfEmail: string; onChanged: () =
                     <td className="px-2 py-2 text-right tabular-nums">{user.plans}</td>
                     <td className="px-2 py-2 text-right tabular-nums">{user.activeShares}</td>
                     <td className="px-4 py-2">
-                      {self ? (
-                        <span className="text-xs text-zinc-600 dark:text-zinc-400">
-                          {t('accounts.selfActions')}
-                        </span>
-                      ) : (
+                      {access === 'manage' ? (
                         <div className="flex flex-wrap gap-1">
                           {user.emailVerified ? null : (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => setPending({ user, action: 'send_verification_email' })}
+                            <ActionButton
+                              onClick={() => request({ user, action: 'send_verification_email' })}
                             >
                               {t('accounts.actions.sendVerification')}
-                            </Button>
+                            </ActionButton>
                           )}
                           {user.activeShares > 0 ? (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => setPending({ user, action: 'revoke_shares' })}
-                            >
+                            <ActionButton onClick={() => request({ user, action: 'revoke_shares' })}>
                               {t('accounts.actions.revokeShares')}
-                            </Button>
+                            </ActionButton>
                           ) : null}
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => setPending({ user, action: 'sign_out' })}
-                          >
+                          <ActionButton onClick={() => request({ user, action: 'sign_out' })}>
                             {t('accounts.actions.signOut')}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="text-red-700 dark:text-red-400"
-                            onClick={() => setPending({ user, action: 'delete_user' })}
-                          >
+                          </ActionButton>
+                          {viewer === 'superadmin' && user.role === 'user' && user.emailVerified ? (
+                            <ActionButton onClick={() => request({ user, action: 'grant_admin' })}>
+                              {t('accounts.actions.grantAdmin')}
+                            </ActionButton>
+                          ) : null}
+                          {viewer === 'superadmin' && user.role === 'admin' ? (
+                            <ActionButton onClick={() => request({ user, action: 'revoke_admin' })}>
+                              {t('accounts.actions.revokeAdmin')}
+                            </ActionButton>
+                          ) : null}
+                          <ActionButton danger onClick={() => request({ user, action: 'delete_user' })}>
                             {t('accounts.actions.delete')}
-                          </Button>
+                          </ActionButton>
                         </div>
+                      ) : (
+                        <span className="text-xs text-zinc-600 dark:text-zinc-400">
+                          {access === 'self'
+                            ? t('accounts.selfActions')
+                            : access === 'protected'
+                              ? t('accounts.protected')
+                              : t('accounts.superadminOnly')}
+                        </span>
                       )}
                     </td>
                   </tr>
@@ -312,20 +421,173 @@ function Accounts({ selfEmail, onChanged }: { selfEmail: string; onChanged: () =
         )}
       </div>
       <p className="text-xs text-zinc-600 dark:text-zinc-400">{t('accounts.footnote')}</p>
-      <ConfirmDialog
-        open={pending !== null}
-        onOpenChange={(open) => {
-          if (!open) setPending(null)
-        }}
-        title={pending ? t(`confirm.${pending.action}.title`) : ''}
-        description={pending ? t(`confirm.${pending.action}.description`, { email: pending.user.email }) : ''}
-        confirmLabel={pending ? t(`confirm.${pending.action}.label`) : ''}
-        destructive={pending?.action === 'delete_user'}
-        onConfirm={() => {
-          if (pending) void run(pending)
-          setPending(null)
-        }}
-      />
+      {dialog}
+    </section>
+  )
+}
+
+function CreateAdminForm({ onCreated }: { onCreated: () => void }) {
+  const { t } = useTranslation('admin')
+  const describeError = useErrorMessage()
+  const ids = { email: useId(), name: useId(), password: useId(), hint: useId() }
+  const [email, setEmail] = useState('')
+  const [name, setName] = useState('')
+  const [password, setPassword] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState<Message | null>(null)
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault()
+    setBusy(true)
+    setMessage(null)
+    try {
+      await adminApi.createAdmin({
+        email: email.trim(),
+        password,
+        ...(name.trim() ? { name: name.trim() } : {}),
+      })
+      setMessage({ tone: 'ok', text: t('messages.created', { email: email.trim().toLowerCase() }) })
+      setEmail('')
+      setName('')
+      setPassword('')
+      onCreated()
+    } catch (error) {
+      setMessage(describeError(error))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <form onSubmit={(event) => void submit(event)} className={`${cardClass} space-y-3`}>
+      <h3 className="text-sm font-semibold">{t('team.createHeading')}</h3>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div>
+          <label htmlFor={ids.email} className="block text-sm font-medium">
+            {t('team.email')}
+          </label>
+          <input
+            id={ids.email}
+            type="email"
+            required
+            autoComplete="off"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            className={inputClass}
+          />
+        </div>
+        <div>
+          <label htmlFor={ids.name} className="block text-sm font-medium">
+            {t('team.name')}
+          </label>
+          <input
+            id={ids.name}
+            type="text"
+            autoComplete="off"
+            maxLength={100}
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            className={inputClass}
+          />
+        </div>
+        <div>
+          <label htmlFor={ids.password} className="block text-sm font-medium">
+            {t('team.password')}
+          </label>
+          <input
+            id={ids.password}
+            type="password"
+            required
+            minLength={10}
+            maxLength={128}
+            autoComplete="new-password"
+            aria-describedby={ids.hint}
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            className={inputClass}
+          />
+        </div>
+      </div>
+      <p id={ids.hint} className="text-xs text-zinc-600 dark:text-zinc-400">
+        {t('team.passwordHint')}
+      </p>
+      <StatusMessage message={message} />
+      <Button type="submit" variant="primary" disabled={busy}>
+        {busy ? t('team.creating') : t('team.submit')}
+      </Button>
+    </form>
+  )
+}
+
+/** Superadmin only: the admin team, with creating, demoting and deleting admins. */
+function AdminTeam({ viewer, selfEmail, version, onChanged }: SectionProps) {
+  const { t } = useTranslation('admin')
+  const [admins, setAdmins] = useState<AdminUser[] | null>(null)
+  const { message, setMessage, request, dialog } = useAccountActions(onChanged)
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a new version reloads the list after a change.
+  useEffect(() => {
+    let active = true
+    adminApi
+      .users('', { adminsOnly: true })
+      .then((next) => {
+        if (active) setAdmins(next)
+      })
+      .catch(() => {
+        if (active) setMessage({ tone: 'error', text: t('team.loadError') })
+      })
+    return () => {
+      active = false
+    }
+  }, [version, setMessage, t])
+
+  return (
+    <section aria-labelledby="admin-team" className="space-y-3">
+      <h2 id="admin-team" className="text-lg font-semibold">
+        {t('team.heading')}
+      </h2>
+      <p className="text-sm text-zinc-600 dark:text-zinc-400">{t('team.intro')}</p>
+      <StatusMessage message={message} />
+      <div className={cardClass}>
+        {admins === null ? (
+          <p className="text-sm">{t('loading', { ns: 'common' })}</p>
+        ) : (
+          <ul className="divide-y divide-zinc-200 text-sm dark:divide-zinc-800">
+            {admins.map((admin) => {
+              const access = accessTo(viewer, admin, selfEmail)
+              return (
+                <li key={admin.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                  <span>
+                    <span className="font-medium break-all">{admin.email}</span>
+                    <RoleBadge role={admin.role} />
+                    {access === 'self' ? (
+                      <span className="text-xs text-zinc-600 dark:text-zinc-400">
+                        {' '}
+                        · {t('accounts.self')}
+                      </span>
+                    ) : null}
+                  </span>
+                  {access === 'manage' ? (
+                    <span className="flex flex-wrap gap-1">
+                      <ActionButton onClick={() => request({ user: admin, action: 'revoke_admin' })}>
+                        {t('accounts.actions.revokeAdmin')}
+                      </ActionButton>
+                      <ActionButton danger onClick={() => request({ user: admin, action: 'delete_user' })}>
+                        {t('accounts.actions.delete')}
+                      </ActionButton>
+                    </span>
+                  ) : null}
+                </li>
+              )
+            })}
+          </ul>
+        )}
+        {admins !== null && admins.length <= 1 ? (
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">{t('team.empty')}</p>
+        ) : null}
+      </div>
+      <CreateAdminForm onCreated={onChanged} />
+      {dialog}
     </section>
   )
 }
@@ -367,6 +629,8 @@ export function AdminPage() {
   const { t } = useTranslation('admin')
   const [access, setAccess] = useState<Access>('checking')
   const [selfEmail, setSelfEmail] = useState('')
+  const [viewer, setViewer] = useState<ViewerRole>('admin')
+  const [version, setVersion] = useState(0)
   const [stats, setStats] = useState<AdminStats | null>(null)
   const [audit, setAudit] = useState<AdminAuditEntry[]>([])
 
@@ -376,6 +640,11 @@ export function AdminPage() {
     setAudit(nextAudit)
   }, [])
 
+  const changed = useCallback(() => {
+    setVersion((current) => current + 1)
+    void refresh().catch(() => {})
+  }, [refresh])
+
   useEffect(() => {
     let active = true
     adminApi
@@ -383,6 +652,7 @@ export function AdminPage() {
       .then(async (me) => {
         if (!active) return
         setSelfEmail(me.email)
+        setViewer(me.role === 'superadmin' ? 'superadmin' : 'admin')
         setAccess('allowed')
         await refresh()
       })
@@ -421,6 +691,7 @@ export function AdminPage() {
     )
   }
 
+  const sectionProps = { viewer, selfEmail, version, onChanged: changed }
   return (
     <main className="mx-auto max-w-6xl space-y-8 px-4 py-6 sm:px-6">
       <header>
@@ -428,10 +699,14 @@ export function AdminPage() {
           {t('brand', { ns: 'common' })}
         </p>
         <h1 className="text-xl font-semibold">{t('title')}</h1>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">{t('signedInAs', { email: selfEmail })}</p>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+          {t('signedInAs', { email: selfEmail })}
+          <RoleBadge role={viewer} />
+        </p>
       </header>
       {stats ? <Overview stats={stats} /> : <p className="text-sm">{t('loadingStats')}</p>}
-      <Accounts selfEmail={selfEmail} onChanged={() => void refresh().catch(() => {})} />
+      {viewer === 'superadmin' ? <AdminTeam {...sectionProps} /> : null}
+      <Accounts {...sectionProps} />
       <AuditLog entries={audit} />
     </main>
   )

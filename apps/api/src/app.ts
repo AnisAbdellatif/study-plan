@@ -84,7 +84,7 @@ export function createApp({ config, db, auth, staticFiles }: AppDependencies) {
   app.route('/api/account/notifications', notificationSettingsRoutes(db))
   app.route('/api/account', accountRoutes(db))
   app.route('/api/notifications', unsubscribeRoutes(db, config))
-  app.use('/api/admin/*', requireAdmin(auth, config))
+  app.use('/api/admin/*', requireAdmin(auth, db))
   app.route('/api/admin', adminRoutes(db, auth))
   app.all('/api/*', (c) => c.json({ error: 'not_found' }, 404))
 

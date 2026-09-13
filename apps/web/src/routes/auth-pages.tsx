@@ -622,27 +622,33 @@ export function AccountPage() {
         <h2 id="konto-loeschen" className="font-semibold">
           {t('account.delete.title')}
         </h2>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">{t('account.delete.intro')}</p>
-        {deleteError ? <Alert>{deleteError}</Alert> : null}
-        <form
-          onSubmit={(event) => {
-            event.preventDefault()
-            setConfirmDelete(true)
-          }}
-          className="space-y-3"
-        >
-          <Field
-            label={t('account.delete.passwordLabel')}
-            type="password"
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-          <Button type="submit" variant="danger">
-            {t('account.delete.submit')}
-          </Button>
-        </form>
+        {user.role === 'superadmin' ? (
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">{t('account.delete.superadmin')}</p>
+        ) : (
+          <>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">{t('account.delete.intro')}</p>
+            {deleteError ? <Alert>{deleteError}</Alert> : null}
+            <form
+              onSubmit={(event) => {
+                event.preventDefault()
+                setConfirmDelete(true)
+              }}
+              className="space-y-3"
+            >
+              <Field
+                label={t('account.delete.passwordLabel')}
+                type="password"
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <Button type="submit" variant="danger">
+                {t('account.delete.submit')}
+              </Button>
+            </form>
+          </>
+        )}
       </section>
 
       <ConfirmDialog

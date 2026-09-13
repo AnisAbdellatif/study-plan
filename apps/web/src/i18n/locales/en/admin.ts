@@ -46,16 +46,50 @@ export const admin = {
     remindersOn: 'reminders on',
     self: 'you',
     selfActions: 'via the account page',
+    protected: 'protected',
+    superadminOnly: 'superadmin only',
     actions: {
       sendVerification: 'Resend confirmation',
       revokeShares: 'Deactivate links',
       signOut: 'Sign out everywhere',
+      grantAdmin: 'Make admin',
+      revokeAdmin: 'Remove admin rights',
       delete: 'Delete account…',
     },
     footnote:
       'Shows the 25 newest matching accounts. Grades and plan contents are deliberately not visible here.',
   },
+  roles: {
+    user: 'Student',
+    admin: 'Admin',
+    superadmin: 'Superadmin',
+  },
+  team: {
+    heading: 'Admins',
+    intro:
+      'Admins open this dashboard and manage student accounts. Only you as the superadmin create admins, remove admin rights and delete admin accounts. Your superadmin account can’t be deleted.',
+    empty: 'No other admins yet. Create one, or make an existing account an admin in the account list.',
+    loadError: "The admins couldn't be loaded.",
+    createHeading: 'Create admin',
+    email: 'Email address',
+    name: 'Name (optional)',
+    password: 'Initial password',
+    passwordHint:
+      'At least 10 characters. Hand it over securely; it can be changed afterwards via “Forgot password”. The email address counts as confirmed.',
+    submit: 'Create admin',
+    creating: 'Creating…',
+  },
   confirm: {
+    grant_admin: {
+      title: 'Grant admin rights?',
+      description: '{{email}} will be able to open the admin dashboard and manage student accounts.',
+      label: 'Make admin',
+    },
+    revoke_admin: {
+      title: 'Remove admin rights?',
+      description: '{{email}} stays a regular account but can no longer open the admin dashboard.',
+      label: 'Remove',
+    },
     send_verification_email: {
       title: 'Resend confirmation email?',
       description: '{{email}} will get a new link to confirm their email address.',
@@ -87,6 +121,14 @@ export const admin = {
     deleted: 'Account {{email}} deleted.',
     cannotModifySelf: 'You manage your own account on the account page.',
     alreadyVerified: 'The email address is already confirmed.',
+    granted: '{{email}} is now an admin.',
+    revokedAdmin: '{{email}} is no longer an admin.',
+    created: 'Admin {{email}} created.',
+    protectedAccount: 'The superadmin account is protected.',
+    requiresSuperadmin: 'Only the superadmin can do that.',
+    notVerified: "This account's email address isn't confirmed yet.",
+    userExists: 'An account with this email address already exists. Make it an admin in the account list.',
+    invalid: 'Please check the email address and the password (at least 10 characters).',
     failed: "That didn't work. Please try again.",
   },
   audit: {
@@ -99,6 +141,9 @@ export const admin = {
       revoke_shares: 'Shared links deactivated',
       sign_out: 'Signed out everywhere',
       delete_user: 'Account deleted',
+      grant_admin: 'Admin rights granted',
+      revoke_admin: 'Admin rights removed',
+      create_admin: 'Admin created',
     },
   },
 } satisfies Messages<typeof de>

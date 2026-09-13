@@ -1,0 +1,6 @@
+# Obtains and renews the TLS certificate for DOMAIN automatically. No access log is written, matching the
+# retention stated in the privacy policy; add a `log` block here if you want one.
+{$DOMAIN} {
+	encode zstd gzip
+	reverse_proxy app:3000
+}

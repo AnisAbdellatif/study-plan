@@ -1,0 +1,70 @@
+# Production stack for the VPS: the app, PostgreSQL and Caddy for HTTPS.
+# Lives next to a .env file (see .env.example) in DEPLOY_PATH; the CI deploy job copies this file there.
+name: study-plan
+
+services:
+  app:
+    image: ${APP_IMAGE:?set APP_IMAGE}:${APP_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PUBLIC_URL: https://${DOMAIN:?set DOMAIN}
+      DATABASE_URL: postgres://${POSTGRES_USER:-studyplan}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-studyplan}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET}
+      SMTP_URL: ${SMTP_URL:?set SMTP_URL}
+      MAIL_FROM: ${MAIL_FROM:?set MAIL_FROM}
+      SUPERADMIN_EMAIL: ${SUPERADMIN_EMAIL:?set SUPERADMIN_EMAIL}
+      SUPERADMIN_PASSWORD: ${SUPERADMIN_PASSWORD:?set SUPERADMIN_PASSWORD}
+      SUPERADMIN_NAME: ${SUPERADMIN_NAME:-Superadmin}
+      REMINDER_INTERVAL_MINUTES: ${REMINDER_INTERVAL_MINUTES:-60}
+      # Caddy replaces this header with the real client address, so rate limiting can trust it.
+      IP_ADDRESS_HEADER: x-forwarded-for
+    networks: [internal, web]
+
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-studyplan}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-studyplan}
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    # Not published on the host; only the app reaches it.
+    networks: [internal]
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks: [web]
+
+networks:
+  internal:
+    internal: true
+  web:
+
+volumes:
+  postgres-data:
+  caddy-data:
+  caddy-config:

@@ -108,6 +108,8 @@ export const auth = {
       confirmDescription:
         'Your account and all plans saved to it will be deleted right away. This can’t be undone.',
       confirm: 'Delete for good',
+      superadmin:
+        'This is the superadmin account. It can’t be deleted, so the platform always has someone in charge.',
     },
   },
   button: {

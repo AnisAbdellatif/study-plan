@@ -3,6 +3,7 @@
  * `plan` holds each account's plans as validated guest documents.
  */
 import type { GuestDocument } from '@study-plan/shared'
+import { sql } from 'drizzle-orm'
 import {
   bigint,
   boolean,
@@ -22,16 +23,25 @@ const timestamps = () => ({
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
-export const user = pgTable('user', {
-  id: text('id').primaryKey(),
-  name: text('name').notNull(),
-  email: text('email').notNull().unique(),
-  emailVerified: boolean('email_verified').notNull().default(false),
-  image: text('image'),
-  /** UI language for e-mails, 'de' or 'en'. A Better Auth additional field, see auth.ts. */
-  locale: text('locale').notNull().default('de'),
-  ...timestamps(),
-})
+export const user = pgTable(
+  'user',
+  {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(),
+    email: text('email').notNull().unique(),
+    emailVerified: boolean('email_verified').notNull().default(false),
+    image: text('image'),
+    /** UI language for e-mails, 'de' or 'en'. A Better Auth additional field, see auth.ts. */
+    locale: text('locale').notNull().default('de'),
+    /** Access level, see src/roles.ts. Never settable through the auth API. */
+    role: text('role', { enum: ['user', 'admin', 'superadmin'] })
+      .notNull()
+      .default('user'),
+    ...timestamps(),
+  },
+  // At most one superadmin, enforced by the database.
+  (table) => [uniqueIndex('user_single_superadmin_idx').on(table.role).where(sql`role = 'superadmin'`)],
+)
 
 export const session = pgTable(
   'session',
@@ -168,7 +178,15 @@ export const adminAuditLog = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     adminEmail: text('admin_email').notNull(),
     action: text('action', {
-      enum: ['send_verification_email', 'revoke_shares', 'sign_out', 'delete_user'],
+      enum: [
+        'send_verification_email',
+        'revoke_shares',
+        'sign_out',
+        'delete_user',
+        'grant_admin',
+        'revoke_admin',
+        'create_admin',
+      ],
     }).notNull(),
     targetUserId: text('target_user_id').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

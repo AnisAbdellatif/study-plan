@@ -12,6 +12,8 @@ import { Dialog } from './ui/dialog.tsx'
 export interface AccountUser {
   id: string
   email: string
+  /** 'user', 'admin' or 'superadmin'; the superadmin account can't be deleted. */
+  role?: string | null
 }
 
 interface AccountSyncValue {
@@ -85,7 +87,7 @@ export function AccountSyncProvider({ children }: { children: ReactNode }) {
   )
   const state = useSyncExternalStore(sync.subscribe, sync.getState, sync.getState)
   const sessionUser = session.data?.user
-  const user = sessionUser ? { id: sessionUser.id, email: sessionUser.email } : null
+  const user = sessionUser ? { id: sessionUser.id, email: sessionUser.email, role: sessionUser.role } : null
   const userId = user?.id ?? null
 
   const sessionFailed = session.error !== null

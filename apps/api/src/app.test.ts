@@ -24,6 +24,7 @@ import {
 } from './db/schema.ts'
 import { createMemoryMailer, type Mailer } from './mail.ts'
 import { berlinDate, runReminders, UNSUBSCRIBE_PATH, verifyUnsubscribeToken } from './reminders.ts'
+import { ensureSuperadmin } from './roles.ts'
 import { MAX_PLANS_PER_USER } from './routes/plans.ts'
 
 const config = loadConfig({
@@ -31,7 +32,6 @@ const config = loadConfig({
   DATABASE_URL: 'pglite://memory',
   PUBLIC_URL: 'http://localhost:5173',
   BETTER_AUTH_SECRET: 'test-secret-that-is-long-enough-for-better-auth',
-  ADMIN_EMAILS: ' Admin@example.org , ',
 })
 
 const preset = presetSchema.parse(
@@ -56,12 +56,14 @@ const planDocument = (name = 'Informatik B.Sc.') =>
 const PASSWORD = 'richtig-langes-passwort'
 const mailer = createMemoryMailer()
 let connection: DatabaseConnection
+let auth: ReturnType<typeof createAuth>
 let app: ReturnType<typeof createApp>
 
 beforeAll(async () => {
   connection = await openDatabase(config.databaseUrl)
   await connection.migrate()
-  app = createApp({ config, db: connection.db, auth: createAuth({ config, db: connection.db, mailer }) })
+  auth = createAuth({ config, db: connection.db, mailer })
+  app = createApp({ config, db: connection.db, auth })
 })
 
 afterAll(async () => {
@@ -107,6 +109,10 @@ async function signUp(email: string) {
     method: 'POST',
     body: { email, password: PASSWORD, name: email.split('@')[0] },
   })
+}
+
+async function signIn(email: string, password = PASSWORD) {
+  return call('/api/auth/sign-in/email', { method: 'POST', body: { email, password } })
 }
 
 async function registerVerifiedUser(email: string): Promise<string> {
@@ -629,6 +635,8 @@ describe('reminders', () => {
 })
 
 describe('admin', () => {
+  const SUPERADMIN = { email: 'chef@example.org', password: 'superadmin-passwort-1', name: 'Chef' }
+  let superCookie = ''
   let adminCookie = ''
   let userCookie = ''
   let userId = ''
@@ -641,7 +649,17 @@ describe('admin', () => {
   }
 
   beforeAll(async () => {
+    expect(await ensureSuperadmin(connection.db, auth, SUPERADMIN)).toBe('created')
+    superCookie = sessionCookie(await signIn(SUPERADMIN.email, SUPERADMIN.password))
+    expect(superCookie).toContain('session_token')
     adminCookie = await registerVerifiedUser('admin@example.org')
+    const adminId = (await userRow('admin@example.org')).id
+    const granted = await call(`/api/admin/users/${adminId}/role`, {
+      method: 'PUT',
+      cookie: superCookie,
+      body: { role: 'admin' },
+    })
+    expect(await json(granted)).toEqual({ role: 'admin' })
     userCookie = await registerVerifiedUser('nutzer@example.org')
     userId = (await userRow('nutzer@example.org')).id
     const created = await json<{ id: string }>(
@@ -668,9 +686,14 @@ describe('admin', () => {
     expect(await userRow('nutzer@example.org')).toBeDefined()
   })
 
-  it('lets the admin in, matching the address case-insensitively', async () => {
+  it('lets admins in with their role', async () => {
     expect(await json(await call('/api/admin/me', { cookie: adminCookie }))).toEqual({
       email: 'admin@example.org',
+      role: 'admin',
+    })
+    expect(await json(await call('/api/admin/me', { cookie: superCookie }))).toEqual({
+      email: 'chef@example.org',
+      role: 'superadmin',
     })
   })
 
@@ -789,6 +812,144 @@ describe('admin', () => {
     await call(`/api/admin/users/${pendingId}/sign-out`, { method: 'POST', cookie: adminCookie })
     const rows = await connection.db.select().from(adminAuditLog).where(eq(adminAuditLog.targetUserId, 'alt'))
     expect(rows).toEqual([])
+  })
+
+  describe('superadmin', () => {
+    it('is created once as a verified password account and never overwritten on later starts', async () => {
+      const row = await userRow('chef@example.org')
+      expect(row).toMatchObject({ role: 'superadmin', emailVerified: true, name: 'Chef' })
+      const [created] = await connection.db.select().from(account).where(eq(account.userId, row.id))
+      const [signedUp] = await connection.db
+        .select()
+        .from(account)
+        .where(eq(account.userId, (await userRow('admin@example.org')).id))
+      expect(created).toMatchObject({ providerId: 'credential', issuer: signedUp?.issuer })
+
+      expect(
+        await ensureSuperadmin(connection.db, auth, { ...SUPERADMIN, password: 'ein-anderes-passwort' }),
+      ).toBe('exists')
+      expect(
+        await ensureSuperadmin(connection.db, auth, { ...SUPERADMIN, email: 'jemand@example.org' }),
+      ).toBe('exists')
+      expect((await signIn(SUPERADMIN.email, SUPERADMIN.password)).status).toBe(200)
+      expect((await signIn(SUPERADMIN.email, 'ein-anderes-passwort')).status).toBe(401)
+      const superadmins = await connection.db.select().from(userTable).where(eq(userTable.role, 'superadmin'))
+      expect(superadmins).toHaveLength(1)
+    })
+
+    it('allows only one superadmin in the database', async () => {
+      await expect(
+        connection.db
+          .update(userTable)
+          .set({ role: 'superadmin' })
+          .where(eq(userTable.email, 'admin@example.org')),
+      ).rejects.toThrow()
+    })
+
+    it('keeps roles out of reach of the auth API', async () => {
+      const cookie = await registerVerifiedUser('streber@example.org')
+      await call('/api/auth/update-user', { method: 'POST', cookie, body: { role: 'superadmin' } })
+      expect((await userRow('streber@example.org')).role).toBe('user')
+      await call('/api/auth/sign-up/email', {
+        method: 'POST',
+        body: { email: 'frech@example.org', password: PASSWORD, name: 'frech', role: 'admin' },
+      })
+      const [row] = await connection.db
+        .select()
+        .from(userTable)
+        .where(eq(userTable.email, 'frech@example.org'))
+      expect(row?.role ?? 'user').toBe('user')
+    })
+
+    it('protects the superadmin from admins and from deleting itself', async () => {
+      const superId = (await userRow('chef@example.org')).id
+      for (const [path, method] of [
+        [`/api/admin/users/${superId}`, 'DELETE'],
+        [`/api/admin/users/${superId}/sign-out`, 'POST'],
+      ] as const) {
+        const response = await call(path, { method, cookie: adminCookie })
+        expect(response.status).toBe(403)
+        expect(await json(response)).toEqual({ error: 'protected_account' })
+      }
+      const self = await call(`/api/admin/users/${superId}`, { method: 'DELETE', cookie: superCookie })
+      expect(self.status).toBe(409)
+      const viaAuth = await call('/api/auth/delete-user', {
+        method: 'POST',
+        cookie: superCookie,
+        body: { password: SUPERADMIN.password },
+      })
+      expect(viaAuth.status).toBe(403)
+      expect(await userRow('chef@example.org')).toBeDefined()
+    })
+
+    it('lets only the superadmin create, demote and delete admins', async () => {
+      const newAdmin = { email: 'Zweite@example.org', password: 'zweites-admin-passwort', name: 'Zweite' }
+      const byAdmin = await call('/api/admin/admins', { method: 'POST', cookie: adminCookie, body: newAdmin })
+      expect(byAdmin.status).toBe(403)
+      expect(await json(byAdmin)).toEqual({ error: 'requires_superadmin' })
+
+      const created = await call('/api/admin/admins', { method: 'POST', cookie: superCookie, body: newAdmin })
+      expect(created.status).toBe(201)
+      const { id } = await json<{ id: string }>(created)
+      expect(
+        (await call('/api/admin/admins', { method: 'POST', cookie: superCookie, body: newAdmin })).status,
+      ).toBe(409)
+      const secondCookie = sessionCookie(await signIn('zweite@example.org', newAdmin.password))
+      expect(await json(await call('/api/admin/me', { cookie: secondCookie }))).toMatchObject({
+        role: 'admin',
+      })
+
+      const listed = await json<{ users: { email: string; role: string }[] }>(
+        await call('/api/admin/users?role=admin', { cookie: superCookie }),
+      )
+      expect(listed.users.map((entry) => entry.email).sort()).toEqual([
+        'admin@example.org',
+        'chef@example.org',
+        'zweite@example.org',
+      ])
+
+      // Admins cannot act on each other.
+      for (const response of [
+        await call(`/api/admin/users/${id}/sign-out`, { method: 'POST', cookie: adminCookie }),
+        await call(`/api/admin/users/${id}/role`, {
+          method: 'PUT',
+          cookie: adminCookie,
+          body: { role: 'user' },
+        }),
+      ]) {
+        expect(response.status).toBe(403)
+      }
+
+      const demoted = await call(`/api/admin/users/${id}/role`, {
+        method: 'PUT',
+        cookie: superCookie,
+        body: { role: 'user' },
+      })
+      expect(await json(demoted)).toEqual({ role: 'user' })
+      expect((await call('/api/admin/me', { cookie: secondCookie })).status).toBe(404)
+
+      const invalid = await call(`/api/admin/users/${id}/role`, {
+        method: 'PUT',
+        cookie: superCookie,
+        body: { role: 'superadmin' },
+      })
+      expect(invalid.status).toBe(400)
+
+      const adminId = (await userRow('admin@example.org')).id
+      expect(
+        (await call(`/api/admin/users/${adminId}`, { method: 'DELETE', cookie: superCookie })).status,
+      ).toBe(204)
+      expect((await call('/api/admin/me', { cookie: adminCookie })).status).toBe(404)
+
+      const { entries } = await json<{ entries: { action: string }[] }>(
+        await call('/api/admin/audit', { cookie: superCookie }),
+      )
+      expect(entries.slice(0, 3).map((entry) => entry.action)).toEqual([
+        'delete_user',
+        'revoke_admin',
+        'create_admin',
+      ])
+    })
   })
 })
 

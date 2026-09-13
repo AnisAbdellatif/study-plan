@@ -108,6 +108,8 @@ export const auth = {
       confirmDescription:
         'Dein Konto und alle im Konto gespeicherten Pläne werden sofort gelöscht. Das lässt sich nicht rückgängig machen.',
       confirm: 'Endgültig löschen',
+      superadmin:
+        'Das ist das Superadmin-Konto. Es lässt sich nicht löschen, damit die Plattform immer einen Verantwortlichen hat.',
     },
   },
   button: {

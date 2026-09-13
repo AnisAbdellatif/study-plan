@@ -7,5 +7,7 @@ export interface SessionUser {
 export interface AppEnv {
   Variables: {
     user: SessionUser
+    /** Set by requireAdmin for /api/admin routes. */
+    adminRole: 'admin' | 'superadmin'
   }
 }

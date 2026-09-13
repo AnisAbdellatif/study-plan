@@ -1,5 +1,7 @@
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
+import { APIError } from 'better-auth/api'
+import { eq } from 'drizzle-orm'
 import type { Config } from './config.ts'
 import type { Database } from './db/connection.ts'
 import { account, rateLimit, session, user, verification } from './db/schema.ts'
@@ -47,10 +49,23 @@ export function createAuth({ config, db, mailer }: AuthDependencies) {
       },
     },
     user: {
-      deleteUser: { enabled: true },
+      deleteUser: {
+        enabled: true,
+        beforeDelete: async (recipient) => {
+          const [row] = await db.select({ role: user.role }).from(user).where(eq(user.id, recipient.id))
+          if (row?.role === 'superadmin') {
+            throw APIError.from('FORBIDDEN', {
+              code: 'SUPERADMIN_NOT_DELETABLE',
+              message: 'The superadmin account cannot be deleted',
+            })
+          }
+        },
+      },
       additionalFields: {
         /** The web app sends its UI language at sign-up and when the student switches; e-mails use it. */
         locale: { type: 'string', required: false, defaultValue: 'de', input: true },
+        /** Readable in the session so the web app can adapt; only the admin routes change it, see roles.ts. */
+        role: { type: 'string', required: false, defaultValue: 'user', input: false },
       },
     },
     session: {

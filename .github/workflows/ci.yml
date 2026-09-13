@@ -37,3 +37,94 @@ jobs:
           node-version: 24
       - run: bun ci
       - run: npx --no-install vitest run
+
+  # Only on main, and only after all checks passed: build the image and push it to GitHub Container Registry.
+  image:
+    name: Build and push image
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [bun, node]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.name.outputs.image }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - id: name
+        run: echo "image=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+      - name: Log in to ghcr.io
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+      - name: Build and push
+        env:
+          IMAGE: ${{ steps.name.outputs.image }}
+          # Operator details for the legal pages, compiled into the web app. Set them as repository variables.
+          VITE_OPERATOR_NAME: ${{ vars.VITE_OPERATOR_NAME }}
+          VITE_OPERATOR_STREET: ${{ vars.VITE_OPERATOR_STREET }}
+          VITE_OPERATOR_POSTAL_CITY: ${{ vars.VITE_OPERATOR_POSTAL_CITY }}
+          VITE_OPERATOR_EMAIL: ${{ vars.VITE_OPERATOR_EMAIL }}
+          VITE_OPERATOR_PHONE: ${{ vars.VITE_OPERATOR_PHONE }}
+          VITE_HOSTING_PROVIDER: ${{ vars.VITE_HOSTING_PROVIDER }}
+          VITE_MAIL_PROVIDER: ${{ vars.VITE_MAIL_PROVIDER }}
+          VITE_SERVER_LOG_RETENTION: ${{ vars.VITE_SERVER_LOG_RETENTION }}
+        run: |
+          docker buildx create --use
+          docker buildx build --push \
+            --build-arg VITE_OPERATOR_NAME --build-arg VITE_OPERATOR_STREET --build-arg VITE_OPERATOR_POSTAL_CITY \
+            --build-arg VITE_OPERATOR_EMAIL --build-arg VITE_OPERATOR_PHONE --build-arg VITE_HOSTING_PROVIDER \
+            --build-arg VITE_MAIL_PROVIDER --build-arg VITE_SERVER_LOG_RETENTION \
+            --cache-from "type=registry,ref=$IMAGE:buildcache" \
+            --cache-to "type=registry,ref=$IMAGE:buildcache,mode=max" \
+            --tag "$IMAGE:$GITHUB_SHA" --tag "$IMAGE:latest" \
+            .
+
+  # Copies the stack definition to the VPS, pulls the new image and restarts. Skipped until DEPLOY_HOST is set.
+  deploy:
+    name: Deploy to the VPS
+    if: vars.DEPLOY_HOST != ''
+    needs: image
+    runs-on: ubuntu-24.04
+    environment: production
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: read
+    env:
+      DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+      DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+      DEPLOY_PORT: ${{ vars.DEPLOY_PORT || '22' }}
+      DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '/opt/study-plan' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up SSH
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/deploy_key ~/.ssh/known_hosts
+      - name: Copy the stack definition
+        run: |
+          scp -i ~/.ssh/deploy_key -P "$DEPLOY_PORT" deploy/compose.yaml deploy/Caddyfile \
+            "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/"
+      - name: Pull and restart
+        env:
+          IMAGE: ${{ needs.image.outputs.image }}
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # The registry token goes through stdin, never on a command line. It expires when this job ends.
+        run: |
+          echo "$TOKEN" | ssh -i ~/.ssh/deploy_key -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
+            "set -eu
+             cd '$DEPLOY_PATH'
+             docker login ghcr.io --username '$GITHUB_ACTOR' --password-stdin
+             export APP_IMAGE='$IMAGE' APP_TAG='$GITHUB_SHA'
+             docker compose pull app
+             docker compose up --detach --wait --remove-orphans
+             docker logout ghcr.io
+             docker image prune --force"

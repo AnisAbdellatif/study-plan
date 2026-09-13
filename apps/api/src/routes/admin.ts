@@ -1,8 +1,8 @@
 import { and, count, countDistinct, desc, eq, gt, ilike, inArray, isNull, lt, max, sql } from 'drizzle-orm'
 import { type Context, Hono } from 'hono'
 import { createMiddleware } from 'hono/factory'
+import { z } from 'zod'
 import type { Auth } from '../auth.ts'
-import type { Config } from '../config.ts'
 import type { Database } from '../db/connection.ts'
 import {
   adminAuditLog,
@@ -13,6 +13,7 @@ import {
   session,
   user,
 } from '../db/schema.ts'
+import { createPasswordAccount, isAdminRole } from '../roles.ts'
 import type { AppEnv } from '../types.ts'
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -24,19 +25,41 @@ const VERIFIED_CALLBACK = '/account?verified=1'
 type AdminAction = (typeof adminAuditLog.action.enumValues)[number]
 
 /**
- * Admin access for verified accounts listed in ADMIN_EMAILS. Everyone else, signed in or not, gets the same
- * 404 as an unknown route, so the dashboard's existence is not advertised.
+ * Admin access for verified accounts with the admin or superadmin role. The role is read from the database on
+ * every request, so revoking it takes effect immediately. Everyone else, signed in or not, gets the same 404 as
+ * an unknown route, so the dashboard's existence is not advertised.
  */
-export function requireAdmin(auth: Auth, config: Config) {
+export function requireAdmin(auth: Auth, db: Database) {
   return createMiddleware<AppEnv>(async (c, next) => {
     const current = await auth.api.getSession({ headers: c.req.raw.headers })
-    const email = current?.user.email.toLowerCase()
-    if (!current || !email || !current.user.emailVerified || !config.adminEmails.includes(email)) {
-      return c.json({ error: 'not_found' }, 404)
-    }
+    if (!current?.user.emailVerified) return c.json({ error: 'not_found' }, 404)
+    const [row] = await db.select({ role: user.role }).from(user).where(eq(user.id, current.user.id))
+    if (!isAdminRole(row?.role)) return c.json({ error: 'not_found' }, 404)
     c.set('user', { id: current.user.id, email: current.user.email, name: current.user.name })
+    c.set('adminRole', row.role)
     await next()
   })
+}
+
+const superadminOnly = createMiddleware<AppEnv>(async (c, next) => {
+  if (c.get('adminRole') !== 'superadmin') return c.json({ error: 'requires_superadmin' }, 403)
+  await next()
+})
+
+const roleChangeSchema = z.object({ role: z.enum(['admin', 'user']) })
+
+const createAdminSchema = z.object({
+  email: z.email().max(254),
+  name: z.string().trim().min(1).max(100).optional(),
+  password: z.string().min(10).max(128),
+})
+
+const readJson = async (c: Context<AppEnv>): Promise<unknown> => {
+  try {
+    return await c.req.json()
+  } catch {
+    return null
+  }
 }
 
 /** Escapes LIKE wildcards so a search for "a_b" matches literally. */
@@ -60,18 +83,25 @@ export function adminRoutes(db: Database, auth: Auth) {
     await db.insert(adminAuditLog).values({ adminEmail: c.get('user').email, action, targetUserId })
   }
 
-  /** The target account, or a response to return instead. Admins manage their own account on the account page. */
+  /**
+   * The target account, or a response to return instead. Admins manage their own account on the account page.
+   * The superadmin is off limits for everyone, and only the superadmin may act on other admins.
+   */
   const target = async (c: Context<AppEnv>) => {
     const [row] = await db
-      .select({ id: user.id, email: user.email, emailVerified: user.emailVerified })
+      .select({ id: user.id, email: user.email, emailVerified: user.emailVerified, role: user.role })
       .from(user)
       .where(eq(user.id, c.req.param('id') ?? ''))
     if (!row) return { response: c.json({ error: 'not_found' }, 404) }
     if (row.id === c.get('user').id) return { response: c.json({ error: 'cannot_modify_self' }, 409) }
+    if (row.role === 'superadmin') return { response: c.json({ error: 'protected_account' }, 403) }
+    if (row.role === 'admin' && c.get('adminRole') !== 'superadmin') {
+      return { response: c.json({ error: 'requires_superadmin' }, 403) }
+    }
     return { row }
   }
 
-  routes.get('/me', (c) => c.json({ email: c.get('user').email }))
+  routes.get('/me', (c) => c.json({ email: c.get('user').email, role: c.get('adminRole') }))
 
   routes.get('/stats', async (c) => {
     const since = new Date(Date.now() - 30 * DAY_MS)
@@ -122,15 +152,22 @@ export function adminRoutes(db: Database, auth: Auth) {
 
   routes.get('/users', async (c) => {
     const query = (c.req.query('q') ?? '').trim().slice(0, 200)
+    const adminsOnly = c.req.query('role') === 'admin'
     const rows = await db
       .select({
         id: user.id,
         email: user.email,
         emailVerified: user.emailVerified,
+        role: user.role,
         createdAt: user.createdAt,
       })
       .from(user)
-      .where(query ? ilike(user.email, likePattern(query)) : undefined)
+      .where(
+        and(
+          query ? ilike(user.email, likePattern(query)) : undefined,
+          adminsOnly ? inArray(user.role, ['admin', 'superadmin']) : undefined,
+        ),
+      )
       .orderBy(desc(user.createdAt))
       .limit(USER_PAGE_SIZE)
     const ids = rows.map((row) => row.id)
@@ -217,6 +254,35 @@ export function adminRoutes(db: Database, auth: Auth) {
     await db.delete(user).where(eq(user.id, row.id))
     await audit(c, 'delete_user', row.id)
     return c.body(null, 204)
+  })
+
+  routes.put('/users/:id/role', superadminOnly, async (c) => {
+    const body = roleChangeSchema.safeParse(await readJson(c))
+    if (!body.success) return c.json({ error: 'invalid_request' }, 400)
+    const { row, response } = await target(c)
+    if (!row) return response
+    if (row.role === body.data.role) return c.json({ role: row.role })
+    if (body.data.role === 'admin' && !row.emailVerified) return c.json({ error: 'not_verified' }, 409)
+    await db.update(user).set({ role: body.data.role, updatedAt: new Date() }).where(eq(user.id, row.id))
+    await audit(c, body.data.role === 'admin' ? 'grant_admin' : 'revoke_admin', row.id)
+    return c.json({ role: body.data.role })
+  })
+
+  /** A new, already verified admin account. The superadmin hands over the password, which the admin can reset. */
+  routes.post('/admins', superadminOnly, async (c) => {
+    const body = createAdminSchema.safeParse(await readJson(c))
+    if (!body.success) return c.json({ error: 'invalid_request' }, 400)
+    const email = body.data.email.toLowerCase()
+    const [existing] = await db.select({ id: user.id }).from(user).where(eq(user.email, email))
+    if (existing) return c.json({ error: 'user_exists' }, 409)
+    const id = await createPasswordAccount(db, auth, {
+      email,
+      name: body.data.name ?? email.split('@')[0] ?? email,
+      password: body.data.password,
+      role: 'admin',
+    })
+    await audit(c, 'create_admin', id)
+    return c.json({ id, email, role: 'admin' }, 201)
   })
 
   routes.get('/audit', async (c) => {

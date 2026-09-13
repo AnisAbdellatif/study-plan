@@ -43,16 +43,51 @@ export const admin = {
     remindersOn: 'Erinnerungen an',
     self: 'du',
     selfActions: 'über die Kontoseite',
+    protected: 'geschützt',
+    superadminOnly: 'nur durch Superadmin',
     actions: {
       sendVerification: 'Bestätigung senden',
       revokeShares: 'Links deaktivieren',
       signOut: 'Abmelden',
+      grantAdmin: 'Zum Admin machen',
+      revokeAdmin: 'Adminrechte entziehen',
       delete: 'Löschen…',
     },
     footnote:
       'Zeigt die 25 neuesten passenden Konten. Noten und Planinhalte sind hier bewusst nicht einsehbar.',
   },
+  roles: {
+    user: 'Studierende',
+    admin: 'Admin',
+    superadmin: 'Superadmin',
+  },
+  team: {
+    heading: 'Admins',
+    intro:
+      'Admins öffnen die Verwaltung und verwalten Konten von Studierenden. Nur du als Superadmin legst Admins an, entziehst Adminrechte und löschst Admin-Konten. Dein Superadmin-Konto lässt sich nicht löschen.',
+    empty:
+      'Noch keine weiteren Admins. Lege einen an oder mach ein bestehendes Konto in der Kontenliste zum Admin.',
+    loadError: 'Die Admins ließen sich nicht laden.',
+    createHeading: 'Admin anlegen',
+    email: 'E-Mail-Adresse',
+    name: 'Name (optional)',
+    password: 'Startpasswort',
+    passwordHint:
+      'Mindestens 10 Zeichen. Gib es auf sicherem Weg weiter; über „Passwort vergessen“ lässt es sich danach ändern. Die E-Mail-Adresse gilt als bestätigt.',
+    submit: 'Admin anlegen',
+    creating: 'Wird angelegt…',
+  },
   confirm: {
+    grant_admin: {
+      title: 'Adminrechte vergeben?',
+      description: '{{email}} kann danach die Verwaltung öffnen und Konten von Studierenden verwalten.',
+      label: 'Zum Admin machen',
+    },
+    revoke_admin: {
+      title: 'Adminrechte entziehen?',
+      description: '{{email}} bleibt als normales Konto bestehen, kommt aber nicht mehr in die Verwaltung.',
+      label: 'Entziehen',
+    },
     send_verification_email: {
       title: 'Bestätigungs-E-Mail senden?',
       description: '{{email}} bekommt einen neuen Link zur Bestätigung der E-Mail-Adresse.',
@@ -84,6 +119,14 @@ export const admin = {
     deleted: 'Konto {{email}} gelöscht.',
     cannotModifySelf: 'Dein eigenes Konto verwaltest du auf der Kontoseite.',
     alreadyVerified: 'Die E-Mail-Adresse ist schon bestätigt.',
+    granted: '{{email}} ist jetzt Admin.',
+    revokedAdmin: '{{email}} ist kein Admin mehr.',
+    created: 'Admin {{email}} angelegt.',
+    protectedAccount: 'Das Superadmin-Konto ist geschützt.',
+    requiresSuperadmin: 'Das darf nur der Superadmin.',
+    notVerified: 'Die E-Mail-Adresse dieses Kontos ist noch nicht bestätigt.',
+    userExists: 'Mit dieser E-Mail-Adresse gibt es schon ein Konto. Mach es in der Kontenliste zum Admin.',
+    invalid: 'Bitte prüfe die E-Mail-Adresse und das Passwort (mindestens 10 Zeichen).',
     failed: 'Das hat nicht geklappt. Bitte versuche es noch einmal.',
   },
   audit: {
@@ -96,6 +139,9 @@ export const admin = {
       revoke_shares: 'Geteilte Links deaktiviert',
       sign_out: 'Überall abgemeldet',
       delete_user: 'Konto gelöscht',
+      grant_admin: 'Adminrechte vergeben',
+      revoke_admin: 'Adminrechte entzogen',
+      create_admin: 'Admin angelegt',
     },
   },
 }
