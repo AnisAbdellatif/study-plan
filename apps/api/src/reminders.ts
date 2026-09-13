@@ -105,8 +105,8 @@ export async function runReminders(
     try {
       await mailer.send(
         reminderMail(email, [...items.values()], {
-          settingsUrl: `${config.publicUrl}/konto`,
-          unsubscribeUrl: `${config.publicUrl}/erinnerungen-abbestellen?token=${token}`,
+          settingsUrl: `${config.publicUrl}/account`,
+          unsubscribeUrl: `${config.publicUrl}/unsubscribe?token=${token}`,
           oneClickUrl: `${config.publicUrl}${UNSUBSCRIBE_PATH}?token=${token}`,
         }),
       )

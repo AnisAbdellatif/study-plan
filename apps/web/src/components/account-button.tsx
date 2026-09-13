@@ -11,7 +11,7 @@ export function AccountButton() {
 
   if (!user) {
     return (
-      <Link to="/anmelden" className={linkClass}>
+      <Link to="/sign-in" className={linkClass}>
         <LogIn aria-hidden className="size-4" />
         <span className="sr-only sm:not-sr-only">Anmelden</span>
       </Link>
@@ -28,7 +28,7 @@ export function AccountButton() {
           ? CloudCheck
           : UserRound
   return (
-    <Link to="/konto" className={linkClass} title={status}>
+    <Link to="/account" className={linkClass} title={status}>
       <Icon aria-hidden className="size-4" />
       <span className="sr-only sm:not-sr-only">Konto</span>
       <span className="sr-only">: {status}</span>

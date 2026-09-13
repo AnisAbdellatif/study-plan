@@ -77,11 +77,11 @@ export function ShareDialog({
     body = (
       <p className="text-sm">
         Zum Teilen brauchst du ein Konto, in dem dein Plan gespeichert ist.{' '}
-        <Link to="/anmelden" className={linkClass}>
+        <Link to="/sign-in" className={linkClass}>
           Melde dich an
         </Link>{' '}
         oder{' '}
-        <Link to="/registrieren" className={linkClass}>
+        <Link to="/sign-up" className={linkClass}>
           erstelle ein Konto
         </Link>
         .

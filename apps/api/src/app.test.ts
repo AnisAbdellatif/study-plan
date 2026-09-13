@@ -178,7 +178,7 @@ describe('accounts', () => {
 
     const requested = await call('/api/auth/request-password-reset', {
       method: 'POST',
-      body: { email, redirectTo: '/passwort-neu' },
+      body: { email, redirectTo: '/reset-password' },
     })
     expect(requested.status).toBe(200)
     const mail = lastMailTo(email)
@@ -414,7 +414,7 @@ describe('sharing', () => {
     const created = await call(`/api/plans/${planId}/share`, { method: 'POST', cookie })
     expect(created.status).toBe(201)
     const { token, url } = await json<Created>(created)
-    expect(url).toBe(`${config.publicUrl}/geteilt/${token}`)
+    expect(url).toBe(`${config.publicUrl}/shared/${token}`)
     expect(await json(await call(`/api/plans/${planId}/share`, { cookie }))).toMatchObject({ active: true })
 
     const shared = await call(`/api/share/${token}`)

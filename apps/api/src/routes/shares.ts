@@ -57,7 +57,7 @@ export function planShareRoutes(db: Database, config: Config) {
       .returning({ createdAt: planShare.createdAt })
     c.header('Cache-Control', 'no-store')
     return c.json(
-      { token, url: `${config.publicUrl}/geteilt/${token}`, createdAt: share?.createdAt ?? null },
+      { token, url: `${config.publicUrl}/shared/${token}`, createdAt: share?.createdAt ?? null },
       201,
     )
   })

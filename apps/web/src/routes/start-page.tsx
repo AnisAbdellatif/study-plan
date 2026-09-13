@@ -151,7 +151,7 @@ export function StartPage() {
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm">
         <ImportPlanButton label="Plan aus Datei importieren" variant="ghost" />
         <Link
-          to="/anmelden"
+          to="/sign-in"
           className="font-medium text-indigo-700 underline-offset-4 hover:underline dark:text-indigo-300"
         >
           Schon ein Konto? Anmelden

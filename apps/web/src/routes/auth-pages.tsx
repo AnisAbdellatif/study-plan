@@ -15,7 +15,7 @@ const cardClass =
 const linkClass = 'font-medium text-indigo-700 underline-offset-4 hover:underline dark:text-indigo-300'
 
 export const MIN_PASSWORD_LENGTH = 10
-const VERIFIED_CALLBACK = '/konto?verifiziert=1'
+const VERIFIED_CALLBACK = '/account?verified=1'
 
 interface AuthError {
   status?: number
@@ -148,10 +148,10 @@ export function SignInPage() {
         </Button>
       </form>
       <div className="mt-4 flex flex-wrap justify-between gap-2 text-sm">
-        <Link to="/passwort-vergessen" className={linkClass}>
+        <Link to="/forgot-password" className={linkClass}>
           Passwort vergessen?
         </Link>
-        <Link to="/registrieren" className={linkClass}>
+        <Link to="/sign-up" className={linkClass}>
           Noch kein Konto? Registrieren
         </Link>
       </div>
@@ -237,7 +237,7 @@ export function SignUpPage() {
         />
         <p className="text-xs text-zinc-600 dark:text-zinc-400">
           Welche Daten wir speichern, steht in der{' '}
-          <Link to="/datenschutz" className={linkClass}>
+          <Link to="/privacy" className={linkClass}>
             Datenschutzerklärung
           </Link>
           .
@@ -247,7 +247,7 @@ export function SignUpPage() {
         </Button>
       </form>
       <p className="mt-4 text-sm">
-        <Link to="/anmelden" className={linkClass}>
+        <Link to="/sign-in" className={linkClass}>
           Schon ein Konto? Anmelden
         </Link>
       </p>
@@ -265,7 +265,7 @@ export function ForgotPasswordPage() {
     event.preventDefault()
     setPending(true)
     setError(null)
-    const result = await authClient.requestPasswordReset({ email, redirectTo: '/passwort-neu' })
+    const result = await authClient.requestPasswordReset({ email, redirectTo: '/reset-password' })
     setPending(false)
     // Only rate limiting is reported. Everything else gets the same answer, so nobody can probe for accounts.
     if (result.error?.status === 429) setError(result.error)
@@ -298,7 +298,7 @@ export function ForgotPasswordPage() {
         )}
       </form>
       <p className="mt-4 text-sm">
-        <Link to="/anmelden" className={linkClass}>
+        <Link to="/sign-in" className={linkClass}>
           Zurück zur Anmeldung
         </Link>
       </p>
@@ -320,7 +320,7 @@ export function ResetPasswordPage() {
       <AuthLayout title="Link ungültig">
         <div className={cardClass}>
           <Alert>{describeAuthError({ code: 'INVALID_TOKEN' })}</Alert>
-          <Link to="/passwort-vergessen" className={linkClass}>
+          <Link to="/forgot-password" className={linkClass}>
             Neuen Link anfordern
           </Link>
         </div>
@@ -347,7 +347,7 @@ export function ResetPasswordPage() {
       {done ? (
         <div className={cardClass}>
           <Alert tone="success">Dein Passwort ist geändert. Andere Anmeldungen wurden beendet.</Alert>
-          <Link to="/anmelden" className={linkClass}>
+          <Link to="/sign-in" className={linkClass}>
             Jetzt anmelden
           </Link>
         </div>
@@ -520,7 +520,7 @@ export function UnsubscribePage() {
         </div>
       )}
       <p className="mt-6 text-sm">
-        <Link to="/konto" className={linkClass}>
+        <Link to="/account" className={linkClass}>
           Zum Konto
         </Link>
       </p>
@@ -530,7 +530,7 @@ export function UnsubscribePage() {
 
 export function AccountPage() {
   const navigate = useNavigate()
-  const search = useSearch({ strict: false }) as { verifiziert?: unknown }
+  const search = useSearch({ strict: false }) as { verified?: unknown }
   const { sync, state, user, sessionPending } = useAccountSync()
   const { plan } = useGuestState()
   const [password, setPassword] = useState('')
@@ -545,7 +545,7 @@ export function AccountPage() {
       </AuthLayout>
     )
   }
-  if (!user) return <Navigate to="/anmelden" replace />
+  if (!user) return <Navigate to="/sign-in" replace />
 
   const exportData = async () => {
     setExportError(false)
@@ -584,9 +584,7 @@ export function AccountPage() {
 
   return (
     <AuthLayout title="Dein Konto">
-      {search.verifiziert ? (
-        <Alert tone="success">Deine E-Mail-Adresse ist bestätigt. Willkommen!</Alert>
-      ) : null}
+      {search.verified ? <Alert tone="success">Deine E-Mail-Adresse ist bestätigt. Willkommen!</Alert> : null}
 
       <section className={cardClass} aria-labelledby="konto-plan">
         <h2 id="konto-plan" className="font-semibold">

@@ -156,8 +156,8 @@ export function DatenschutzPage() {
       </p>
       <p>
         Auskunft und Datenübertragbarkeit bekommst du jederzeit selbst über „Daten herunterladen“, und dein
-        Konto löschst du selbst, beides auf der <Link to="/konto">Kontoseite</Link>. Für alles andere schreib
-        an die oben genannte E-Mail-Adresse.
+        Konto löschst du selbst, beides auf der <Link to="/account">Kontoseite</Link>. Für alles andere
+        schreib an die oben genannte E-Mail-Adresse.
       </p>
       <p>
         Du kannst dich außerdem bei einer Datenschutz-Aufsichtsbehörde beschweren (Art. 77 DSGVO), zum

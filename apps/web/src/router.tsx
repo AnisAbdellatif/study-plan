@@ -30,42 +30,46 @@ const rootRoute = createRootRoute({
 
 const boardRoute = createRoute({ getParentRoute: () => rootRoute, path: '/', component: BoardPage })
 const startRoute = createRoute({ getParentRoute: () => rootRoute, path: '/start', component: StartPage })
-const signInRoute = createRoute({ getParentRoute: () => rootRoute, path: '/anmelden', component: SignInPage })
+const signInRoute = createRoute({ getParentRoute: () => rootRoute, path: '/sign-in', component: SignInPage })
 const signUpRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/registrieren',
+  path: '/sign-up',
   component: SignUpPage,
 })
 const forgotRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/passwort-vergessen',
+  path: '/forgot-password',
   component: ForgotPasswordPage,
 })
 const resetRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/passwort-neu',
+  path: '/reset-password',
   component: ResetPasswordPage,
 })
-const accountRoute = createRoute({ getParentRoute: () => rootRoute, path: '/konto', component: AccountPage })
+const accountRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/account',
+  component: AccountPage,
+})
 const impressumRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/impressum',
+  path: '/legal-notice',
   component: ImpressumPage,
 })
 const datenschutzRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/datenschutz',
+  path: '/privacy',
   component: DatenschutzPage,
 })
 const sharedRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/geteilt/$token',
+  path: '/shared/$token',
   component: SharedPlanPage,
 })
 
 const unsubscribeRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/erinnerungen-abbestellen',
+  path: '/unsubscribe',
   component: UnsubscribePage,
 })
 

@@ -17,10 +17,11 @@ const fromIndex = (index: number): Term => ({
 /** The term `offset` semesters after `start`. */
 export const addTerms = (start: Term, offset: number): Term => fromIndex(toIndex(start) + offset)
 
-/** "WS 2026/27" or "SS 2027". */
-export function formatTerm(term: Term): string {
-  if (term.season === 'summer') return `SS ${term.year}`
-  return `WS ${term.year}/${String((term.year + 1) % 100).padStart(2, '0')}`
+/** German "WS 2026/27" and "SS 2027", English "Winter 2026/27" and "Summer 2027". */
+export function formatTerm(term: Term, locale: 'de' | 'en' = 'de'): string {
+  const winter = `${term.year}/${String((term.year + 1) % 100).padStart(2, '0')}`
+  if (locale === 'en') return term.season === 'summer' ? `Summer ${term.year}` : `Winter ${winter}`
+  return term.season === 'summer' ? `SS ${term.year}` : `WS ${winter}`
 }
 
 /**

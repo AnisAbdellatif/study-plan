@@ -19,7 +19,7 @@ const DAY_MS = 24 * 60 * 60 * 1000
 const AUDIT_RETENTION_DAYS = 365
 const USER_PAGE_SIZE = 25
 /** Must match the web app, see VERIFIED_CALLBACK in apps/web/src/routes/auth-pages.tsx. */
-const VERIFIED_CALLBACK = '/konto?verifiziert=1'
+const VERIFIED_CALLBACK = '/account?verified=1'
 
 type AdminAction = (typeof adminAuditLog.action.enumValues)[number]
 

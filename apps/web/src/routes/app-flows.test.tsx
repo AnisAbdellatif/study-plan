@@ -342,7 +342,7 @@ describe('shared plans', () => {
       }),
     )
 
-    const { user, store } = renderApp({ path: '/geteilt/AAAAAAAAAAAAAAAAAAAAAAAA' })
+    const { user, store } = renderApp({ path: '/shared/AAAAAAAAAAAAAAAAAAAAAAAA' })
     expect(await screen.findByRole('heading', { name: 'Plan von Kim' })).toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledWith('/api/share/AAAAAAAAAAAAAAAAAAAAAAAA', expect.anything())
     expect(document.querySelector('meta[name="robots"]')?.getAttribute('content')).toContain('noindex')
@@ -366,7 +366,7 @@ describe('shared plans', () => {
         headers: { 'content-type': 'application/json' },
       }),
     )
-    renderApp({ path: '/geteilt/AAAAAAAAAAAAAAAAAAAAAAAA' })
+    renderApp({ path: '/shared/AAAAAAAAAAAAAAAAAAAAAAAA' })
     expect(await screen.findByText(/wurde deaktiviert oder existiert nicht/)).toBeInTheDocument()
   })
 })
@@ -503,7 +503,7 @@ describe('milestone 6', () => {
       }),
     )
     try {
-      const { user } = renderApp({ path: '/erinnerungen-abbestellen?token=abc.def' })
+      const { user } = renderApp({ path: '/unsubscribe?token=abc.def' })
       await user.click(await screen.findByRole('button', { name: 'Erinnerungen ausschalten' }))
       expect(await screen.findByText(/Erinnerungen sind ausgeschaltet/)).toBeInTheDocument()
       expect(fetchMock).toHaveBeenCalledWith(
