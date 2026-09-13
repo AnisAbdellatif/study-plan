@@ -116,6 +116,7 @@ export const dialogs = {
       requiresCredits: 'Minimum credits',
       maxAttempts: 'Number of attempts',
       details: 'Module handbook details',
+      elective: 'Elective',
     },
     info: {
       id: 'Template',

@@ -23,7 +23,8 @@ export const customPreset = {
     stepAttach:
       'Attach the examination regulations (Prüfungsordnung, with amendments and annexes) and the module handbook (Modulkatalog or Modulhandbuch), plus the recommended study plan if it’s a separate document.',
     stepSend: 'Send the prompt.',
-    stepAnswer: 'Copy the complete answer and paste it below.',
+    stepAnswer:
+      'Download the JSON file if the language model created one and load it below with “Load from file”. Otherwise copy the complete answer and paste it below.',
     label: 'Prompt',
     copy: 'Copy prompt',
     download: 'Download as file',

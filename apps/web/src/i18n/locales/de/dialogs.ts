@@ -114,6 +114,7 @@ export const dialogs = {
       requiresCredits: 'Mindest-LP',
       maxAttempts: 'Anzahl Versuche',
       details: 'Angaben aus dem Modulkatalog',
+      elective: 'Wahlmodul',
     },
     info: {
       id: 'Vorlage',

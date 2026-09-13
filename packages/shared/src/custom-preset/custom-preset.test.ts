@@ -47,7 +47,10 @@ describe('extraction prompt', () => {
     expect(prompt).toContain('- University: Technische Universität Musterstadt')
     expect(prompt).toContain('- Degree: Master of Science (M.Sc.)')
     expect(prompt).toContain('- Examination regulations version: PO 2025')
-    expect(prompt).toContain('exactly one JSON object in a single ```json code block')
+    expect(prompt).toContain('save the JSON object as a downloadable file named `programme.json`')
+    expect(prompt).toContain(
+      'If you cannot create files, reply with exactly one JSON object in a single ```json code block',
+    )
     const schemaBlock = prompt.slice(
       prompt.lastIndexOf('```json') + '```json'.length,
       prompt.lastIndexOf('```'),
@@ -68,6 +71,7 @@ describe('extraction prompt', () => {
       'prerequisites',
       'anyOf',
       'requiresCredits',
+      'elective',
       'codesAreOfficial',
       'allowedValues',
       'standardGrades',

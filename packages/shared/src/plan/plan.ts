@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { toHalves } from '../engine/units.ts'
 import { type Preset, presetAreaSchema, presetModuleSchema } from '../schema/preset.ts'
 import { creditValueSchema, gradeRulesSchema, gradeValueSchema } from '../schema/rules.ts'
 import { type Term, termSchema } from './terms.ts'
@@ -139,6 +140,32 @@ export function presetInfoFrom(preset: Preset): PresetInfo {
   }
 }
 
+/**
+ * Modules the student chooses from: within an area that has a credit maximum, the modules recommended for the
+ * same semester add up to more than the maximum (e.g. 14 Proseminare of 5 LP each in a 10 LP area). Modules
+ * that fit, like a compulsory module of the same area in another semester, are not choices.
+ */
+function inferredChoices(preset: Preset): Set<string> {
+  const byCode = new Map(preset.modules.map((module) => [module.code, module]))
+  const choices = new Set<string>()
+  for (const area of preset.areas) {
+    if (area.maxCredits === undefined) continue
+    const groups = new Map<number, { codes: string[]; halves: number }>()
+    for (const code of area.moduleCodes) {
+      const module = byCode.get(code)
+      if (!module || module.typicalSemester === undefined) continue
+      const group = groups.get(module.typicalSemester) ?? { codes: [], halves: 0 }
+      group.codes.push(code)
+      group.halves += toHalves(module.credits)
+      groups.set(module.typicalSemester, group)
+    }
+    for (const group of groups.values()) {
+      if (group.halves > toHalves(area.maxCredits)) for (const code of group.codes) choices.add(code)
+    }
+  }
+  return choices
+}
+
 export interface CreatePlanOptions {
   id: string
   startTerm: Term
@@ -157,9 +184,12 @@ export function createPlanFromPreset(preset: Preset, options: CreatePlanOptions)
     moduleCodes: [],
   }))
   const backlog: string[] = []
+  const choices = inferredChoices(preset)
 
   for (const module of preset.modules) {
-    const target = module.typicalSemester === undefined ? undefined : semesters[module.typicalSemester - 1]
+    const isChoice = module.elective ?? choices.has(module.code)
+    const target =
+      module.typicalSemester === undefined || isChoice ? undefined : semesters[module.typicalSemester - 1]
     if (target) target.moduleCodes.push(module.code)
     else backlog.push(module.code)
   }

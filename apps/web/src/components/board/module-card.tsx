@@ -80,8 +80,15 @@ export function ModuleCard({
   const { isDragging, closestEdge } = useDraggableModule(ref, { code: module.code, columnId, index })
 
   return (
+    // biome-ignore lint/a11y/useKeyWithClickEvents: keyboard users open the details from the card menu
     <li
       ref={ref}
+      onClick={(event) => {
+        // Menus and buttons on the card handle their own clicks; a drag never ends in a click.
+        if ((event.target as HTMLElement).closest('button, a, input, [role="menu"], [role="menuitem"]'))
+          return
+        onDetails(module.code)
+      }}
       className={cn(
         'relative cursor-grab rounded-lg bg-white p-2.5 shadow-sm ring-1 ring-zinc-200 active:cursor-grabbing dark:bg-zinc-950 dark:ring-zinc-800',
         isDragging && 'opacity-40',

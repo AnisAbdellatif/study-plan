@@ -98,6 +98,12 @@ export const presetModuleSchema = z.object({
   prerequisites: z.array(prerequisiteSchema).optional(),
   /** Minimum earned credits before the module can be taken, e.g. 120 for a Bachelorarbeit. */
   requiresCredits: creditValueSchema.optional(),
+  /**
+   * True for a module the student picks among alternatives (one of several Proseminare, a Wahlpflicht catalogue).
+   * Such modules start unplanned. False keeps a module in its recommended semester even inside a choice area.
+   * Omitted: the planner infers choices from the areas, see `createPlanFromPreset`.
+   */
+  elective: z.boolean().optional(),
   /** Overrides `examRules.maxAttempts` for this module, e.g. fewer attempts for a Bachelorarbeit. */
   maxAttempts: z.number().int().min(1).max(10).optional(),
   /** Descriptive facts from the Modulkatalog. */

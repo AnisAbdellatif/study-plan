@@ -20,7 +20,8 @@ export const customPreset = {
     stepAttach:
       'Hänge die Prüfungsordnung (mit Änderungssatzungen und Anlagen) und den Modulkatalog bzw. das Modulhandbuch an, dazu den Studienverlaufsplan, falls er ein eigenes Dokument ist.',
     stepSend: 'Schick den Prompt ab.',
-    stepAnswer: 'Kopiere die komplette Antwort und füge sie unten ein.',
+    stepAnswer:
+      'Lade die JSON-Datei herunter, wenn das Sprachmodell eine erstellt hat, und lade sie unten mit „Aus Datei laden“. Sonst kopiere die komplette Antwort und füge sie unten ein.',
     label: 'Prompt',
     copy: 'Prompt kopieren',
     download: 'Als Datei herunterladen',

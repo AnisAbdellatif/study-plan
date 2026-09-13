@@ -157,7 +157,7 @@ ${existingSection(options.existingModules)}Read both documents completely before
 
 # Output format
 
-Reply with exactly one JSON object in a single \`\`\`json code block and nothing else: no explanation before or after it. The object must validate against the JSON Schema at the end of this prompt. Standard JSON only: double quotes, no comments, no trailing commas, numbers as numbers (write 2.5, not "2,5").
+The result is long, and long chat answers are often cut off or hard to copy. So if you can create files (for example with a code interpreter, canvas or file tool), save the JSON object as a downloadable file named \`programme.json\` and reply only with one sentence saying the file is ready. If you cannot create files, reply with exactly one JSON object in a single \`\`\`json code block and nothing else: no explanation before or after it. Either way, the object must validate against the JSON Schema at the end of this prompt. Standard JSON only: double quotes, no comments, no trailing commas, numbers as numbers (write 2.5, not "2,5").
 
 # General rules
 
@@ -198,7 +198,8 @@ One entry for every module a student can take in this programme: compulsory (Pfl
 - \`countsTowardAverage\`: false for modules the PO excludes from the Gesamtnote (ungraded modules, excluded key competences, additional modules); otherwise true.
 - \`category\`: the name of the area the module belongs to (Kompetenzbereich, Studienbereich, Modulgruppe), as the PO names it.
 - \`offering\`: "winter" if the module is only offered in the winter semester, "summer" if only in the summer semester, "both" if every semester, "irregular" if irregular or by announcement.
-- \`typicalSemester\`: the recommended semester from the Studienverlaufsplan for students who start in the winter semester (1 = first semester). Omit it for electives without a recommendation.
+- \`typicalSemester\`: the recommended semester from the Studienverlaufsplan for students who start in the winter semester (1 = first semester). Omit it for electives without a recommendation. When the plan recommends a slot such as "Proseminar" or "Wahlpflichtmodul" in a semester, give that semester to every module that can fill the slot.
+- \`elective\`: true for modules the student picks among alternatives, e.g. one Proseminar out of many, courses from a Wahlpflicht or Studium Generale catalogue. The planner leaves them unplanned so the student chooses. Omit it for compulsory modules.
 - \`prerequisites\`: only binding admission requirements for the module, as module codes. Use \`{"anyOf": ["A", "B"]}\` when one of several modules is enough. Recommendations are not prerequisites; they belong in \`details.recommendedPrerequisites\`.
 - \`requiresCredits\`: minimum credits a student must have earned before taking the module, e.g. 120 for a thesis that requires "mindestens 120 LP".
 - \`maxAttempts\`: only if this module has a different attempt limit than \`examRules.maxAttempts\` (often the thesis).
@@ -236,11 +237,11 @@ Map every field of the catalog entry. Labels differ between universities; use th
 | Weitere Angaben, Bemerkungen, Sonstiges | \`remarks\` |
 | Any other field (e.g. "Angebot im WS 2026/27", "zuletzt angeboten", Prüfungsnummer, Gewichtung) | \`additionalFields\`: [{"label": verbatim label, "value": verbatim value}] |
 
-If your answer would become too long for one reply, keep every module with all fields except \`details\`, add \`details\` for as many modules as fit in catalog order, and write in \`notes\` which modules still lack details.
+Prefer a downloadable file for long results. If you can only reply in the chat and your answer would become too long for one reply, keep every module with all fields except \`details\`, add \`details\` for as many modules as fit in catalog order, and write in \`notes\` which modules still lack details.
 
 # Areas (\`areas\`)
 
-The areas of the programme with their credit requirements (Kompetenzbereiche, Studienbereiche, Pflicht- and Wahlpflichtbereiche, Schlüsselkompetenzen, Abschlussarbeit). \`id\`: lowercase letters, digits and dashes. \`minCredits\` and \`maxCredits\`: the credits required from the area; omit \`maxCredits\` if there is no upper limit. \`moduleCodes\`: the codes of all modules in the area.
+The areas of the programme with their credit requirements (Kompetenzbereiche, Studienbereiche, Pflicht- and Wahlpflichtbereiche, Schlüsselkompetenzen, Abschlussarbeit). \`id\`: lowercase letters, digits and dashes. \`minCredits\` and \`maxCredits\`: the credits required from the area; omit \`maxCredits\` if there is no upper limit. \`moduleCodes\`: the codes of all modules in the area. For choice lists, \`minCredits\` and \`maxCredits\` are the credits the student must choose, not the total of all listed modules (e.g. one 5 LP Proseminar out of 14 gives an area with maxCredits 5, or 10 together with a compulsory 5 LP module).
 
 # Grade calculation (\`gradeRules\`)
 
