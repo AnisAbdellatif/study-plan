@@ -115,6 +115,8 @@ export const auth = {
   button: {
     signIn: 'Anmelden',
     account: 'Konto',
+    manageAccount: 'Konto verwalten',
+    signOut: 'Abmelden',
   },
   sync: {
     browserOnly: 'Nur in diesem Browser gespeichert',
