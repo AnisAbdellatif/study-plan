@@ -1,8 +1,10 @@
 # Obtains and renews the TLS certificates automatically. No access log is written, matching the retention stated
 # in the privacy policy; add a `log` block here if you want one.
+# Upstreams use names unique across both stacks: Caddy sits on the production and the shared network, and the
+# service name "app" exists on both (production and dev), so it must never be used here.
 {$DOMAIN} {
 	encode zstd gzip
-	reverse_proxy app:3000
+	reverse_proxy study-plan-prod-app:3000
 }
 
 # The dev stack (compose.dev.yaml) joins the shared study-plan-proxy network under this name. While it is not
