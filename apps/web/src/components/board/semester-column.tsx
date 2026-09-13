@@ -204,7 +204,8 @@ export function SemesterColumn({
         aria-label={t('columns.modulesIn', { column: column.title })}
         ref={listRef}
         className={cn(
-          '-mx-1 flex flex-1 flex-col gap-2 overflow-y-auto overscroll-contain px-1 py-1 print:overflow-visible',
+          // No overscroll containment: once the list reaches its end, the wheel keeps scrolling the page.
+          '-mx-1 flex flex-1 flex-col gap-2 overflow-y-auto px-1 py-1 print:overflow-visible',
           isBacklog ? 'min-h-12' : 'min-h-24',
         )}
       >
