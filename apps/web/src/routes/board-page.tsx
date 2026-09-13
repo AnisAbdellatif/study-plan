@@ -51,6 +51,8 @@ import { useModuleDropMonitor } from '../lib/dnd.ts'
 import { calendarFilename, downloadFile } from '../lib/files.ts'
 import { formatGrade, newId } from '../lib/format.ts'
 import { describeIssues } from '../lib/issues.ts'
+import { usePrinting } from '../lib/use-printing.ts'
+import { useStableHandlers } from '../lib/use-stable-handlers.ts'
 import { useGuestState, useGuestStore } from '../store/guest-store.ts'
 
 /** How far ahead the deadlines card looks. The calendar export always contains every deadline. */
@@ -185,7 +187,6 @@ function Board({ plan }: { plan: Plan }) {
     },
     [plan, apply, announce, t, areaName],
   )
-  useModuleDropMonitor(move, placeArea)
 
   /** Semester waiting for the delete confirmation; only non-empty semesters ask. */
   const [deleteSemesterId, setDeleteSemesterId] = useState<string | null>(null)
@@ -200,51 +201,52 @@ function Board({ plan }: { plan: Plan }) {
     [plan, apply, announce, t],
   )
 
-  const actions = useMemo(
-    (): BoardActions => ({
-      onMove: move,
-      onGrade: setGradingCode,
-      onDetails: setDetailsCode,
-      onPlaceArea: placeArea,
-      onBrowseArea: (areaId) => setPicker({ mode: 'browse', areaId }),
-      onChoose: (placeholderId) => setPicker({ mode: 'choose', placeholderId }),
-      onRemovePlaceholder: (placeholderId) => {
-        const area = placeholderAreaName(plan, placeholderId) ?? placeholderId
-        if (apply((current) => removePlaceholder(current, placeholderId)))
-          announce(t('announce.placeholderRemoved', { area }))
-      },
-      onUnchoose: (code) => {
-        if (apply((current) => unchooseModule(current, code)))
-          announce(t('announce.unchosen', { name: moduleName(code) }))
-      },
-      onChooseOther: (code) => {
-        const id = newPlaceholderId()
-        if (!apply((current) => unchooseModule(current, code, id.slice(PLACEHOLDER_PREFIX.length)))) return
+  // One object for the whole lifetime of the board: cards and columns are memoised and must not re-render just
+  // because a handler now sees the newer plan.
+  const actions = useStableHandlers<BoardActions>({
+    onMove: move,
+    onGrade: setGradingCode,
+    onDetails: setDetailsCode,
+    onPlaceArea: placeArea,
+    onBrowseArea: (areaId) => setPicker({ mode: 'browse', areaId }),
+    onChoose: (placeholderId) => setPicker({ mode: 'choose', placeholderId }),
+    onRemovePlaceholder: (placeholderId) => {
+      const area = placeholderAreaName(plan, placeholderId) ?? placeholderId
+      if (apply((current) => removePlaceholder(current, placeholderId)))
+        announce(t('announce.placeholderRemoved', { area }))
+    },
+    onUnchoose: (code) => {
+      if (apply((current) => unchooseModule(current, code)))
         announce(t('announce.unchosen', { name: moduleName(code) }))
-        setPicker({ mode: 'choose', placeholderId: id })
-      },
-      onAddCustom: () => setCustomTarget({ mode: 'create' }),
-      onEditCustom: (code) => setCustomTarget({ mode: 'edit', code }),
-      onDeleteCustom: setDeleteCode,
-      onInsertSemester: (index) => {
-        if (apply((current) => insertSemester(current, index))) {
-          announce(t('announce.semesterInserted', { number: index + 1 }))
-        }
-      },
-      onMoveSemester: (semesterId, toIndex) => {
-        if (apply((current) => moveSemester(current, semesterId, toIndex))) {
-          announce(t('announce.semesterMoved', { number: toIndex + 1 }))
-        }
-      },
-      onDeleteSemester: (semesterId) => {
-        const semester = plan.semesters.find((candidate) => candidate.id === semesterId)
-        if (!semester) return
-        if (semester.moduleCodes.length > 0) setDeleteSemesterId(semesterId)
-        else deleteSemester(semesterId)
-      },
-    }),
-    [plan, move, placeArea, apply, announce, t, moduleName, deleteSemester],
-  )
+    },
+    onChooseOther: (code) => {
+      const id = newPlaceholderId()
+      if (!apply((current) => unchooseModule(current, code, id.slice(PLACEHOLDER_PREFIX.length)))) return
+      announce(t('announce.unchosen', { name: moduleName(code) }))
+      setPicker({ mode: 'choose', placeholderId: id })
+    },
+    onAddCustom: () => setCustomTarget({ mode: 'create' }),
+    onEditCustom: (code) => setCustomTarget({ mode: 'edit', code }),
+    onDeleteCustom: setDeleteCode,
+    onInsertSemester: (index) => {
+      if (apply((current) => insertSemester(current, index))) {
+        announce(t('announce.semesterInserted', { number: index + 1 }))
+      }
+    },
+    onMoveSemester: (semesterId, toIndex) => {
+      if (apply((current) => moveSemester(current, semesterId, toIndex))) {
+        announce(t('announce.semesterMoved', { number: toIndex + 1 }))
+      }
+    },
+    onDeleteSemester: (semesterId) => {
+      const semester = plan.semesters.find((candidate) => candidate.id === semesterId)
+      if (!semester) return
+      if (semester.moduleCodes.length > 0) setDeleteSemesterId(semesterId)
+      else deleteSemester(semesterId)
+    },
+  })
+  useModuleDropMonitor(actions.onMove, actions.onPlaceArea)
+  const printing = usePrinting()
   const semesterToDelete = plan.semesters.find((semester) => semester.id === deleteSemesterId) ?? null
 
   const choose = (placeholderId: string, code: string) => {
@@ -354,10 +356,12 @@ function Board({ plan }: { plan: Plan }) {
           />
         </div>
       )}
-      {/* Printing always gives the overview, so it stays in the page while the board is shown. */}
-      <div className={view === 'overview' ? undefined : 'hidden print:block'}>
-        <PlanOverview plan={plan} summary={summary} />
-      </div>
+      {/* Printing always gives the overview. On the board it only mounts for printing, so edits don't rebuild it. */}
+      {view === 'overview' || printing ? (
+        <div className={view === 'overview' ? undefined : 'hidden print:block'}>
+          <PlanOverview plan={plan} summary={summary} />
+        </div>
+      ) : null}
       <ConfirmDialog
         open={semesterToDelete !== null}
         onOpenChange={(open) => {

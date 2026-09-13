@@ -1,6 +1,6 @@
 import { currentResult, type PlanModule } from '@study-plan/shared'
 import { CircleAlert, EllipsisVertical, Info, TriangleAlert } from 'lucide-react'
-import { useRef } from 'react'
+import { memo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { type AreaTone, NEUTRAL_TONE } from '../../lib/area-colors.ts'
 import { cn } from '../../lib/cn.ts'
@@ -68,7 +68,8 @@ export function ResultBadge({ module, passThreshold }: { module: PlanModule; pas
   }
 }
 
-export function ModuleCard({
+/** Memoised: re-renders only when this card's module, position, notes or labels change. */
+export const ModuleCard = memo(function ModuleCard({
   module,
   columnId,
   index,
@@ -228,4 +229,4 @@ export function ModuleCard({
       </div>
     </li>
   )
-}
+})

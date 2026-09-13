@@ -93,7 +93,23 @@ export function areaTone(plan: Pick<Plan, 'areas'>, areaId: string): AreaTone {
   return toneAt(plan.areas.findIndex((area) => area.id === areaId))
 }
 
+// Plans are immutable, so a lookup built once per areas array stays valid; every card then is one Map read.
+const moduleAreaIndexCache = new WeakMap<Plan['areas'], Map<string, number>>()
+
+function moduleAreaIndex(areas: Plan['areas']): Map<string, number> {
+  let index = moduleAreaIndexCache.get(areas)
+  if (!index) {
+    const built = new Map<string, number>()
+    areas.forEach((area, position) => {
+      for (const code of area.moduleCodes) if (!built.has(code)) built.set(code, position)
+    })
+    moduleAreaIndexCache.set(areas, built)
+    index = built
+  }
+  return index
+}
+
 /** The tone of the first area that lists the module, or the neutral tone. */
 export function moduleTone(plan: Pick<Plan, 'areas'>, moduleCode: string): AreaTone {
-  return toneAt(plan.areas.findIndex((area) => area.moduleCodes.includes(moduleCode)))
+  return toneAt(moduleAreaIndex(plan.areas).get(moduleCode) ?? -1)
 }

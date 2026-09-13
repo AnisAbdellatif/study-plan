@@ -37,6 +37,32 @@ export const placeholderAreaName = (plan: Plan, id: string): string | null => {
   return plan.areas.find((area) => area.id === areaId)?.name ?? areaId
 }
 
+const NO_NOTES: readonly IssueText[] = []
+
+const sameNotes = (a: readonly IssueText[], b: readonly IssueText[]): boolean =>
+  a.length === b.length && a.every((note, i) => note.text === b[i]?.text && note.severity === b[i]?.severity)
+
+const sameEntry = (a: ColumnEntry, b: ColumnEntry | undefined): boolean => {
+  if (!b || a.kind !== b.kind || a.index !== b.index) return false
+  if (a.kind === 'module' && b.kind === 'module')
+    return a.module === b.module && a.chosen === b.chosen && a.notes === b.notes
+  if (a.kind === 'placeholder' && b.kind === 'placeholder')
+    return a.id === b.id && a.areaId === b.areaId && a.areaName === b.areaName && a.credits === b.credits
+  return false
+}
+
+const sameColumn = (a: ColumnModel, b: ColumnModel): boolean =>
+  a.id === b.id &&
+  a.index === b.index &&
+  a.title === b.title &&
+  a.subtitle === b.subtitle &&
+  a.credits === b.credits &&
+  a.estimate === b.estimate &&
+  a.load === b.load &&
+  a.isCurrent === b.isCurrent &&
+  a.entries.length === b.entries.length &&
+  a.entries.every((entry, i) => sameEntry(entry, b.entries[i]))
+
 export function SemesterBoard({ plan, summary, currentIndex, actions, notesByCode }: SemesterBoardProps) {
   const { t } = useTranslation('board')
   const locale = currentLocale()
@@ -47,6 +73,20 @@ export function SemesterBoard({ plan, summary, currentIndex, actions, notesByCod
   }, [])
 
   const choices = useMemo(() => choiceAreas(plan), [plan])
+
+  // Every edit builds new column models and issue lists. Reusing the previous objects when their content is
+  // unchanged lets the memoised columns and cards skip rendering, so an edit only redraws what it touched.
+  const previousNotes = useRef(new Map<string, readonly IssueText[]>())
+  const stableNotes = useMemo(() => {
+    const next = new Map<string, readonly IssueText[]>()
+    for (const [code, notes] of notesByCode) {
+      const previous = previousNotes.current.get(code)
+      next.set(code, previous && sameNotes(previous, notes) ? previous : notes)
+    }
+    previousNotes.current = next
+    return next
+  }, [notesByCode])
+  const previousColumns = useRef(new Map<string | null, ColumnModel>())
 
   const columns = useMemo((): ColumnModel[] => {
     const byCode = new Map(plan.modules.map((m) => [m.code, m]))
@@ -75,7 +115,17 @@ export function SemesterBoard({ plan, summary, currentIndex, actions, notesByCod
           ]
         }
         const module = byCode.get(code)
-        return module ? [{ kind: 'module', module, index, chosen: optionCodes.has(code) }] : []
+        return module
+          ? [
+              {
+                kind: 'module',
+                module,
+                index,
+                chosen: optionCodes.has(code),
+                notes: stableNotes.get(code) ?? NO_NOTES,
+              },
+            ]
+          : []
       })
 
     // Unplaced options of choice areas are reached through the area tiles, not the module list.
@@ -87,7 +137,7 @@ export function SemesterBoard({ plan, summary, currentIndex, actions, notesByCod
       0,
     )
 
-    return [
+    const built: ColumnModel[] = [
       ...plan.semesters.map((semester, index) => {
         const info = summary.semesters[index]
         return {
@@ -115,15 +165,26 @@ export function SemesterBoard({ plan, summary, currentIndex, actions, notesByCod
         entries: backlog,
       },
     ]
-  }, [plan, summary, currentIndex, t, locale])
+    const reused = built.map((column) => {
+      const previous = previousColumns.current.get(column.id)
+      return previous && sameColumn(previous, column) ? previous : column
+    })
+    previousColumns.current = new Map(reused.map((column) => [column.id, column]))
+    return reused
+  }, [plan, summary, currentIndex, t, locale, stableNotes])
 
+  // Only a change of the columns' titles changes the move menus; keyed by them so the array stays the same.
+  const destinationKey = columns
+    .map((column) => `${column.id}\u0000${column.title}\u0000${column.subtitle}`)
+    .join('\u0001')
+  // biome-ignore lint/correctness/useExhaustiveDependencies: destinationKey captures everything read from columns
   const destinations: Destination[] = useMemo(
     () =>
       columns.map((column) => ({
         id: column.id,
         title: column.subtitle ? `${column.title} (${column.subtitle})` : column.title,
       })),
-    [columns],
+    [destinationKey],
   )
 
   const scrollTo = (id: string | null, behavior: ScrollBehavior = 'smooth') =>
@@ -173,7 +234,6 @@ export function SemesterBoard({ plan, summary, currentIndex, actions, notesByCod
             passThreshold={plan.rules.passThreshold}
             creditLabel={plan.preset.creditLabel}
             showCode={plan.preset.codesAreOfficial ?? true}
-            notesByCode={notesByCode}
             destinations={destinations}
             actions={actions}
             registerElement={registerElement}

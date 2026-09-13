@@ -1,24 +1,35 @@
-import { createRootRoute, createRoute, createRouter, Outlet } from '@tanstack/react-router'
+import {
+  createRootRoute,
+  createRoute,
+  createRouter,
+  lazyRouteComponent,
+  Outlet,
+} from '@tanstack/react-router'
 import { AccountSyncProvider } from './components/account-sync.tsx'
 import { AnnouncerProvider } from './components/announcer.tsx'
 import { LocaleSync } from './components/locale-sync.tsx'
 import { SiteFooter } from './components/site-footer.tsx'
 import { SiteHeader } from './components/site-header.tsx'
-import { DatenschutzPage } from './legal/datenschutz-page.tsx'
-import { ImpressumPage } from './legal/impressum-page.tsx'
-import { AdminPage } from './routes/admin-page.tsx'
-import {
-  AccountPage,
-  ForgotPasswordPage,
-  ResetPasswordPage,
-  SignInPage,
-  SignUpPage,
-  UnsubscribePage,
-} from './routes/auth-pages.tsx'
 import { BoardPage } from './routes/board-page.tsx'
-import { SharedPlanPage } from './routes/shared-plan-page.tsx'
 import { StartPage } from './routes/start-page.tsx'
-import { UpdateProgrammePage } from './routes/update-programme-page.tsx'
+
+// The board and the start page are where almost every visit begins, so they ship in the main bundle. Every other
+// page is loaded when it is first opened (or when a link to it is hovered).
+const authPages = () => import('./routes/auth-pages.tsx')
+const SignInPage = lazyRouteComponent(authPages, 'SignInPage')
+const SignUpPage = lazyRouteComponent(authPages, 'SignUpPage')
+const ForgotPasswordPage = lazyRouteComponent(authPages, 'ForgotPasswordPage')
+const ResetPasswordPage = lazyRouteComponent(authPages, 'ResetPasswordPage')
+const AccountPage = lazyRouteComponent(authPages, 'AccountPage')
+const UnsubscribePage = lazyRouteComponent(authPages, 'UnsubscribePage')
+const ImpressumPage = lazyRouteComponent(() => import('./legal/impressum-page.tsx'), 'ImpressumPage')
+const DatenschutzPage = lazyRouteComponent(() => import('./legal/datenschutz-page.tsx'), 'DatenschutzPage')
+const AdminPage = lazyRouteComponent(() => import('./routes/admin-page.tsx'), 'AdminPage')
+const SharedPlanPage = lazyRouteComponent(() => import('./routes/shared-plan-page.tsx'), 'SharedPlanPage')
+const UpdateProgrammePage = lazyRouteComponent(
+  () => import('./routes/update-programme-page.tsx'),
+  'UpdateProgrammePage',
+)
 
 const rootRoute = createRootRoute({
   component: () => (

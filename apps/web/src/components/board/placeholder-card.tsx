@@ -1,5 +1,5 @@
 import { EllipsisVertical } from 'lucide-react'
-import { useRef } from 'react'
+import { memo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { type AreaTone, NEUTRAL_TONE } from '../../lib/area-colors.ts'
 import { cn } from '../../lib/cn.ts'
@@ -34,7 +34,7 @@ export interface PlaceholderCardProps {
 }
 
 /** A slot for a module still to be chosen from an area. Drags like a module card; dropping it on the backlog removes it. */
-export function PlaceholderCard({
+export const PlaceholderCard = memo(function PlaceholderCard({
   id,
   areaName,
   credits,
@@ -131,4 +131,4 @@ export function PlaceholderCard({
       </div>
     </li>
   )
-}
+})

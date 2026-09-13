@@ -1,6 +1,6 @@
 import { addPlaceholder, createPlanFromPreset, type Plan, summarizePlan } from '@study-plan/shared'
 import { createMemoryHistory, RouterProvider } from '@tanstack/react-router'
-import { render, screen, within } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import i18n from '../../i18n/index.ts'
@@ -109,12 +109,22 @@ describe('plan overview', () => {
 })
 
 describe('board view switch', () => {
-  it('keeps the overview in the page for printing while the board is shown', async () => {
+  it('mounts the overview for printing only while the board is shown', async () => {
     renderBoard(makePlan())
     const board = await screen.findByRole('radio', { name: 'Planungsboard' })
     expect(board).toBeChecked()
     expect(screen.getByRole('region', { name: /^1\. Semester/ })).toBeInTheDocument()
+    expect(screen.queryByTestId('plan-overview')).not.toBeInTheDocument()
+
+    act(() => {
+      window.dispatchEvent(new Event('beforeprint'))
+    })
     expect(screen.getByTestId('plan-overview').parentElement).toHaveClass('hidden', 'print:block')
+
+    act(() => {
+      window.dispatchEvent(new Event('afterprint'))
+    })
+    expect(screen.queryByTestId('plan-overview')).not.toBeInTheDocument()
   })
 
   it('shows the overview and remembers the choice', async () => {

@@ -11,6 +11,8 @@ import { createConsoleMailer, createSmtpMailer } from './mail.ts'
 import { startReminderScheduler } from './reminders.ts'
 import { ensureSuperadmin } from './roles.ts'
 
+const IMMUTABLE = 'public, max-age=31536000, immutable'
+
 const config = loadConfig()
 const database = await openDatabase(config.databaseUrl)
 await database.migrate()
@@ -29,8 +31,20 @@ const app = createApp({
   mailer,
   staticFiles: config.webDist
     ? {
-        assets: serveStatic({ root: config.webDist }),
-        index: serveStatic({ path: `${config.webDist}/index.html` }),
+        // Vite puts a content hash in every file name under assets/, so those never change and can be cached
+        // for a year. Everything else, index.html above all, is checked again so a deploy shows up at once.
+        assets: serveStatic({
+          root: config.webDist,
+          onFound: (path, c) => {
+            c.header('Cache-Control', /[\\/]assets[\\/]/.test(path) ? IMMUTABLE : 'no-cache')
+          },
+        }),
+        index: serveStatic({
+          path: `${config.webDist}/index.html`,
+          onFound: (_path, c) => {
+            c.header('Cache-Control', 'no-cache')
+          },
+        }),
       }
     : undefined,
 })

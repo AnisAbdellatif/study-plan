@@ -8,6 +8,9 @@ export const EXPORT_KEY = 'study-plan:guest:last-export'
 
 export type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
 
+/** Runs `write` later, e.g. when the browser is idle. Without one, every plan change is written immediately. */
+export type PersistScheduler = (write: () => void) => void
+
 export interface GuestState {
   plan: Plan | null
   /** Set when stored data could not be read. */
@@ -27,11 +30,14 @@ export interface GuestStore {
   dismissLoadError(): void
   /** Re-reads storage, e.g. after another tab changed it. */
   reload(): void
+  /** Writes a plan change that is still waiting for the scheduler, e.g. when the page is hidden or closed. */
+  flush(): void
 }
 
 export function createGuestStore(
   storage: StorageLike | null,
   now: () => Date = () => new Date(),
+  schedulePersist?: PersistScheduler,
 ): GuestStore {
   const read = (key: string): string | null => {
     try {
@@ -81,6 +87,19 @@ export function createGuestStore(
     for (const listener of listeners) listener()
   }
 
+  // Serialising a plan with all module details is the expensive part of an edit. With a scheduler, quick edits
+  // (a drag, typing a grade) are coalesced into one write of the latest plan.
+  let pending: Plan | null = null
+  let scheduled = false
+  const flush = () => {
+    scheduled = false
+    const plan = pending
+    pending = null
+    if (!plan) return
+    const saveFailed = !persist(plan)
+    if (saveFailed !== state.saveFailed) set({ ...state, saveFailed })
+  }
+
   return {
     getState: () => state,
     subscribe(listener) {
@@ -92,9 +111,20 @@ export function createGuestStore(
     updatePlan(update) {
       if (!state.plan) return
       const plan = { ...update(state.plan), updatedAt: now().toISOString() }
-      set({ ...state, plan, saveFailed: !persist(plan) })
+      if (!schedulePersist) {
+        set({ ...state, plan, saveFailed: !persist(plan) })
+        return
+      }
+      pending = plan
+      set({ ...state, plan })
+      if (!scheduled) {
+        scheduled = true
+        schedulePersist(flush)
+      }
     },
     replacePlan(plan) {
+      // Replacing is rare and must not be overtaken by an older pending write.
+      pending = null
       const saved = persist(plan)
       set({ ...state, plan, loadError: null, saveFailed: plan !== null && !saved })
     },
@@ -107,8 +137,11 @@ export function createGuestStore(
       set({ ...state, loadError: null })
     },
     reload() {
+      // Another tab wrote newer data; as before, the last write wins.
+      pending = null
       set(load())
     },
+    flush,
   }
 }
 
@@ -120,7 +153,13 @@ function browserStorage(): StorageLike | null {
   }
 }
 
-export const guestStore = createGuestStore(browserStorage())
+/** Writes when the browser is idle, at the latest after a second; main.tsx flushes when the page is hidden. */
+const whenIdle: PersistScheduler = (write) => {
+  if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(write, { timeout: 1000 })
+  else window.setTimeout(write, 200)
+}
+
+export const guestStore = createGuestStore(browserStorage(), undefined, whenIdle)
 
 export const GuestStoreContext = createContext<GuestStore>(guestStore)
 

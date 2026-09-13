@@ -11,7 +11,7 @@ import {
   TriangleAlert,
   X,
 } from 'lucide-react'
-import { useId, useRef, useState } from 'react'
+import { memo, useCallback, useId, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { areaTone, moduleTone } from '../../lib/area-colors.ts'
 import { cn } from '../../lib/cn.ts'
@@ -25,8 +25,6 @@ import type { BoardActions } from './board-actions.ts'
 import { ChoiceAreaTiles } from './choice-area-tiles.tsx'
 import { type Destination, ModuleCard } from './module-card.tsx'
 import { PlaceholderCard } from './placeholder-card.tsx'
-
-const NO_NOTES: readonly IssueText[] = []
 
 /** Insert, move and delete for one semester; menu items keep all of it usable without dragging. */
 function SemesterMenu({
@@ -97,6 +95,8 @@ export type ColumnEntry =
       index: number
       /** True for an option of a choice area, which can be turned back into a placeholder. */
       chosen: boolean
+      /** Validation notes for the card; the same array as before while its content is unchanged. */
+      notes: readonly IssueText[]
     }
   | {
       kind: 'placeholder'
@@ -129,7 +129,6 @@ export interface SemesterColumnProps {
   passThreshold: number
   creditLabel: string
   showCode: boolean
-  notesByCode: ReadonlyMap<string, readonly IssueText[]>
   destinations: readonly Destination[]
   actions: BoardActions
   registerElement: (id: string | null, element: HTMLElement | null) => void
@@ -139,13 +138,15 @@ export interface SemesterColumnProps {
   semesterCount: number
 }
 
-export function SemesterColumn({
+const NO_CHOICES: readonly ChoiceArea[] = []
+
+/** Memoised: the board keeps a column's props identical while nothing in it changed. */
+export const SemesterColumn = memo(function SemesterColumn({
   column,
-  choices = [],
+  choices = NO_CHOICES,
   passThreshold,
   creditLabel,
   showCode,
-  notesByCode,
   destinations,
   actions,
   registerElement,
@@ -169,14 +170,22 @@ export function SemesterColumn({
       !filtering ||
       (entry.kind === 'module' && moduleMatchesQuery(entry.module, query, showCode, customLabel)),
   )
-  const semesterDestinations = destinations.filter((destination) => destination.id !== null)
+  const semesterDestinations = useMemo(
+    () => destinations.filter((destination) => destination.id !== null),
+    [destinations],
+  )
+  const columnId = column.id
+  const setSectionRef = useCallback(
+    (element: HTMLElement | null) => {
+      ref.current = element
+      registerElement(columnId, element)
+    },
+    [registerElement, columnId],
+  )
 
   return (
     <section
-      ref={(element) => {
-        ref.current = element
-        registerElement(column.id, element)
-      }}
+      ref={setSectionRef}
       aria-labelledby={headingId}
       className={cn(
         // Phones and tablets show one to three columns and swipe. From xl, all columns share the width so a
@@ -347,7 +356,7 @@ export function SemesterColumn({
               passThreshold={passThreshold}
               creditLabel={creditLabel}
               showCode={showCode}
-              notes={notesByCode.get(entry.module.code) ?? NO_NOTES}
+              notes={entry.notes}
               destinations={destinations}
               actions={actions}
               tone={moduleTone({ areas }, entry.module.code)}
@@ -378,4 +387,4 @@ export function SemesterColumn({
       </ul>
     </section>
   )
-}
+})
