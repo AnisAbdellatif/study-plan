@@ -1,5 +1,5 @@
 export const common = {
-  brand: 'Studienplaner',
+  brand: 'Study Plan',
   description: 'Studienplan und Notenschnitt für dein Studium in Deutschland',
   language: {
     label: 'Sprache',

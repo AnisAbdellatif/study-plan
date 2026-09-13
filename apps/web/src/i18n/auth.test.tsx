@@ -44,7 +44,7 @@ describe('account, start and shared pages in English', () => {
   it('shows the sign-in page', async () => {
     renderApp('/sign-in')
     expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Study Planner' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Study Plan' })).toBeInTheDocument()
     expect(screen.getByLabelText('Email address')).toBeInTheDocument()
     expect(screen.getByLabelText('Password')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Forgot your password?' })).toBeInTheDocument()

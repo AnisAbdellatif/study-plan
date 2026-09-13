@@ -3,7 +3,7 @@ import { ArrowLeft } from 'lucide-react'
 import { type FormEvent, type ReactNode, useEffect, useId, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import { describeSyncState, useAccountSync } from '../components/account-sync.tsx'
-import { BrandLogo } from '../components/brand-logo.tsx'
+import { BrandMark } from '../components/brand-logo.tsx'
 import { Button } from '../components/ui/button.tsx'
 import { ConfirmDialog } from '../components/ui/dialog.tsx'
 import i18n, { currentLocale } from '../i18n/index.ts'
@@ -55,7 +55,6 @@ function AuthLayout({
   back?: { to: '/' | '/start'; label: string }
   children: ReactNode
 }) {
-  const { t } = useTranslation()
   return (
     <main className="mx-auto flex min-h-[80dvh] max-w-md flex-col justify-center px-4 py-10">
       {back ? (
@@ -69,10 +68,9 @@ function AuthLayout({
       ) : null}
       <Link
         to="/"
-        className="flex w-fit items-center gap-2 text-xs font-medium tracking-wide text-indigo-600 uppercase dark:text-indigo-400"
+        className="w-fit rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
       >
-        <BrandLogo className="size-7" />
-        {t('brand')}
+        <BrandMark />
       </Link>
       <h1 className="mt-1 text-2xl font-semibold">{title}</h1>
       {intro ? <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">{intro}</p> : null}

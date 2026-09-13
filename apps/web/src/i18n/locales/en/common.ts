@@ -2,7 +2,7 @@ import type { common as de } from '../de/common.ts'
 import type { Messages } from '../types.ts'
 
 export const common = {
-  brand: 'Study Planner',
+  brand: 'Study Plan',
   description: 'Plan your modules and track your grade average at a German university',
   language: {
     label: 'Language',
