@@ -11,6 +11,7 @@ import { ImportGradesDialog } from './board/import-grades-dialog.tsx'
 import { PoSwitchDialog } from './board/po-switch-dialog.tsx'
 import { ShareDialog } from './board/share-dialog.tsx'
 import { ImportPlanButton } from './import-plan-button.tsx'
+import { LanguageMenu } from './language-menu.tsx'
 import { Button } from './ui/button.tsx'
 import { ConfirmDialog } from './ui/dialog.tsx'
 import { MenuContent, MenuItem, MenuRoot, MenuSeparator, MenuTrigger } from './ui/menu.tsx'
@@ -47,6 +48,7 @@ export function AppHeader({ plan }: { plan: Plan }) {
         </p>
       </div>
       <div className="flex items-center gap-2 print:hidden">
+        <LanguageMenu />
         <AccountButton />
         <Button onClick={() => exportPlan(plan)}>
           <Download aria-hidden className="size-4" />

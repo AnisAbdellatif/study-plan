@@ -1,10 +1,12 @@
 import { Menu } from '@base-ui/react/menu'
+import { Check } from 'lucide-react'
 import type { ComponentProps, ReactNode } from 'react'
 import { cn } from '../../lib/cn.ts'
 
 export const MenuRoot = Menu.Root
 export const MenuTrigger = Menu.Trigger
 export const MenuGroup = Menu.Group
+export const MenuRadioGroup = Menu.RadioGroup
 
 export function MenuContent({
   children,
@@ -48,4 +50,27 @@ export function MenuGroupLabel({ children }: { children: ReactNode }) {
 
 export function MenuSeparator() {
   return <Menu.Separator className="my-1 h-px bg-zinc-200 dark:bg-zinc-800" />
+}
+
+type MenuRadioItemProps = Omit<ComponentProps<typeof Menu.RadioItem>, 'className'> & { className?: string }
+
+/** A choice in a `MenuRadioGroup`, with a check mark on the selected one. Closes the menu when picked. */
+export function MenuRadioItem({ className, children, ...props }: MenuRadioItemProps) {
+  return (
+    <Menu.RadioItem
+      closeOnClick
+      className={cn(
+        'flex cursor-default items-center gap-2 rounded-md px-2 py-1.5 outline-none select-none data-[highlighted]:bg-zinc-100 dark:data-[highlighted]:bg-zinc-800',
+        className,
+      )}
+      {...props}
+    >
+      <span className="flex size-4 items-center justify-center">
+        <Menu.RadioItemIndicator>
+          <Check aria-hidden className="size-4" />
+        </Menu.RadioItemIndicator>
+      </span>
+      {children}
+    </Menu.RadioItem>
+  )
 }

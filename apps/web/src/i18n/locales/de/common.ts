@@ -3,6 +3,7 @@ export const common = {
   description: 'Studienplan und Notenschnitt für dein Studium in Deutschland',
   language: {
     label: 'Sprache',
+    current: 'Sprache: {{language}}',
     de: 'Deutsch',
     en: 'English',
   },

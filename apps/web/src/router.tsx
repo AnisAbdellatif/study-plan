@@ -3,6 +3,7 @@ import { AccountSyncProvider } from './components/account-sync.tsx'
 import { AnnouncerProvider } from './components/announcer.tsx'
 import { LocaleSync } from './components/locale-sync.tsx'
 import { SiteFooter } from './components/site-footer.tsx'
+import { SiteHeader } from './components/site-header.tsx'
 import { DatenschutzPage } from './legal/datenschutz-page.tsx'
 import { ImpressumPage } from './legal/impressum-page.tsx'
 import { AdminPage } from './routes/admin-page.tsx'
@@ -22,6 +23,7 @@ const rootRoute = createRootRoute({
   component: () => (
     <AnnouncerProvider>
       <AccountSyncProvider>
+        <SiteHeader />
         <Outlet />
         <SiteFooter />
         <LocaleSync />

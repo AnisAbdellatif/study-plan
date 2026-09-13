@@ -6,6 +6,7 @@ export const common = {
   description: 'Plan your modules and track your grade average at a German university',
   language: {
     label: 'Language',
+    current: 'Language: {{language}}',
     de: 'Deutsch',
     en: 'English',
   },
