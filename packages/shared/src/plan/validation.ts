@@ -63,6 +63,13 @@ export type PlanIssue =
       /** Prerequisites planned in an earlier semester that did not end in a pass and no longer can in time. */
       blocked: { code: string; reason: PrerequisiteBlockReason }[]
     }
+  | {
+      kind: 'alternatives_conflict'
+      severity: 'warning'
+      group: string
+      /** Planned or passed modules of the same alternative group; only one of them may be taken. */
+      codes: string[]
+    }
   | { kind: 'area_below_minimum'; severity: 'info'; areaId: string; planned: number; minCredits: number }
   | { kind: 'area_above_maximum'; severity: 'warning'; areaId: string; planned: number; maxCredits: number }
 
@@ -193,6 +200,16 @@ export function validatePlan(plan: Plan, options: ValidationOptions = {}): PlanI
   }
 
   const counted = new Set([...plan.semesters.flatMap((semester) => semester.moduleCodes), ...passed])
+
+  const groups = new Map<string, string[]>()
+  for (const module of plan.modules) {
+    if (!module.alternativeGroup || !counted.has(module.code)) continue
+    groups.set(module.alternativeGroup, [...(groups.get(module.alternativeGroup) ?? []), module.code])
+  }
+  for (const [group, codes] of groups) {
+    if (codes.length > 1) issues.push({ kind: 'alternatives_conflict', severity: 'warning', group, codes })
+  }
+
   for (const area of plan.areas) {
     let halves = 0
     for (const code of area.moduleCodes) {

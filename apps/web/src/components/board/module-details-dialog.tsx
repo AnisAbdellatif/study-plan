@@ -76,6 +76,11 @@ function FactsSection({ module, plan }: { module: PlanModule; plan: Plan }) {
       .map((code) => names.get(code) ?? code)
       .join(t('details.or')),
   )
+  const alternatives = module.alternativeGroup
+    ? plan.modules
+        .filter((other) => other.alternativeGroup === module.alternativeGroup && other.code !== module.code)
+        .map((other) => other.name)
+    : []
 
   const rows: Row[] = [
     { key: 'credits', label: t('details.credits'), value: `${formatCredits(module.credits)} ${label}` },
@@ -120,6 +125,12 @@ function FactsSection({ module, plan }: { module: PlanModule; plan: Plan }) {
       key: 'maxAttempts',
       label: t('details.maxAttempts'),
       value: t('details.maxAttemptsValue', { count: module.maxAttempts }),
+    },
+    module.internship === true && { key: 'kind', label: t('details.kind'), value: t('details.internship') },
+    alternatives.length > 0 && {
+      key: 'alternatives',
+      label: t('details.alternatives'),
+      value: <TextList items={alternatives} />,
     },
     module.retired === true && { key: 'retired', label: t('details.status'), value: t('details.retired') },
   ].filter(present)

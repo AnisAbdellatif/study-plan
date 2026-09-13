@@ -30,6 +30,9 @@ export const issues = {
   retakenAfterPass:
     '{{name}} ist nach dem Bestehen noch einmal eingetragen. Laut Prüfungsordnung lassen sich bestandene Prüfungen nicht wiederholen.',
   retakenAfterPassCard: 'Nach dem Bestehen wiederholt',
+  alternativesConflict:
+    '{{names}} schließen sich gegenseitig aus. Laut Prüfungsordnung zählt nur eine davon, plane nur eine ein.',
+  alternativesConflictCard: 'Nur eine der Alternativen möglich',
   areaBelowMinimum: '{{area}}: {{planned}} von mindestens {{min}} eingeplant.',
   areaAboveMaximum: '{{area}}: {{planned}} eingeplant, vorgesehen sind höchstens {{max}}.',
 }

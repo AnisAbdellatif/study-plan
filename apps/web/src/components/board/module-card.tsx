@@ -129,6 +129,7 @@ export const ModuleCard = memo(function ModuleCard({
               {formatCredits(module.credits)} {creditLabel}
             </span>
             {module.countsTowardAverage ? null : <span>· {t('card.notCounted')}</span>}
+            {module.internship ? <span>· {t('card.internship')}</span> : null}
             {module.retired ? <span>· {t('card.retired')}</span> : null}
             <ResultBadge module={module} passThreshold={passThreshold} />
             {module.attempts.length > 1 ? (

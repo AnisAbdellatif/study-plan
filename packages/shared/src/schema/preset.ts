@@ -104,6 +104,16 @@ export const presetModuleSchema = z.object({
    * Omitted: the planner infers choices from the areas, see `createPlanFromPreset`.
    */
   elective: z.boolean().optional(),
+  /**
+   * True for a work placement outside the university (Betriebspraktikum, Industriepraktikum, Praxisphase).
+   * Lab and practical courses at the university (Programmierpraktikum, Laborpraktikum) are ordinary modules.
+   */
+  internship: z.boolean().optional(),
+  /**
+   * Modules with the same group exclude each other: only one of them may be taken, e.g. the 15 and 20 LP
+   * variants of an optional Betriebspraktikum, or a Praktikum and an Auslandsstudium that replace the same credits.
+   */
+  alternativeGroup: slugSchema.optional(),
   /** Overrides `examRules.maxAttempts` for this module, e.g. fewer attempts for a Bachelorarbeit. */
   maxAttempts: z.number().int().min(1).max(10).optional(),
   /** Descriptive facts from the Modulkatalog. */
@@ -193,6 +203,21 @@ export const presetSchema = z
           code: 'custom',
           path: ['modules', index, 'requiresCredits'],
           message: 'requiresCredits exceeds the total credits of the programme',
+        })
+      }
+    })
+
+    const groupSizes = new Map<string, number>()
+    for (const module of preset.modules) {
+      if (module.alternativeGroup)
+        groupSizes.set(module.alternativeGroup, (groupSizes.get(module.alternativeGroup) ?? 0) + 1)
+    }
+    preset.modules.forEach((module, index) => {
+      if (module.alternativeGroup && groupSizes.get(module.alternativeGroup) === 1) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['modules', index, 'alternativeGroup'],
+          message: `alternativeGroup "${module.alternativeGroup}" is used by only one module`,
         })
       }
     })

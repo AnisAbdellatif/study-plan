@@ -33,6 +33,9 @@ export const issues = {
   retakenAfterPass:
     '{{name}} is entered again after passing. Under the examination regulations, passed exams can’t be retaken.',
   retakenAfterPassCard: 'Retaken after passing',
+  alternativesConflict:
+    '{{names}} exclude each other. Only one of them counts under the examination regulations, so plan just one.',
+  alternativesConflictCard: 'Only one of the alternatives is possible',
   areaBelowMinimum: '{{area}}: {{planned}} planned out of at least {{min}}.',
   areaAboveMaximum: '{{area}}: {{planned}} planned, but at most {{max}} are allowed.',
 } satisfies Messages<typeof de>

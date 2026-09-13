@@ -128,6 +128,20 @@ export function describeIssues(plan: Plan, issues: readonly PlanIssue[]): Descri
           t('issues:retakenAfterPassCard'),
         )
         break
+      case 'alternatives_conflict': {
+        // One sentence in the list, and a short note on every card involved.
+        list.push({
+          severity: issue.severity,
+          text: t('issues:alternativesConflict', { names: issue.codes.map(nameOf).join(t('issues:and')) }),
+        })
+        for (const code of issue.codes) {
+          byModule.set(code, [
+            ...(byModule.get(code) ?? []),
+            { severity: issue.severity, text: t('issues:alternativesConflictCard') },
+          ])
+        }
+        break
+      }
       case 'area_below_minimum':
         add(
           issue.severity,
