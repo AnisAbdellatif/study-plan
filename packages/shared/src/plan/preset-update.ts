@@ -88,7 +88,7 @@ export function diffPresetUpdate(plan: Plan, preset: Preset): PresetDiff {
 
   const added = preset.modules.filter((module) => !current.has(module.code))
   const removed = plan.modules
-    .filter((module) => !incoming.has(module.code) && !module.retired)
+    .filter((module) => !incoming.has(module.code) && !module.retired && !module.custom)
     .map((module) => ({ code: module.code, name: module.name, kept: hasResult(module) }))
 
   const changed: ModuleChange[] = []
@@ -111,10 +111,19 @@ export function diffPresetUpdate(plan: Plan, preset: Preset): PresetDiff {
     changed,
     info: infoChanged,
     rulesChanged: !same(plan.rules, preset.gradeRules),
-    areasChanged: !same(plan.areas, preset.areas),
+    areasChanged: !same(withoutCustomCodes(plan), preset.areas),
     targetGradeCleared:
       plan.targetGrade !== undefined && !preset.gradeRules.allowedValues.includes(plan.targetGrade),
   }
+}
+
+/** The plan's areas without the codes of custom modules, which the programme data never contains. */
+function withoutCustomCodes(plan: Plan): Plan['areas'] {
+  const custom = new Set(plan.modules.filter((module) => module.custom).map((module) => module.code))
+  return plan.areas.map((area) => ({
+    ...area,
+    moduleCodes: area.moduleCodes.filter((code) => !custom.has(code)),
+  }))
 }
 
 export const hasPresetChanges = (diff: PresetDiff): boolean =>
@@ -146,10 +155,11 @@ export function applyPresetUpdate(plan: Plan, preset: Preset): Plan {
     }
   })
   const incoming = new Set(preset.modules.map((module) => module.code))
+  const custom = plan.modules.filter((module) => module.custom && !incoming.has(module.code))
   const history = plan.modules
-    .filter((module) => !incoming.has(module.code) && hasResult(module))
+    .filter((module) => !incoming.has(module.code) && !module.custom && hasResult(module))
     .map((module) => ({ ...module, retired: true as const }))
-  const modules = [...updated, ...history]
+  const modules = [...updated, ...history, ...custom]
   const remaining = new Set(modules.map((module) => module.code))
 
   const placed = new Set(plan.semesters.flatMap((semester) => semester.moduleCodes))
@@ -162,7 +172,24 @@ export function applyPresetUpdate(plan: Plan, preset: Preset): Plan {
     if (!placed.has(module.code) && !backlog.includes(module.code)) backlog.push(module.code)
   }
 
-  const { targetGrade, ...rest } = plan
+  const newAreaIds = new Set(preset.areas.map((area) => area.id))
+  const placeholders = (plan.placeholders ?? []).filter((placeholder) => newAreaIds.has(placeholder.areaId))
+  const keptPlaceholders = new Set(placeholders.map((placeholder) => placeholder.id))
+  const droppedPlaceholders = new Set(
+    (plan.placeholders ?? []).map((placeholder) => placeholder.id).filter((id) => !keptPlaceholders.has(id)),
+  )
+  const areas = structuredClone(preset.areas).map((area) => ({
+    ...area,
+    moduleCodes: [
+      ...area.moduleCodes,
+      ...custom
+        .filter((module) =>
+          plan.areas.some((old) => old.id === area.id && old.moduleCodes.includes(module.code)),
+        )
+        .map((module) => module.code),
+    ],
+  }))
+  const { targetGrade, placeholders: _placeholders, ...rest } = plan
   const keepTarget = targetGrade !== undefined && preset.gradeRules.allowedValues.includes(targetGrade)
 
   return {
@@ -170,10 +197,13 @@ export function applyPresetUpdate(plan: Plan, preset: Preset): Plan {
     ...(keepTarget ? { targetGrade } : {}),
     preset: presetInfoFrom(preset),
     rules: structuredClone(preset.gradeRules),
-    areas: structuredClone(preset.areas),
+    areas,
+    ...(placeholders.length > 0 ? { placeholders } : {}),
     semesters: plan.semesters.map((semester) => ({
       ...semester,
-      moduleCodes: semester.moduleCodes.filter((code) => remaining.has(code)),
+      moduleCodes: semester.moduleCodes.filter(
+        (code) => remaining.has(code) || (keptPlaceholders.has(code) && !droppedPlaceholders.has(code)),
+      ),
     })),
     backlog,
     modules,

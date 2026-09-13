@@ -95,12 +95,17 @@ function FactsSection({ module, plan }: { module: PlanModule; plan: Plan }) {
       label: t('details.average'),
       value: module.countsTowardAverage ? t('details.counts') : t('details.notCounted'),
     },
-    { key: 'category', label: t('details.category'), value: module.category },
-    plan.preset.codesAreOfficial !== false && {
-      key: 'code',
-      label: t('details.code'),
-      value: module.code,
+    {
+      key: 'category',
+      label: t('details.category'),
+      value: module.custom ? t('card.custom') : module.category,
     },
+    plan.preset.codesAreOfficial !== false &&
+      !module.custom && {
+        key: 'code',
+        label: t('details.code'),
+        value: module.code,
+      },
     prerequisites.length > 0 && {
       key: 'prerequisites',
       label: t('details.prerequisites'),

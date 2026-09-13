@@ -13,15 +13,25 @@ export function normalizeSearchText(value: string): string {
 
 /**
  * True when every word of the query appears in the module's name, category, English title or, when codes are
- * shown, its code. An empty query matches everything.
+ * shown, its code. Custom modules match their shown label (`customLabel`) instead of the internal category. An
+ * empty query matches everything.
  */
-export function moduleMatchesQuery(module: PlanModule, query: string, includeCode: boolean): boolean {
+export function moduleMatchesQuery(
+  module: PlanModule,
+  query: string,
+  includeCode: boolean,
+  customLabel = '',
+): boolean {
   const words = normalizeSearchText(query).split(/\s+/).filter(Boolean)
   if (words.length === 0) return true
+  const category = module.custom ? customLabel : module.category
   const haystack = normalizeSearchText(
-    [module.name, module.category, module.details?.englishName ?? '', includeCode ? module.code : ''].join(
-      ' ',
-    ),
+    [
+      module.name,
+      category,
+      module.details?.englishName ?? '',
+      includeCode && !module.custom ? module.code : '',
+    ].join(' '),
   )
   return words.every((word) => haystack.includes(word))
 }

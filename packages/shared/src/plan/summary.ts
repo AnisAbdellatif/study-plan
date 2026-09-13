@@ -1,7 +1,8 @@
 import { computeOverall, type OverallResult } from '../engine/compute.ts'
 import { isModulePassed } from '../engine/progress.ts'
 import { toHalves } from '../engine/units.ts'
-import type { Plan } from './plan.ts'
+import { placeholderCredits } from './placeholders.ts'
+import { type Plan, planGradeRules } from './plan.ts'
 import { addTerms, formatTerm, type Term } from './terms.ts'
 
 /** Default per-semester load warning bounds in credits. Presets will be able to override them. */
@@ -15,6 +16,9 @@ export interface SemesterSummary {
   term: Term
   label: string
   credits: number
+  /** Estimated credits of the placeholders in this semester. */
+  placeholderCredits: number
+  placeholders: number
   load: SemesterLoad
 }
 
@@ -25,6 +29,8 @@ export interface AreaSummary {
   maxCredits?: number
   earnedCredits: number
   plannedCredits: number
+  /** Estimated credits of placeholders for this area, not included in `plannedCredits`. */
+  placeholderCredits: number
 }
 
 export interface PlanSummary {
@@ -51,19 +57,25 @@ export function summarizePlan(plan: Plan): PlanSummary {
     return halves / 2
   }
 
+  const estimates = placeholderCredits(plan)
+
   return {
-    overall: computeOverall(plan.rules, plan.modules),
+    overall: computeOverall(planGradeRules(plan), plan.modules),
     credits: { earned: sum(passed), planned: sum(placed), required: plan.preset.totalCredits },
     semesters: plan.semesters.map((semester, index) => {
       const term = addTerms(plan.startTerm, index)
       const credits = sum(semester.moduleCodes)
+      const placeholderIds = semester.moduleCodes.filter((code) => estimates.has(code))
+      const estimated = placeholderIds.reduce((total, id) => total + toHalves(estimates.get(id) ?? 0), 0) / 2
       return {
         id: semester.id,
         number: index + 1,
         term,
         label: formatTerm(term),
         credits,
-        load: loadFor(credits),
+        placeholderCredits: estimated,
+        placeholders: placeholderIds.length,
+        load: loadFor(credits + estimated),
       }
     }),
     areas: plan.areas.map((area) => ({
@@ -73,6 +85,10 @@ export function summarizePlan(plan: Plan): PlanSummary {
       maxCredits: area.maxCredits,
       earnedCredits: sum(area.moduleCodes.filter((code) => passed.has(code))),
       plannedCredits: sum(area.moduleCodes.filter((code) => placed.has(code))),
+      placeholderCredits:
+        (plan.placeholders ?? [])
+          .filter((placeholder) => placeholder.areaId === area.id)
+          .reduce((total, placeholder) => total + toHalves(estimates.get(placeholder.id) ?? 0), 0) / 2,
     })),
   }
 }

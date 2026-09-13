@@ -74,6 +74,17 @@ When the PO or the Modulkatalog changes, the student updates the plan from the b
 
 Visitors who want to look around first can open a demo plan from a fictional programme. The example programmes in `packages/shared/examples/` serve the demo and the tests; the LUH file there is a real PO used to test the grade engine.
 
+## Choice areas and custom modules
+
+Programmes often let students pick a few modules from a long list (one Proseminar out of many, 10 to 20 LP of Vertiefung, Studium Generale). The planner treats these as choice areas:
+
+- An area is a choice area when its modules are marked `elective`, or when it has a credit maximum and lists more credits than that. Modules without a recommended semester, and modules whose semester group exceeds the maximum, are the options; a compulsory module of the same area that fits keeps its semester (`choiceOptionCodes` in `packages/shared/src/plan/placeholders.ts`).
+- Options start unplanned and are not listed one by one. The unplanned column shows one tile per choice area with the chosen credits and placeholders. Students drag a tile into a semester (or use its menu) to place a placeholder, then pick the module for it from a searchable list.
+- A placeholder counts with the most common credit value of its options for semester load, area minimums and the thesis admission forecast, never for grades. Moving a placeholder out of the semesters removes it; a chosen module can turn back into a placeholder.
+- Resetting a plan removes placeholders; programme updates keep placeholders whose area still exists.
+
+Students can also add their own modules (name, credits, graded or not, counting toward the average, area, offering). Graded modules that count are added to the top level of the grade calculation, weighted by credits, when the programme's calculation weights by credits; special rules such as best-of selections do not apply to them. Custom modules are kept through resets and programme updates.
+
 ## Languages
 
 The web app is available in German and English; e-mails follow the language of the account.

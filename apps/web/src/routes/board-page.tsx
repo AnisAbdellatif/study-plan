@@ -1,18 +1,29 @@
 import {
   type AttemptEntry,
+  addCustomModule,
+  addPlaceholder,
   analyzeWhatIf,
+  type CustomModuleInput,
+  choosePlaceholder,
   createIcs,
   creditRequirements,
+  isPlaceholderId,
   localIsoDate,
   moveModule,
+  PLACEHOLDER_PREFIX,
   type Plan,
+  PlanError,
   planDeadlines,
+  removeCustomModule,
+  removePlaceholder,
   semesterIndexAt,
   setExamDate,
   setModuleAttempts,
   setTargetGrade,
   summarizePlan,
+  unchooseModule,
   upcomingDeadlines,
+  updateCustomModule,
   validatePlan,
 } from '@study-plan/shared'
 import { Navigate } from '@tanstack/react-router'
@@ -21,16 +32,20 @@ import { useTranslation } from 'react-i18next'
 import { AccountSyncBanner } from '../components/account-sync.tsx'
 import { useAnnounce } from '../components/announcer.tsx'
 import { AppHeader } from '../components/app-header.tsx'
+import type { BoardActions } from '../components/board/board-actions.ts'
+import { CustomModuleDialog, type CustomModuleTarget } from '../components/board/custom-module-dialog.tsx'
 import { GradeDialog } from '../components/board/grade-dialog.tsx'
 import { ModuleDetailsDialog } from '../components/board/module-details-dialog.tsx'
+import { type PickerTarget, PlaceholderPickerDialog } from '../components/board/placeholder-picker-dialog.tsx'
 import { PlanInsights } from '../components/board/plan-insights.tsx'
-import { columnTitle, SemesterBoard } from '../components/board/semester-board.tsx'
+import { columnTitle, placeholderAreaName, SemesterBoard } from '../components/board/semester-board.tsx'
 import { SummaryPanel } from '../components/board/summary-panel.tsx'
 import { StorageNotice } from '../components/storage-notice.tsx'
+import { ConfirmDialog } from '../components/ui/dialog.tsx'
 import i18n from '../i18n/index.ts'
 import { useModuleDropMonitor } from '../lib/dnd.ts'
 import { calendarFilename, downloadFile } from '../lib/files.ts'
-import { formatGrade } from '../lib/format.ts'
+import { formatGrade, newId } from '../lib/format.ts'
 import { describeIssues } from '../lib/issues.ts'
 import { useGuestState, useGuestStore } from '../store/guest-store.ts'
 
@@ -58,6 +73,12 @@ function describeAttempts(entries: readonly AttemptEntry[]): string {
   }
 }
 
+/** A fresh placeholder id, known before the plan changes so the picker can open for it. */
+const newPlaceholderId = (): string =>
+  `${PLACEHOLDER_PREFIX}${newId()
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, '')}`
+
 function Board({ plan }: { plan: Plan }) {
   const { t, i18n: instance } = useTranslation('board')
   const language = instance.resolvedLanguage
@@ -65,6 +86,9 @@ function Board({ plan }: { plan: Plan }) {
   const announce = useAnnounce()
   const [gradingCode, setGradingCode] = useState<string | null>(null)
   const [detailsCode, setDetailsCode] = useState<string | null>(null)
+  const [picker, setPicker] = useState<PickerTarget | null>(null)
+  const [customTarget, setCustomTarget] = useState<CustomModuleTarget | null>(null)
+  const [deleteCode, setDeleteCode] = useState<string | null>(null)
   const today = localIsoDate(new Date())
 
   const summary = useMemo(() => summarizePlan(plan), [plan])
@@ -80,21 +104,120 @@ function Board({ plan }: { plan: Plan }) {
   const allDeadlines = useMemo(() => planDeadlines(plan), [plan])
   const upcoming = useMemo(() => upcomingDeadlines(plan, today, DEADLINE_HORIZON_DAYS), [plan, today])
 
+  const moduleName = useCallback(
+    (code: string) => plan.modules.find((m) => m.code === code)?.name ?? code,
+    [plan],
+  )
+  const areaName = useCallback(
+    (areaId: string) => plan.areas.find((area) => area.id === areaId)?.name ?? areaId,
+    [plan],
+  )
+
+  /** Applies a plan change; an outdated or invalid action is announced instead of breaking the page. */
+  const apply = useCallback(
+    (update: (current: Plan) => Plan): boolean => {
+      try {
+        store.updatePlan(update)
+        return true
+      } catch (error) {
+        if (!(error instanceof PlanError)) throw error
+        announce(t('announce.actionFailed'))
+        return false
+      }
+    },
+    [store, announce, t],
+  )
+
   const move = useCallback(
     (code: string, targetColumnId: string | null, targetIndex?: number) => {
-      const name = plan.modules.find((m) => m.code === code)?.name ?? code
-      store.updatePlan((current) => moveModule(current, code, targetColumnId, targetIndex))
-      announce(t('announce.moved', { name, column: columnTitle(plan, targetColumnId) }))
+      if (isPlaceholderId(code)) {
+        const area = placeholderAreaName(plan, code) ?? code
+        if (!apply((current) => moveModule(current, code, targetColumnId, targetIndex))) return
+        announce(
+          targetColumnId === null
+            ? t('announce.placeholderRemoved', { area })
+            : t('announce.placeholderMoved', { area, column: columnTitle(plan, targetColumnId) }),
+        )
+        return
+      }
+      if (!apply((current) => moveModule(current, code, targetColumnId, targetIndex))) return
+      announce(t('announce.moved', { name: moduleName(code), column: columnTitle(plan, targetColumnId) }))
     },
-    [plan, store, announce, t],
+    [plan, apply, announce, t, moduleName],
   )
-  useModuleDropMonitor(move)
+
+  const placeArea = useCallback(
+    (areaId: string, semesterId: string, targetIndex?: number) => {
+      if (!apply((current) => addPlaceholder(current, areaId, semesterId, targetIndex))) return
+      announce(
+        t('announce.placeholderAdded', { area: areaName(areaId), column: columnTitle(plan, semesterId) }),
+      )
+    },
+    [plan, apply, announce, t, areaName],
+  )
+  useModuleDropMonitor(move, placeArea)
+
+  const actions = useMemo(
+    (): BoardActions => ({
+      onMove: move,
+      onGrade: setGradingCode,
+      onDetails: setDetailsCode,
+      onPlaceArea: placeArea,
+      onBrowseArea: (areaId) => setPicker({ mode: 'browse', areaId }),
+      onChoose: (placeholderId) => setPicker({ mode: 'choose', placeholderId }),
+      onRemovePlaceholder: (placeholderId) => {
+        const area = placeholderAreaName(plan, placeholderId) ?? placeholderId
+        if (apply((current) => removePlaceholder(current, placeholderId)))
+          announce(t('announce.placeholderRemoved', { area }))
+      },
+      onUnchoose: (code) => {
+        if (apply((current) => unchooseModule(current, code)))
+          announce(t('announce.unchosen', { name: moduleName(code) }))
+      },
+      onChooseOther: (code) => {
+        const id = newPlaceholderId()
+        if (!apply((current) => unchooseModule(current, code, id.slice(PLACEHOLDER_PREFIX.length)))) return
+        announce(t('announce.unchosen', { name: moduleName(code) }))
+        setPicker({ mode: 'choose', placeholderId: id })
+      },
+      onAddCustom: () => setCustomTarget({ mode: 'create' }),
+      onEditCustom: (code) => setCustomTarget({ mode: 'edit', code }),
+      onDeleteCustom: setDeleteCode,
+    }),
+    [plan, move, placeArea, apply, announce, t, moduleName],
+  )
+
+  const choose = (placeholderId: string, code: string) => {
+    const area = placeholderAreaName(plan, placeholderId) ?? placeholderId
+    if (!apply((current) => choosePlaceholder(current, placeholderId, code))) return
+    setPicker(null)
+    announce(t('announce.chosen', { name: moduleName(code), area }))
+  }
+
+  /** Throws a `PlanError` for invalid input, which the dialog shows. */
+  const saveCustomModule = (target: CustomModuleTarget, input: CustomModuleInput) => {
+    // Validating against the rendered plan first lets the error reach the dialog before anything is stored.
+    if (target.mode === 'create') {
+      addCustomModule(plan, input)
+      store.updatePlan((current) => addCustomModule(current, input).plan)
+    } else {
+      updateCustomModule(plan, target.code, input)
+      store.updatePlan((current) => updateCustomModule(current, target.code, input))
+    }
+    setCustomTarget(null)
+    const name = input.name.trim()
+    announce(t(target.mode === 'create' ? 'announce.customAdded' : 'announce.customUpdated', { name }))
+  }
+
+  const deleteCustomModule = (code: string) => {
+    const name = moduleName(code)
+    if (apply((current) => removeCustomModule(current, code))) announce(t('announce.customDeleted', { name }))
+  }
 
   const saveResult = (code: string, entries: AttemptEntry[], examDate: string | null) => {
-    const name = plan.modules.find((m) => m.code === code)?.name ?? code
     store.updatePlan((current) => setExamDate(setModuleAttempts(current, code, entries), code, examDate))
     setGradingCode(null)
-    announce(`${name}: ${describeAttempts(entries)}`)
+    announce(`${moduleName(code)}: ${describeAttempts(entries)}`)
   }
 
   const changeTarget = (grade: number | null) => {
@@ -115,7 +238,7 @@ function Board({ plan }: { plan: Plan }) {
 
   return (
     <main className="mx-auto max-w-[96rem] space-y-4 px-4 py-5 sm:px-6">
-      <AppHeader plan={plan} />
+      <AppHeader plan={plan} onAddCustomModule={actions.onAddCustom} />
       <div className="space-y-4 empty:hidden print:hidden">
         <StorageNotice plan={plan} />
         <AccountSyncBanner />
@@ -138,9 +261,7 @@ function Board({ plan }: { plan: Plan }) {
         plan={plan}
         summary={summary}
         currentIndex={currentIndex}
-        onMove={move}
-        onGrade={setGradingCode}
-        onDetails={setDetailsCode}
+        actions={actions}
         notesByCode={issues.byModule}
       />
       <GradeDialog
@@ -153,6 +274,32 @@ function Board({ plan }: { plan: Plan }) {
         module={plan.modules.find((m) => m.code === detailsCode) ?? null}
         plan={plan}
         onClose={() => setDetailsCode(null)}
+      />
+      <PlaceholderPickerDialog
+        plan={plan}
+        summary={summary}
+        target={picker}
+        onChoose={choose}
+        onClose={() => setPicker(null)}
+      />
+      <CustomModuleDialog
+        plan={plan}
+        target={customTarget}
+        onSave={saveCustomModule}
+        onClose={() => setCustomTarget(null)}
+      />
+      <ConfirmDialog
+        open={deleteCode !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteCode(null)
+        }}
+        title={t('customModule.deleteTitle', { name: deleteCode ? moduleName(deleteCode) : '' })}
+        description={t('customModule.deleteDescription')}
+        confirmLabel={t('customModule.deleteConfirm')}
+        destructive
+        onConfirm={() => {
+          if (deleteCode) deleteCustomModule(deleteCode)
+        }}
       />
     </main>
   )

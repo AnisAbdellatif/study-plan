@@ -16,7 +16,7 @@ import { ConfirmDialog } from './ui/dialog.tsx'
 import { MenuContent, MenuItem, MenuRoot, MenuSeparator, MenuTrigger } from './ui/menu.tsx'
 import { useExportPlan } from './use-export-plan.ts'
 
-export function AppHeader({ plan }: { plan: Plan }) {
+export function AppHeader({ plan, onAddCustomModule }: { plan: Plan; onAddCustomModule?: () => void }) {
   const { t } = useTranslation(['board', 'common'])
   const store = useGuestStore()
   const navigate = useNavigate()
@@ -53,6 +53,9 @@ export function AppHeader({ plan }: { plan: Plan }) {
             <EllipsisVertical aria-hidden className="size-4" />
           </MenuTrigger>
           <MenuContent>
+            {onAddCustomModule ? (
+              <MenuItem onClick={onAddCustomModule}>{t('header.addCustomModule')}</MenuItem>
+            ) : null}
             <MenuItem onClick={() => setImportOpen(true)}>{t('header.importGrades')}</MenuItem>
             <MenuItem onClick={() => setShareOpen(true)}>{t('header.sharePlan')}</MenuItem>
             <MenuItem onClick={() => window.print()}>{t('header.print')}</MenuItem>

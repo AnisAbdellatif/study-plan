@@ -3,7 +3,7 @@ import { CircleAlert, EllipsisVertical, Info, TriangleAlert } from 'lucide-react
 import { useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../lib/cn.ts'
-import { type MoveHandler, useDraggableModule } from '../../lib/dnd.ts'
+import { useDraggableModule } from '../../lib/dnd.ts'
 import { formatCredits, formatGrade, formatShortDate } from '../../lib/format.ts'
 import type { IssueText } from '../../lib/issues.ts'
 import { Button } from '../ui/button.tsx'
@@ -16,6 +16,7 @@ import {
   MenuSeparator,
   MenuTrigger,
 } from '../ui/menu.tsx'
+import type { BoardActions } from './board-actions.ts'
 
 export interface Destination {
   id: string | null
@@ -26,14 +27,14 @@ export interface ModuleCardProps {
   module: PlanModule
   columnId: string | null
   index: number
+  /** True for an option of a choice area placed in a semester. */
+  chosen?: boolean
   passThreshold: number
   creditLabel: string
   /** False when the preset's module codes are made up; they are then hidden. */
   showCode: boolean
   destinations: readonly Destination[]
-  onMove: MoveHandler
-  onGrade: (code: string) => void
-  onDetails: (code: string) => void
+  actions: BoardActions
   /** Validation notes for this module, already worded for the card. */
   notes: readonly IssueText[]
 }
@@ -66,15 +67,15 @@ export function ModuleCard({
   module,
   columnId,
   index,
+  chosen = false,
   passThreshold,
   creditLabel,
   showCode,
   destinations,
-  onMove,
-  onGrade,
-  onDetails,
+  actions,
   notes,
 }: ModuleCardProps) {
+  const { onMove, onGrade, onDetails } = actions
   const { t } = useTranslation('board')
   const ref = useRef<HTMLLIElement>(null)
   const { isDragging, closestEdge } = useDraggableModule(ref, { code: module.code, columnId, index })
@@ -110,8 +111,8 @@ export function ModuleCard({
       <div className="flex items-start gap-1">
         <div className="min-w-0 flex-1">
           <p className="truncate text-[11px] text-zinc-500 dark:text-zinc-400">
-            {showCode ? `${module.code} · ` : ''}
-            {module.category}
+            {showCode && !module.custom ? `${module.code} · ` : ''}
+            {module.custom ? t('card.custom') : module.category}
           </p>
           <h3 className="text-sm leading-snug font-medium">{module.name}</h3>
           <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-zinc-600 dark:text-zinc-400">
@@ -180,6 +181,15 @@ export function ModuleCard({
             <MenuItem onClick={() => onGrade(module.code)}>
               {module.grading === 'graded' ? t('card.enterGrade') : t('card.enterResult')}
             </MenuItem>
+            {chosen ? (
+              <>
+                <MenuSeparator />
+                <MenuItem onClick={() => actions.onChooseOther(module.code)}>
+                  {t('card.chooseOther')}
+                </MenuItem>
+                <MenuItem onClick={() => actions.onUnchoose(module.code)}>{t('card.unchoose')}</MenuItem>
+              </>
+            ) : null}
             <MenuSeparator />
             <MenuGroup>
               <MenuGroupLabel>{t('card.moveTo')}</MenuGroupLabel>
@@ -193,6 +203,18 @@ export function ModuleCard({
                 </MenuItem>
               ))}
             </MenuGroup>
+            {module.custom ? (
+              <>
+                <MenuSeparator />
+                <MenuItem onClick={() => actions.onEditCustom(module.code)}>{t('card.edit')}</MenuItem>
+                <MenuItem
+                  className="text-red-700 dark:text-red-400"
+                  onClick={() => actions.onDeleteCustom(module.code)}
+                >
+                  {t('card.delete')}
+                </MenuItem>
+              </>
+            ) : null}
           </MenuContent>
         </MenuRoot>
       </div>

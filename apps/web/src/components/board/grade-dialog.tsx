@@ -144,7 +144,8 @@ function GradeForm({ module, plan, onSave, onCancel }: GradeFormProps) {
   const entries = useMemo(() => rows.flatMap((row) => decode(row.value, row.date) ?? []), [rows])
   const graded = module.grading === 'graded'
   const base = graded ? t('grade.grade') : t('grade.result')
-  const showCode = plan.preset.codesAreOfficial ?? true
+  // Custom modules have internal codes only.
+  const showCode = (plan.preset.codesAreOfficial ?? true) && !module.custom
 
   const submit = (event: FormEvent) => {
     event.preventDefault()

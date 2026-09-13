@@ -2,6 +2,7 @@ import { isModulePassed } from '../engine/progress.ts'
 import { toHalves } from '../engine/units.ts'
 import { type Prerequisite, prerequisiteCodes } from '../schema/preset.ts'
 import { attemptStatus } from './attempts.ts'
+import { placeholderCredits } from './placeholders.ts'
 import type { Plan } from './plan.ts'
 import { addTerms, type Term } from './terms.ts'
 
@@ -80,6 +81,7 @@ export function validatePlan(plan: Plan, options: ValidationOptions = {}): PlanI
   })
   const issues: PlanIssue[] = []
   const current = options.currentSemesterIndex
+  const estimates = placeholderCredits(plan)
 
   /** Null while the prerequisite can still be passed before the module's semester. */
   const blockReason = (code: string): PrerequisiteBlockReason | null => {
@@ -155,6 +157,10 @@ export function validatePlan(plan: Plan, options: ValidationOptions = {}): PlanI
         for (const other of plan.modules) {
           if (other.code !== code && doneBefore(other.code)) halves += toHalves(other.credits)
         }
+        // Placeholders in earlier semesters stand for modules the student will choose there.
+        plan.semesters.slice(0, index).forEach((earlier) => {
+          for (const id of earlier.moduleCodes) halves += toHalves(estimates.get(id) ?? 0)
+        })
         if (halves < toHalves(module.requiresCredits)) {
           issues.push({
             kind: 'not_enough_credits',
@@ -192,6 +198,9 @@ export function validatePlan(plan: Plan, options: ValidationOptions = {}): PlanI
     for (const code of area.moduleCodes) {
       const module = modules.get(code)
       if (module && counted.has(code)) halves += toHalves(module.credits)
+    }
+    for (const placeholder of plan.placeholders ?? []) {
+      if (placeholder.areaId === area.id) halves += toHalves(estimates.get(placeholder.id) ?? 0)
     }
     const planned = halves / 2
     if (planned < area.minCredits) {

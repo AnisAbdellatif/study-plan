@@ -1,6 +1,7 @@
 import { isModulePassed } from '../engine/progress.ts'
 import { toHalves } from '../engine/units.ts'
 import { type Prerequisite, prerequisiteCodes } from '../schema/preset.ts'
+import { placeholderCredits } from './placeholders.ts'
 import type { Plan } from './plan.ts'
 
 /** Admission forecast for a module that needs a minimum of earned credits, usually the thesis. */
@@ -32,6 +33,7 @@ export function creditRequirements(plan: Plan): CreditRequirement[] {
     for (const code of semester.moduleCodes) semesterOf.set(code, index)
   })
 
+  const estimates = placeholderCredits(plan)
   return plan.modules
     .filter((module) => module.requiresCredits !== undefined && !module.retired)
     .map((module) => {
@@ -49,6 +51,13 @@ export function creditRequirements(plan: Plan): CreditRequirement[] {
         }
       }
 
+      plan.semesters.forEach((semester, index) => {
+        for (const id of semester.moduleCodes) {
+          const estimate = estimates.get(id)
+          if (estimate !== undefined)
+            plannedBySemester[index] = (plannedBySemester[index] ?? 0) + toHalves(estimate)
+        }
+      })
       let eligibleFromIndex: number | null = null
       let available = earned
       for (let index = 0; index <= plan.semesters.length; index++) {

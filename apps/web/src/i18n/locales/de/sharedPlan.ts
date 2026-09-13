@@ -4,6 +4,10 @@ export const sharedPlan = {
   adopt: 'Als eigenen Plan übernehmen',
   semester: '{{number}}. Semester',
   backlog: 'Nicht eingeplant',
+  placeholder: 'Platzhalter',
+  custom: 'Eigenes Modul',
+  estimate: '≈ {{credits}} {{label}}',
+  creditsWithEstimate: '{{credits}} {{label}} + ≈{{estimate}} {{label}}',
   replace: {
     title: 'Deinen Plan ersetzen?',
     description:

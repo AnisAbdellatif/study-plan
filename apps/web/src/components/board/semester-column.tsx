@@ -1,49 +1,73 @@
-import type { PlanModule, SemesterLoad } from '@study-plan/shared'
-import { Search, TriangleAlert, X } from 'lucide-react'
+import type { ChoiceArea, PlanModule, SemesterLoad } from '@study-plan/shared'
+import { Plus, Search, TriangleAlert, X } from 'lucide-react'
 import { useId, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../lib/cn.ts'
-import { type MoveHandler, useColumnDropTarget, useListAutoScroll } from '../../lib/dnd.ts'
+import { useColumnDropTarget, useListAutoScroll } from '../../lib/dnd.ts'
 import { formatCredits } from '../../lib/format.ts'
 import type { IssueText } from '../../lib/issues.ts'
 import { moduleMatchesQuery } from '../../lib/module-search.ts'
+import { Button } from '../ui/button.tsx'
+import type { BoardActions } from './board-actions.ts'
+import { ChoiceAreaTiles } from './choice-area-tiles.tsx'
 import { type Destination, ModuleCard } from './module-card.tsx'
+import { PlaceholderCard } from './placeholder-card.tsx'
 
 const NO_NOTES: readonly IssueText[] = []
+
+export type ColumnEntry =
+  | {
+      kind: 'module'
+      module: PlanModule
+      /** Position in the plan's list for this column. */
+      index: number
+      /** True for an option of a choice area, which can be turned back into a placeholder. */
+      chosen: boolean
+    }
+  | {
+      kind: 'placeholder'
+      id: string
+      index: number
+      areaId: string
+      areaName: string
+      /** Estimated credits. */
+      credits: number
+    }
 
 export interface ColumnModel {
   id: string | null
   title: string
   subtitle: string | null
   credits: number
+  /** Estimated credits of the placeholders in this column. */
+  estimate: number
   load: SemesterLoad | null
   isCurrent: boolean
-  modules: PlanModule[]
+  entries: ColumnEntry[]
 }
 
 export interface SemesterColumnProps {
   column: ColumnModel
+  /** Choice areas, shown as tiles in the backlog only. */
+  choices?: readonly ChoiceArea[]
   passThreshold: number
   creditLabel: string
   showCode: boolean
   notesByCode: ReadonlyMap<string, readonly IssueText[]>
   destinations: readonly Destination[]
-  onMove: MoveHandler
-  onGrade: (code: string) => void
-  onDetails: (code: string) => void
+  actions: BoardActions
   registerElement: (id: string | null, element: HTMLElement | null) => void
 }
 
 export function SemesterColumn({
   column,
+  choices = [],
   passThreshold,
   creditLabel,
   showCode,
   notesByCode,
   destinations,
-  onMove,
-  onGrade,
-  onDetails,
+  actions,
   registerElement,
 }: SemesterColumnProps) {
   const { t } = useTranslation('board')
@@ -54,12 +78,16 @@ export function SemesterColumn({
   const { isOver } = useColumnDropTarget(ref, column.id)
   const searchId = useId()
   const [query, setQuery] = useState('')
-  const searchable = column.id === null && column.modules.length > 0
+  const isBacklog = column.id === null
+  const searchable = isBacklog && column.entries.length > 0
   const filtering = searchable && query.trim() !== ''
-  // Cards keep their position in the full list, so drag and drop still lands next to the card it was dropped on.
-  const visible = column.modules
-    .map((module, index) => ({ module, index }))
-    .filter(({ module }) => !filtering || moduleMatchesQuery(module, query, showCode))
+  const customLabel = t('card.custom')
+  const visible = column.entries.filter(
+    (entry) =>
+      !filtering ||
+      (entry.kind === 'module' && moduleMatchesQuery(entry.module, query, showCode, customLabel)),
+  )
+  const semesterDestinations = destinations.filter((destination) => destination.id !== null)
 
   return (
     <section
@@ -70,7 +98,7 @@ export function SemesterColumn({
       aria-labelledby={headingId}
       className={cn(
         'print:w-[calc(33.333%-0.5rem)]! print:max-w-none! print:max-h-none print:break-inside-avoid flex max-h-[calc(100dvh-2rem)] w-[85vw] max-w-sm shrink-0 snap-start flex-col rounded-xl bg-zinc-200/60 p-2 ring-2 ring-transparent transition-colors sm:w-[calc((100%-0.75rem)/2)] md:w-[calc((100%-1.5rem)/3)] xl:w-72 dark:bg-zinc-900/70',
-        column.id === null && 'bg-zinc-200/30 dark:bg-zinc-900/30',
+        isBacklog && 'bg-zinc-200/30 dark:bg-zinc-900/30',
         column.isCurrent && 'ring-indigo-500/50',
         isOver && 'bg-indigo-50 ring-indigo-400 dark:bg-indigo-950/40',
       )}
@@ -90,7 +118,13 @@ export function SemesterColumn({
           {column.subtitle ? <span>{column.subtitle}</span> : null}
           {column.subtitle ? <span aria-hidden>·</span> : null}
           <span className="tabular-nums">
-            {formatCredits(column.credits)} {creditLabel}
+            {column.estimate > 0
+              ? t('columns.creditsWithEstimate', {
+                  credits: formatCredits(column.credits),
+                  estimate: formatCredits(column.estimate),
+                  label: creditLabel,
+                })
+              : `${formatCredits(column.credits)} ${creditLabel}`}
           </span>
           {column.load === 'high' ? (
             <span className="inline-flex items-center gap-1 font-medium text-red-700 dark:text-red-400">
@@ -100,6 +134,24 @@ export function SemesterColumn({
           ) : null}
         </p>
       </header>
+
+      {isBacklog && choices.length > 0 ? (
+        <ChoiceAreaTiles
+          choices={choices}
+          creditLabel={creditLabel}
+          destinations={semesterDestinations}
+          actions={actions}
+        />
+      ) : null}
+
+      {isBacklog ? (
+        <div className="px-1 pb-2 print:hidden">
+          <Button size="sm" variant="ghost" className="w-full justify-start" onClick={actions.onAddCustom}>
+            <Plus aria-hidden className="size-4" />
+            {t('columns.addCustomModule')}
+          </Button>
+        </div>
+      ) : null}
 
       {searchable ? (
         <div className="px-1 pb-2">
@@ -138,7 +190,7 @@ export function SemesterColumn({
           </div>
           {filtering ? (
             <p role="status" className="mt-1 px-0.5 text-xs text-zinc-600 dark:text-zinc-400">
-              {t('columns.searchCount', { shown: visible.length, total: column.modules.length })}
+              {t('columns.searchCount', { shown: visible.length, total: column.entries.length })}
             </p>
           ) : null}
         </div>
@@ -149,30 +201,49 @@ export function SemesterColumn({
         ref={listRef}
         className="-mx-1 flex min-h-24 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain px-1 py-1 print:overflow-visible"
       >
-        {visible.map(({ module, index }) => (
-          <ModuleCard
-            key={module.code}
-            module={module}
-            columnId={column.id}
-            index={index}
-            passThreshold={passThreshold}
-            creditLabel={creditLabel}
-            showCode={showCode}
-            notes={notesByCode.get(module.code) ?? NO_NOTES}
-            destinations={destinations}
-            onMove={onMove}
-            onGrade={onGrade}
-            onDetails={onDetails}
-          />
-        ))}
+        {visible.map((entry) =>
+          entry.kind === 'placeholder' ? (
+            <PlaceholderCard
+              key={entry.id}
+              id={entry.id}
+              areaName={entry.areaName}
+              credits={entry.credits}
+              columnId={column.id}
+              index={entry.index}
+              creditLabel={creditLabel}
+              destinations={semesterDestinations}
+              actions={actions}
+            />
+          ) : (
+            <ModuleCard
+              key={entry.module.code}
+              module={entry.module}
+              columnId={column.id}
+              index={entry.index}
+              chosen={entry.chosen && column.id !== null}
+              passThreshold={passThreshold}
+              creditLabel={creditLabel}
+              showCode={showCode}
+              notes={notesByCode.get(entry.module.code) ?? NO_NOTES}
+              destinations={destinations}
+              actions={actions}
+            />
+          ),
+        )}
         {filtering && visible.length === 0 ? (
           <li className="rounded-lg border border-dashed border-zinc-300 p-4 text-center text-xs text-zinc-500 dark:border-zinc-700">
-            {t('columns.searchEmpty', { query: query.trim() })}
+            {choices.length > 0
+              ? t('columns.searchEmptyWithChoices', { query: query.trim() })
+              : t('columns.searchEmpty', { query: query.trim() })}
           </li>
         ) : null}
-        {column.modules.length === 0 ? (
+        {column.entries.length === 0 ? (
           <li className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-zinc-300 p-4 text-center text-xs text-zinc-500 dark:border-zinc-700">
-            {column.id === null ? t('columns.emptyBacklog') : t('columns.emptySemester')}
+            {!isBacklog
+              ? t('columns.emptySemester')
+              : choices.length > 0
+                ? t('columns.emptyBacklogWithChoices')
+                : t('columns.emptyBacklog')}
           </li>
         ) : null}
       </ul>

@@ -1,4 +1,12 @@
-import { forkPlan, formatTerm, type Plan, planSchema, summarizePlan } from '@study-plan/shared'
+import {
+  forkPlan,
+  formatTerm,
+  isPlaceholderId,
+  type Plan,
+  placeholderCredits,
+  planSchema,
+  summarizePlan,
+} from '@study-plan/shared'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -25,6 +33,9 @@ function SharedPlanView({ response, plan }: { response: SharedPlanResponse; plan
   const [confirm, setConfirm] = useState(false)
   const summary = useMemo(() => summarizePlan(plan), [plan])
   const names = new Map(plan.modules.map((module) => [module.code, module]))
+  const estimates = useMemo(() => placeholderCredits(plan), [plan])
+  const areaNames = new Map(plan.areas.map((area) => [area.id, area.name]))
+  const placeholderAreas = new Map((plan.placeholders ?? []).map((item) => [item.id, item.areaId]))
   const label = plan.preset.creditLabel
 
   const adopt = () => {
@@ -34,11 +45,17 @@ function SharedPlanView({ response, plan }: { response: SharedPlanResponse; plan
 
   const columns = [
     ...plan.semesters.map((semester, index) => {
-      const term = summary.semesters[index]?.term
+      const info = summary.semesters[index]
+      const credits = formatCredits(info?.credits ?? 0)
+      const estimate = info?.placeholderCredits ?? 0
       return {
         key: semester.id,
         title: t('semester', { number: index + 1 }),
-        subtitle: `${term ? formatTerm(term, locale) : ''} · ${formatCredits(summary.semesters[index]?.credits ?? 0)} ${label}`,
+        subtitle: `${info ? formatTerm(info.term, locale) : ''} · ${
+          estimate > 0
+            ? t('creditsWithEstimate', { credits, estimate: formatCredits(estimate), label })
+            : `${credits} ${label}`
+        }`,
         codes: semester.moduleCodes,
       }
     }),
@@ -82,7 +99,30 @@ function SharedPlanView({ response, plan }: { response: SharedPlanResponse; plan
             ) : null}
             <ul className="mt-2 space-y-1.5">
               {column.codes.map((code) => {
+                if (isPlaceholderId(code)) {
+                  const areaId = placeholderAreas.get(code)
+                  // A placeholder without its record carries no information worth showing.
+                  if (areaId === undefined) return null
+                  return (
+                    <li
+                      key={code}
+                      data-testid="shared-placeholder"
+                      className="rounded-lg border-2 border-dashed border-zinc-400 px-2.5 py-2 text-sm dark:border-zinc-600"
+                    >
+                      <span className="block text-xs text-zinc-500 dark:text-zinc-400">
+                        {t('placeholder')}
+                      </span>
+                      <span className="block leading-snug font-medium">
+                        {areaNames.get(areaId) ?? areaId}
+                      </span>
+                      <span className="text-xs text-zinc-600 dark:text-zinc-400">
+                        {t('estimate', { credits: formatCredits(estimates.get(code) ?? 0), label })}
+                      </span>
+                    </li>
+                  )
+                }
                 const module = names.get(code)
+                const category = module?.custom ? t('custom') : module?.category
                 return (
                   <li
                     key={code}
@@ -91,7 +131,7 @@ function SharedPlanView({ response, plan }: { response: SharedPlanResponse; plan
                     <span className="block leading-snug font-medium">{module?.name ?? code}</span>
                     <span className="text-xs text-zinc-600 dark:text-zinc-400">
                       {formatCredits(module?.credits ?? 0)} {label}
-                      {module?.category ? ` · ${module.category}` : ''}
+                      {category ? ` · ${category}` : ''}
                     </span>
                   </li>
                 )

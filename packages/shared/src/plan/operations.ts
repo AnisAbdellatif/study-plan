@@ -1,5 +1,5 @@
 import type { Attempt } from '../engine/compute.ts'
-import type { Plan, PlanModule } from './plan.ts'
+import { isPlaceholderId, type Plan, type PlanModule } from './plan.ts'
 
 /** Thrown when an operation refers to a module or semester the plan does not have. */
 export class PlanError extends Error {
@@ -39,7 +39,15 @@ export function moveModule(
   targetSemesterId: string | null,
   targetIndex?: number,
 ): Plan {
-  findModule(plan, code)
+  if (isPlaceholderId(code)) {
+    if (!plan.placeholders?.some((placeholder) => placeholder.id === code)) {
+      throw new PlanError(`Unknown placeholder "${code}"`)
+    }
+    // A placeholder moved out of the semesters is simply gone.
+    if (targetSemesterId === null) return removePlaceholderEntry(plan, code)
+  } else {
+    findModule(plan, code)
+  }
   if (targetSemesterId !== null && !plan.semesters.some((s) => s.id === targetSemesterId)) {
     throw new PlanError(`Unknown semester "${targetSemesterId}"`)
   }
@@ -158,4 +166,17 @@ export function setTargetGrade(plan: Plan, grade: number | null): Plan {
   }
   const { targetGrade: _previous, ...rest } = plan
   return grade === null ? rest : { ...rest, targetGrade: grade }
+}
+
+/** Removes a placeholder from its semester and from the plan. */
+export function removePlaceholderEntry(plan: Plan, id: string): Plan {
+  const placeholders = (plan.placeholders ?? []).filter((placeholder) => placeholder.id !== id)
+  return {
+    ...plan,
+    placeholders,
+    semesters: plan.semesters.map((semester) => ({
+      ...semester,
+      moduleCodes: semester.moduleCodes.filter((code) => code !== id),
+    })),
+  }
 }

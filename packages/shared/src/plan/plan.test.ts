@@ -185,6 +185,8 @@ describe('summarizePlan', () => {
       label: 'WS 2026/27',
       credits: 17,
       load: 'low',
+      placeholderCredits: 0,
+      placeholders: 0,
     })
     expect(summary.semesters[1]?.label).toBe('SS 2027')
   })

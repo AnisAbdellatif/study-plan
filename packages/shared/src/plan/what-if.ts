@@ -1,7 +1,7 @@
 import { computeOverall, type ModuleRecord } from '../engine/compute.ts'
 import { isModulePassed } from '../engine/progress.ts'
 import { gradeToTenths, toHalves } from '../engine/units.ts'
-import type { Plan } from './plan.ts'
+import { type Plan, planGradeRules } from './plan.ts'
 
 export interface WhatIfTarget {
   grade: number
@@ -36,6 +36,7 @@ const toHundredths = (value: string): number => {
  * Assumes the same grade in every open module, which gives a clear answer to "what do I need on average".
  */
 export function analyzeWhatIf(plan: Plan, targetGrade?: number): WhatIfAnalysis {
+  const rules = planGradeRules(plan)
   const placed = new Set(plan.semesters.flatMap((semester) => semester.moduleCodes))
   const open = plan.modules.filter(
     (module) =>
@@ -51,7 +52,7 @@ export function analyzeWhatIf(plan: Plan, targetGrade?: number): WhatIfAnalysis 
 
   const withUniformGrade = (grade: number) =>
     computeOverall(
-      plan.rules,
+      rules,
       plan.modules.map(
         (module): ModuleRecord =>
           openCodes.has(module.code)
@@ -60,7 +61,7 @@ export function analyzeWhatIf(plan: Plan, targetGrade?: number): WhatIfAnalysis 
       ),
     ).value
 
-  const current = computeOverall(plan.rules, plan.modules).value
+  const current = computeOverall(rules, plan.modules).value
   const best = candidates[0]
   const worst = candidates.at(-1)
   const hasOpen = open.length > 0

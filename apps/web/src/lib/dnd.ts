@@ -23,6 +23,8 @@ export type { Edge }
 
 const MODULE = 'plan-module'
 const COLUMN = 'plan-column'
+/** A choice area tile from the backlog; dropping it creates a placeholder. */
+const AREA_SLOT = 'plan-area-slot'
 /** Drag data must be serialisable, so the backlog (null) travels as a sentinel. */
 const BACKLOG = '__backlog__'
 
@@ -34,6 +36,9 @@ export interface ModulePosition {
 }
 
 export type MoveHandler = (code: string, targetColumnId: string | null, targetIndex?: number) => void
+
+/** Places a placeholder for `areaId` in a semester, at `targetIndex` or the end. */
+export type PlaceAreaHandler = (areaId: string, semesterId: string, targetIndex?: number) => void
 
 const encodeColumn = (columnId: string | null): string => columnId ?? BACKLOG
 const decodeColumn = (value: string): string | null => (value === BACKLOG ? null : value)
@@ -48,7 +53,14 @@ function readModule(
     : null
 }
 
-/** Makes a module card draggable and a drop target for reordering. Returns state for visual feedback. */
+function readAreaSlot(data: Record<string | symbol, unknown>): string | null {
+  return data.type === AREA_SLOT && typeof data.areaId === 'string' ? data.areaId : null
+}
+
+const isBoardDrag = (data: Record<string | symbol, unknown>): boolean =>
+  data.type === MODULE || data.type === AREA_SLOT
+
+/** Makes a module or placeholder card draggable and a drop target for reordering. Returns state for visual feedback. */
 export function useDraggableModule(ref: RefObject<HTMLElement | null>, position: ModulePosition) {
   const [isDragging, setDragging] = useState(false)
   const [closestEdge, setClosestEdge] = useState<Edge | null>(null)
@@ -68,7 +80,9 @@ export function useDraggableModule(ref: RefObject<HTMLElement | null>, position:
       }),
       dropTargetForElements({
         element,
-        canDrop: ({ source }) => source.data.type === MODULE && source.data.code !== code,
+        canDrop: ({ source }) =>
+          (source.data.type === MODULE && source.data.code !== code) ||
+          (source.data.type === AREA_SLOT && columnId !== null),
         getData: ({ input }) => attachClosestEdge(data, { element, input, allowedEdges: ['top', 'bottom'] }),
         getIsSticky: () => true,
         onDrag: ({ self, source }) => {
@@ -101,7 +115,8 @@ export function useColumnDropTarget(ref: RefObject<HTMLElement | null>, columnId
     return dropTargetForElements({
       element,
       getData: () => ({ type: COLUMN, column: encodeColumn(columnId) }),
-      canDrop: ({ source }) => source.data.type === MODULE,
+      canDrop: ({ source }) =>
+        source.data.type === MODULE || (source.data.type === AREA_SLOT && columnId !== null),
       onDragEnter: () => setOver(true),
       onDragLeave: () => setOver(false),
       onDrop: () => setOver(false),
@@ -111,21 +126,58 @@ export function useColumnDropTarget(ref: RefObject<HTMLElement | null>, columnId
   return { isOver }
 }
 
-/** Listens for finished drags anywhere on the page and translates them into plan moves. */
-export function useModuleDropMonitor(onMove: MoveHandler): void {
-  const latest = useRef(onMove)
+/** Makes a choice area tile draggable onto semesters, where it becomes a placeholder. */
+export function useDraggableAreaSlot(ref: RefObject<HTMLElement | null>, areaId: string) {
+  const [isDragging, setDragging] = useState(false)
+
   useEffect(() => {
-    latest.current = onMove
-  }, [onMove])
+    const element = ref.current
+    if (!element) return
+    return draggable({
+      element,
+      getInitialData: () => ({ type: AREA_SLOT, areaId }),
+      onDragStart: () => setDragging(true),
+      onDrop: () => setDragging(false),
+    })
+  }, [ref, areaId])
+
+  return { isDragging }
+}
+
+/** Listens for finished drags anywhere on the page and translates them into plan changes. */
+export function useModuleDropMonitor(onMove: MoveHandler, onPlaceArea?: PlaceAreaHandler): void {
+  const latest = useRef({ onMove, onPlaceArea })
+  useEffect(() => {
+    latest.current = { onMove, onPlaceArea }
+  }, [onMove, onPlaceArea])
 
   useEffect(
     () =>
       monitorForElements({
-        canMonitor: ({ source }) => source.data.type === MODULE,
+        canMonitor: ({ source }) => isBoardDrag(source.data),
         onDrop: ({ source, location }) => {
-          const dragged = readModule(source.data)
           const target = location.current.dropTargets[0]
-          if (!dragged || !target) return
+          if (!target) return
+
+          const areaId = readAreaSlot(source.data)
+          if (areaId !== null) {
+            const onCard = readModule(target.data)
+            const column = onCard
+              ? onCard.column
+              : target.data.type === COLUMN && typeof target.data.column === 'string'
+                ? target.data.column
+                : null
+            const semesterId = column === null ? null : decodeColumn(column)
+            if (semesterId === null) return
+            const index = onCard
+              ? onCard.index + (extractClosestEdge(target.data) === 'bottom' ? 1 : 0)
+              : undefined
+            latest.current.onPlaceArea?.(areaId, semesterId, index)
+            return
+          }
+
+          const dragged = readModule(source.data)
+          if (!dragged) return
 
           const onCard = readModule(target.data)
           if (onCard) {
@@ -140,12 +192,12 @@ export function useModuleDropMonitor(onMove: MoveHandler): void {
                   })
                 : onCard.index + (edge === 'bottom' ? 1 : 0)
             if (onCard.column === dragged.column && index === dragged.index) return
-            latest.current(dragged.code, decodeColumn(onCard.column), index)
+            latest.current.onMove(dragged.code, decodeColumn(onCard.column), index)
             return
           }
 
           if (target.data.type === COLUMN && typeof target.data.column === 'string') {
-            latest.current(dragged.code, decodeColumn(target.data.column))
+            latest.current.onMove(dragged.code, decodeColumn(target.data.column))
           }
         },
       }),
@@ -153,14 +205,14 @@ export function useModuleDropMonitor(onMove: MoveHandler): void {
   )
 }
 
-/** Scrolls a module list while a module is dragged near its top or bottom edge. */
+/** Scrolls a module list while a module or area tile is dragged near its top or bottom edge. */
 export function useListAutoScroll(ref: RefObject<HTMLElement | null>): void {
   useEffect(() => {
     const element = ref.current
     if (!element) return
     return autoScrollForElements({
       element,
-      canScroll: ({ source }) => source.data.type === MODULE,
+      canScroll: ({ source }) => isBoardDrag(source.data),
     })
   }, [ref])
 }
