@@ -29,7 +29,8 @@ import { MAX_PLANS_PER_USER } from './routes/plans.ts'
 
 const config = loadConfig({
   NODE_ENV: 'test',
-  DATABASE_URL: 'pglite://memory',
+  // CI also runs these tests against a real PostgreSQL server, see the postgres job in .github/workflows/ci.yml.
+  DATABASE_URL: process.env.TEST_DATABASE_URL ?? 'pglite://memory',
   PUBLIC_URL: 'http://localhost:5173',
   BETTER_AUTH_SECRET: 'test-secret-that-is-long-enough-for-better-auth',
 })

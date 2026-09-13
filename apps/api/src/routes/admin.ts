@@ -109,7 +109,8 @@ export function adminRoutes(db: Database, auth: Auth) {
       .select({
         total: count(),
         verified: count(sql`case when ${user.emailVerified} then 1 end`),
-        newLast30Days: count(sql`case when ${user.createdAt} > ${since} then 1 end`),
+        // gt() encodes the date through the column; a bare Date in sql`` reaches postgres-js unencoded and fails.
+        newLast30Days: count(sql`case when ${gt(user.createdAt, since)} then 1 end`),
       })
       .from(user)
     const [active] = await db
