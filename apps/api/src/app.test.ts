@@ -1010,7 +1010,9 @@ describe('e-mail language', () => {
     expect((await signUpIn('english@example.org', 'en')).status).toBe(200)
     const mail = lastMailTo('english@example.org')
     expect(mail.subject).toBe('Please confirm your e-mail address')
-    expect(mail.text).toContain('Study Planner account')
+    expect(mail.text).toContain('Study Plan account')
+    expect(mail.html).toContain('<html lang="en"')
+    expect(mail.html).toContain('>Confirm email address</a>')
     const [row] = await connection.db
       .select({ locale: userTable.locale })
       .from(userTable)

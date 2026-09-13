@@ -88,7 +88,7 @@ export function createApp({ config, db, auth, mailer, staticFiles }: AppDependen
   app.route('/api/account', accountRoutes(db))
   app.route('/api/notifications', unsubscribeRoutes(db, config))
   app.use('/api/admin/*', requireAdmin(auth, db))
-  app.route('/api/admin', adminRoutes(db, auth, mailer))
+  app.route('/api/admin', adminRoutes(db, auth, mailer, config.publicUrl))
   app.all('/api/*', (c) => c.json({ error: 'not_found' }, 404))
 
   if (staticFiles) {

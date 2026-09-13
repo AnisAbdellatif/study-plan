@@ -74,7 +74,7 @@ const presetField = (field: 'id' | 'programmeName' | 'universityName' | 'poVersi
   sql<string>`${plan.document}->'plan'->'preset'->>${sql.raw(`'${field}'`)}`
 
 /** Operator tools. Shows account metadata and counts, never grades or plan contents. */
-export function adminRoutes(db: Database, auth: Auth, mailer: MonitoredMailer) {
+export function adminRoutes(db: Database, auth: Auth, mailer: MonitoredMailer, publicUrl: string) {
   const routes = new Hono<AppEnv>()
 
   const audit = async (c: Context<AppEnv>, action: AdminAction, targetUserId: string) => {
@@ -300,7 +300,7 @@ export function adminRoutes(db: Database, auth: Auth, mailer: MonitoredMailer) {
   routes.post('/mail/test', async (c) => {
     const self = c.get('user')
     try {
-      await mailer.send(testMail(self.email))
+      await mailer.send(testMail(self.email, publicUrl))
     } catch (error) {
       return c.json({ ok: false, error: error instanceof Error ? error.message : String(error) })
     } finally {

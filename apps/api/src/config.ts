@@ -12,7 +12,7 @@ const envSchema = z.object({
   BETTER_AUTH_SECRET: z.string().min(32).optional(),
   /** SMTP connection URL, e.g. smtps://user:password@mail.example.org:465. Without it, e-mails are only logged. */
   SMTP_URL: z.string().min(1).optional(),
-  MAIL_FROM: z.string().min(3).default('Studienplaner <noreply@localhost>'),
+  MAIL_FROM: z.string().min(3).default('Study Plan <noreply@localhost>'),
   /** Directory with the built web app. When set, the API serves it as well. */
   WEB_DIST: z.string().min(1).optional(),
   /**
