@@ -80,7 +80,7 @@ describe('plan overview', () => {
     expect(
       within(screen.getAllByTestId('overview-column')[0] as HTMLElement).getAllByTestId('overview-module'),
     ).toContain(block)
-    expect(block?.style.minHeight).toBe(`calc(${module.credits} * var(--overview-lp))`)
+    expect(block?.style.minHeight).toBe(`calc(${module.credits} * var(--overview-lp) - var(--overview-gap))`)
   })
 
   it('shows placeholders and the credits per semester', () => {

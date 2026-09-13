@@ -11,7 +11,7 @@ import {
 } from '@study-plan/shared'
 import { Check } from 'lucide-react'
 import type { CSSProperties } from 'react'
-import { useMemo } from 'react'
+import { useLayoutEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { currentLocale } from '../../i18n/index.ts'
 import { areaTone, moduleTone, NEUTRAL_TONE } from '../../lib/area-colors.ts'
@@ -30,14 +30,50 @@ type Block =
   | { kind: 'module'; key: string; credits: number; module: PlanModule }
   | { kind: 'placeholder'; key: string; credits: number; areaId: string; areaName: string }
 
+const heightCredits = (credits: number): number => Math.max(credits, 1)
+
 /**
- * Height grows with credits (--overview-lp per credit point), but only as a minimum: a card with more text than
- * its credits allow grows instead of cutting text off. Each semester stacks on its own, so a tall card never
- * stretches the others.
+ * Height is proportional to credits: --overview-lp per credit point, minus one gap, so a 5 and a 10 point card
+ * stacked end exactly where one 15 point card ends. --overview-lp grows (see useFitUnit) until the fullest card
+ * fits, and it is only a minimum, so text is never cut off.
  */
 const blockHeight = (credits: number): CSSProperties => ({
-  minHeight: `calc(${Math.max(credits, 1)} * var(--overview-lp))`,
+  minHeight: `calc(${heightCredits(credits)} * var(--overview-lp) - var(--overview-gap))`,
 })
+
+/** Measures the smallest per-credit height at which every card's content fits, and stores it as --overview-fit. */
+function useFitUnit(deps: unknown) {
+  const ref = useRef<HTMLDivElement>(null)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-measure whenever the cards change
+  useLayoutEffect(() => {
+    const grid = ref.current
+    if (!grid || typeof ResizeObserver === 'undefined') return
+    const px = (value: string) => Number.parseFloat(value) || 0
+    const fit = () => {
+      let unit = 0
+      for (const card of grid.querySelectorAll<HTMLElement>('[data-overview-credits]')) {
+        const content = card.querySelector('[data-overview-content]')
+        if (!content) continue
+        const style = getComputedStyle(card)
+        const gap = card.parentElement ? px(getComputedStyle(card.parentElement).rowGap) : 0
+        const needed =
+          content.getBoundingClientRect().height +
+          px(style.paddingTop) +
+          px(style.paddingBottom) +
+          px(style.borderTopWidth) +
+          px(style.borderBottomWidth)
+        unit = Math.max(unit, (needed + gap) / Number(card.dataset.overviewCredits))
+      }
+      grid.style.setProperty('--overview-fit', `${Math.ceil(unit * 4) / 4}px`)
+    }
+    // Content height only changes with the column width or the text, never with the card's own height.
+    const observer = new ResizeObserver(fit)
+    observer.observe(grid)
+    for (const content of grid.querySelectorAll('[data-overview-content]')) observer.observe(content)
+    return () => observer.disconnect()
+  }, [deps])
+  return ref
+}
 
 /** "2V+2Ü" when every course has hours and a short type, otherwise "4 SWS", or nothing. */
 function teachingHours(module: PlanModule): string | null {
@@ -60,7 +96,7 @@ function ResultMark({ module, passThreshold }: { module: PlanModule; passThresho
     <Check
       role="img"
       aria-label={label}
-      className="absolute top-1 right-1 size-3.5 text-emerald-700 dark:text-emerald-300"
+      className="absolute top-1 right-1 size-3.5 text-emerald-700 print:top-0.5 print:right-0.5 print:size-3 dark:text-emerald-300"
     />
   )
 }
@@ -110,6 +146,7 @@ export function PlanOverview({ plan, summary }: PlanOverviewProps) {
   const columns = plan.semesters.length
   // Row 1 holds the headers, row 2 one stack of cards per semester, row 3 the totals.
   const gridStyle = { '--overview-cols': columns } as CSSProperties
+  const gridRef = useFitUnit(stacks)
 
   return (
     <section
@@ -136,8 +173,9 @@ export function PlanOverview({ plan, summary }: PlanOverviewProps) {
 
       <div className="overflow-x-auto pb-1 print:overflow-visible print:pb-0">
         <div
+          ref={gridRef}
           style={gridStyle}
-          className="grid grid-cols-[repeat(var(--overview-cols),minmax(10rem,1fr))] grid-rows-[auto_1fr_auto] gap-x-2 gap-y-1 [--overview-lp:0.75rem] print:grid-cols-[repeat(var(--overview-cols),minmax(0,1fr))] print:gap-x-1 print:gap-y-0.5 print:[--overview-lp:0.5rem]"
+          className="grid grid-cols-[repeat(var(--overview-cols),minmax(10rem,1fr))] grid-rows-[auto_1fr_auto] gap-x-2 gap-y-1 [--overview-gap:0.25rem] [--overview-lp:max(0.75rem,var(--overview-fit,0px))] print:grid-cols-[repeat(var(--overview-cols),minmax(0,1fr))] print:gap-x-1 print:gap-y-0.5 print:[--overview-gap:0.125rem] print:[--overview-lp:0.5rem]"
         >
           {plan.semesters.map((semester, index) => (
             <div
@@ -161,7 +199,7 @@ export function PlanOverview({ plan, summary }: PlanOverviewProps) {
               key={`stack-${plan.semesters[index]?.id ?? index}`}
               data-testid="overview-column"
               style={{ gridColumn: index + 1, gridRow: 2 }}
-              className="flex min-w-0 flex-col gap-1 print:gap-0.5"
+              className="flex min-w-0 flex-col gap-(--overview-gap)"
             >
               {stack.map((block) => {
                 const placement = blockHeight(block.credits)
@@ -171,17 +209,20 @@ export function PlanOverview({ plan, summary }: PlanOverviewProps) {
                     <div
                       key={block.key}
                       data-testid="overview-placeholder"
+                      data-overview-credits={heightCredits(block.credits)}
                       style={placement}
                       className={cn(
-                        'flex min-w-0 break-inside-avoid flex-col rounded-md border border-dashed border-zinc-500/60 px-2 py-1 text-xs leading-snug print:rounded-sm print:px-1 print:py-0.5 print:text-[7pt] dark:border-zinc-400/60',
+                        'flex min-w-0 break-inside-avoid flex-col items-center justify-center rounded-md border border-dashed border-zinc-500/60 px-2 py-1 text-xs leading-snug print:rounded-sm print:px-1 print:py-0.5 print:text-[7pt] dark:border-zinc-400/60',
                         tone.soft,
                       )}
                     >
-                      <span className="font-semibold">{t('overview.placeholder')}</span>
-                      <span className={tone.text}>{block.areaName}</span>
-                      <span className="text-zinc-700 dark:text-zinc-300">
-                        {t('placeholder.estimate', { credits: formatCredits(block.credits), label })}
-                      </span>
+                      <div data-overview-content className="flex w-full flex-col text-center">
+                        <span className="font-semibold">{t('overview.placeholder')}</span>
+                        <span className={tone.text}>{block.areaName}</span>
+                        <span className="text-zinc-700 dark:text-zinc-300">
+                          {t('placeholder.estimate', { credits: formatCredits(block.credits), label })}
+                        </span>
+                      </div>
                     </div>
                   )
                 }
@@ -193,20 +234,24 @@ export function PlanOverview({ plan, summary }: PlanOverviewProps) {
                   <div
                     key={block.key}
                     data-testid="overview-module"
+                    data-overview-credits={heightCredits(block.credits)}
                     style={placement}
                     className={cn(
-                      'relative flex min-w-0 break-inside-avoid flex-col rounded-md border border-zinc-900/10 py-1 pr-5 pl-2 text-xs leading-snug print:rounded-sm print:py-0.5 print:pr-4 print:pl-1 print:text-[7pt] dark:border-white/10',
+                      // Equal side padding keeps the text centred next to the corner check mark.
+                      'relative flex min-w-0 break-inside-avoid flex-col items-center justify-center rounded-md border border-zinc-900/10 px-5 py-1 text-xs leading-snug print:rounded-sm print:px-3.5 print:py-0.5 print:text-[7pt] dark:border-white/10',
                       tone.strong,
                     )}
                   >
-                    <span className="font-semibold">{module.name}</span>
-                    <span className="text-zinc-700 dark:text-zinc-300">
-                      ({hours ? `${hours}, ` : ''}
-                      {formatCredits(module.credits)} {label})
-                    </span>
-                    {people.length > 0 && (
-                      <span className="text-zinc-700 dark:text-zinc-300">{people.join(', ')}</span>
-                    )}
+                    <div data-overview-content className="flex w-full flex-col text-center">
+                      <span className="font-semibold">{module.name}</span>
+                      <span className="text-zinc-700 dark:text-zinc-300">
+                        ({hours ? `${hours}, ` : ''}
+                        {formatCredits(module.credits)} {label})
+                      </span>
+                      {people.length > 0 && (
+                        <span className="text-zinc-700 dark:text-zinc-300">{people.join(', ')}</span>
+                      )}
+                    </div>
                     <ResultMark module={module} passThreshold={plan.rules.passThreshold} />
                   </div>
                 )
