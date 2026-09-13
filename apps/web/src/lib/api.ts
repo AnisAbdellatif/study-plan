@@ -1,4 +1,4 @@
-import type { GuestDocument } from '@study-plan/shared'
+import type { GuestDocument, Plan } from '@study-plan/shared'
 
 export interface PlanSummary {
   id: string
@@ -69,3 +69,33 @@ export const planApi = {
 }
 
 export type PlanApi = typeof planApi
+
+export interface ShareStatus {
+  active: boolean
+  createdAt: string | null
+}
+
+export interface CreatedShare {
+  token: string
+  url: string
+  createdAt: string | null
+}
+
+export interface SharedPlanResponse {
+  name: string
+  updatedAt: string
+  sharedAt: string
+  /** Structure only: no results, exam dates or target grade. Validate before use. */
+  plan: Plan
+}
+
+export const shareApi = {
+  status: (planId: string): Promise<ShareStatus> =>
+    request<ShareStatus>(`/api/plans/${encodeURIComponent(planId)}/share`),
+  create: (planId: string): Promise<CreatedShare> =>
+    request<CreatedShare>(`/api/plans/${encodeURIComponent(planId)}/share`, { method: 'POST' }),
+  revoke: (planId: string): Promise<void> =>
+    request<void>(`/api/plans/${encodeURIComponent(planId)}/share`, { method: 'DELETE' }),
+  get: (token: string): Promise<SharedPlanResponse> =>
+    request<SharedPlanResponse>(`/api/share/${encodeURIComponent(token)}`),
+}

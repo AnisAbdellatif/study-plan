@@ -88,7 +88,10 @@ export function SemesterBoard({
 
   return (
     <div className="space-y-2">
-      <nav aria-label="Semester springen" className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 sm:hidden">
+      <nav
+        aria-label="Semester springen"
+        className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 sm:hidden print:hidden"
+      >
         {columns.map((column) => (
           <button
             key={column.id ?? 'backlog'}
@@ -103,7 +106,7 @@ export function SemesterBoard({
           </button>
         ))}
       </nav>
-      <div className="-mx-4 flex snap-x snap-mandatory scroll-px-4 items-start gap-3 overflow-x-auto px-4 pb-4 sm:mx-0 sm:scroll-px-0 sm:items-stretch sm:px-0">
+      <div className="-mx-4 flex snap-x snap-mandatory scroll-px-4 items-start gap-3 overflow-x-auto px-4 pb-4 sm:mx-0 sm:scroll-px-0 sm:items-stretch sm:px-0 print:mx-0 print:flex-wrap print:overflow-visible print:px-0">
         {columns.map((column) => (
           <SemesterColumn
             key={column.id ?? 'backlog'}

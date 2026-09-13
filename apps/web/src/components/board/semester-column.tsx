@@ -54,7 +54,7 @@ export function SemesterColumn({
       }}
       aria-labelledby={headingId}
       className={cn(
-        'flex w-[85vw] max-w-sm shrink-0 snap-start flex-col rounded-xl bg-zinc-200/60 p-2 ring-2 ring-transparent transition-colors sm:w-[calc((100%-0.75rem)/2)] md:w-[calc((100%-1.5rem)/3)] xl:w-72 dark:bg-zinc-900/70',
+        'print:w-[calc(33.333%-0.5rem)]! print:max-w-none! print:break-inside-avoid flex w-[85vw] max-w-sm shrink-0 snap-start flex-col rounded-xl bg-zinc-200/60 p-2 ring-2 ring-transparent transition-colors sm:w-[calc((100%-0.75rem)/2)] md:w-[calc((100%-1.5rem)/3)] xl:w-72 dark:bg-zinc-900/70',
         column.id === null && 'bg-zinc-200/30 dark:bg-zinc-900/30',
         column.isCurrent && 'ring-indigo-500/50',
         isOver && 'bg-indigo-50 ring-indigo-400 dark:bg-indigo-950/40',

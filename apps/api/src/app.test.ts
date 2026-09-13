@@ -1,12 +1,20 @@
 import { readFileSync } from 'node:fs'
-import { createGuestDocument, createPlanFromPreset, presetSchema, setModuleResult } from '@study-plan/shared'
+import {
+  createGuestDocument,
+  createPlanFromPreset,
+  moveModule,
+  presetSchema,
+  setExamDate,
+  setModuleResult,
+  setTargetGrade,
+} from '@study-plan/shared'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { createApp } from './app.ts'
 import { createAuth } from './auth.ts'
 import { loadConfig } from './config.ts'
 import { type DatabaseConnection, openDatabase } from './db/connection.ts'
-import { account, plan as planTable, user as userTable } from './db/schema.ts'
+import { account, planShare, plan as planTable, user as userTable } from './db/schema.ts'
 import { createMemoryMailer } from './mail.ts'
 import { MAX_PLANS_PER_USER } from './routes/plans.ts'
 
@@ -352,5 +360,134 @@ describe('account data', () => {
     expect(await connection.db.select().from(userTable).where(eq(userTable.id, userId))).toEqual([])
     expect(await connection.db.select().from(planTable).where(eq(planTable.userId, userId))).toEqual([])
     expect((await call('/api/plans', { cookie })).status).toBe(401)
+  })
+})
+
+describe('sharing', () => {
+  interface Created {
+    token: string
+    url: string
+  }
+  interface SharedResponse {
+    name: string
+    plan: {
+      modules: { code: string; attempts: unknown[]; examDate?: string }[]
+      semesters: { moduleCodes: string[] }[]
+      targetGrade?: number
+    }
+  }
+
+  let cookie: string
+  let planId: string
+
+  const privateDocument = () => {
+    let plan = setModuleResult(planDocument('Geteilter Plan').plan, 'INF-101', { kind: 'graded', grade: 1.3 })
+    plan = setExamDate(plan, 'INF-102', '2027-07-20')
+    return createGuestDocument(setTargetGrade(plan, 1.7))
+  }
+
+  beforeAll(async () => {
+    cookie = await registerVerifiedUser('share@example.org')
+    const created = await call('/api/plans', {
+      method: 'POST',
+      cookie,
+      body: { document: privateDocument() },
+    })
+    planId = (await json<Summary>(created)).id
+  })
+
+  it('creates a link that shows the structure but no results, exam dates or target grade', async () => {
+    expect(await json(await call(`/api/plans/${planId}/share`, { cookie }))).toEqual({
+      active: false,
+      createdAt: null,
+    })
+
+    const created = await call(`/api/plans/${planId}/share`, { method: 'POST', cookie })
+    expect(created.status).toBe(201)
+    const { token, url } = await json<Created>(created)
+    expect(url).toBe(`${config.publicUrl}/geteilt/${token}`)
+    expect(await json(await call(`/api/plans/${planId}/share`, { cookie }))).toMatchObject({ active: true })
+
+    const shared = await call(`/api/share/${token}`)
+    expect(shared.status).toBe(200)
+    expect(shared.headers.get('x-robots-tag')).toContain('noindex')
+    expect(shared.headers.get('cache-control')).toBe('no-store')
+    const text = await shared.text()
+    expect(text).not.toContain('2027-07-20')
+    const body = JSON.parse(text) as SharedResponse
+    expect(body.name).toBe('Geteilter Plan')
+    expect(
+      body.plan.modules.every((module) => module.attempts.length === 0 && module.examDate === undefined),
+    ).toBe(true)
+    expect(body.plan.targetGrade).toBeUndefined()
+
+    const [stored] = await connection.db.select({ tokenHash: planShare.tokenHash }).from(planShare)
+    expect(stored?.tokenHash).toMatch(/^[0-9a-f]{64}$/)
+    expect(stored?.tokenHash).not.toContain(token)
+  })
+
+  it('shows later changes to the plan structure', async () => {
+    const { token } = await json<Created>(
+      await call(`/api/plans/${planId}/share`, { method: 'POST', cookie }),
+    )
+    const current = await json<Summary>(await call(`/api/plans/${planId}`, { cookie }))
+    const moved = createGuestDocument(moveModule(privateDocument().plan, 'BA-601', 's1'))
+    await call(`/api/plans/${planId}`, {
+      method: 'PUT',
+      cookie,
+      body: { document: moved, revision: current.revision },
+    })
+
+    const body = await json<SharedResponse>(await call(`/api/share/${token}`))
+    expect(body.plan.semesters[0]?.moduleCodes).toContain('BA-601')
+  })
+
+  it('replaces the previous link when a new one is created, and revokes on request', async () => {
+    const first = await json<Created>(await call(`/api/plans/${planId}/share`, { method: 'POST', cookie }))
+    const second = await json<Created>(await call(`/api/plans/${planId}/share`, { method: 'POST', cookie }))
+    expect((await call(`/api/share/${first.token}`)).status).toBe(404)
+    expect((await call(`/api/share/${second.token}`)).status).toBe(200)
+
+    expect((await call(`/api/plans/${planId}/share`, { method: 'DELETE', cookie })).status).toBe(204)
+    expect((await call(`/api/share/${second.token}`)).status).toBe(404)
+    expect(await json(await call(`/api/plans/${planId}/share`, { cookie }))).toEqual({
+      active: false,
+      createdAt: null,
+    })
+  })
+
+  it('does not let anyone else manage the link', async () => {
+    const stranger = await registerVerifiedUser('share-stranger@example.org')
+    expect((await call(`/api/plans/${planId}/share`, { cookie: stranger })).status).toBe(404)
+    expect((await call(`/api/plans/${planId}/share`, { method: 'POST', cookie: stranger })).status).toBe(404)
+    expect((await call(`/api/plans/${planId}/share`, { method: 'DELETE', cookie: stranger })).status).toBe(
+      404,
+    )
+    expect((await call(`/api/plans/${planId}/share`, { method: 'POST' })).status).toBe(401)
+  })
+
+  it('answers malformed and unknown tokens with 404, and ends sharing when the plan is deleted', async () => {
+    expect((await call('/api/share/abc')).status).toBe(404)
+    expect((await call('/api/share/AAAAAAAAAAAAAAAAAAAAAAAA')).status).toBe(404)
+
+    const other = await json<Summary>(
+      await call('/api/plans', { method: 'POST', cookie, body: { document: planDocument() } }),
+    )
+    const { token } = await json<Created>(
+      await call(`/api/plans/${other.id}/share`, { method: 'POST', cookie }),
+    )
+    await call(`/api/plans/${other.id}`, { method: 'DELETE', cookie })
+    expect((await call(`/api/share/${token}`)).status).toBe(404)
+  })
+
+  it('lists share links in the account export without their tokens', async () => {
+    const { token } = await json<Created>(
+      await call(`/api/plans/${planId}/share`, { method: 'POST', cookie }),
+    )
+    const response = await call('/api/account/export', { cookie })
+    const text = await response.text()
+    expect(text).not.toContain(token)
+    const data = JSON.parse(text) as { shares: { planId: string; revokedAt: string | null }[] }
+    expect(data.shares.some((share) => share.planId === planId && share.revokedAt === null)).toBe(true)
   })
 })

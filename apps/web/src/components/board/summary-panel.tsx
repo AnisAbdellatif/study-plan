@@ -158,7 +158,7 @@ export function SummaryPanel({ plan, summary }: { plan: Plan; summary: PlanSumma
         </ul>
       </section>
 
-      <details className="col-span-2 rounded-xl bg-white p-4 text-sm ring-1 ring-zinc-200 lg:col-span-3 dark:bg-zinc-900 dark:ring-zinc-800">
+      <details className="col-span-2 rounded-xl print:hidden bg-white p-4 text-sm ring-1 ring-zinc-200 lg:col-span-3 dark:bg-zinc-900 dark:ring-zinc-800">
         <summary className="cursor-pointer font-medium">So wird dein Schnitt berechnet</summary>
         <ul className="mt-3">
           <TraceGroup node={overall.trace} names={names} depth={0} />

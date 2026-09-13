@@ -12,6 +12,7 @@ import {
   SignUpPage,
 } from './routes/auth-pages.tsx'
 import { BoardPage } from './routes/board-page.tsx'
+import { SharedPlanPage } from './routes/shared-plan-page.tsx'
 import { StartPage } from './routes/start-page.tsx'
 
 const rootRoute = createRootRoute({
@@ -54,6 +55,11 @@ const datenschutzRoute = createRoute({
   path: '/datenschutz',
   component: DatenschutzPage,
 })
+const sharedRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/geteilt/$token',
+  component: SharedPlanPage,
+})
 
 export const routeTree = rootRoute.addChildren([
   boardRoute,
@@ -65,6 +71,7 @@ export const routeTree = rootRoute.addChildren([
   accountRoute,
   impressumRoute,
   datenschutzRoute,
+  sharedRoute,
 ])
 
 type RouterOptions = Parameters<typeof createRouter<typeof routeTree>>[0]

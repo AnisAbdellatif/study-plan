@@ -8,6 +8,7 @@ import type { Config } from './config.ts'
 import type { Database } from './db/connection.ts'
 import { accountRoutes } from './routes/account.ts'
 import { planRoutes } from './routes/plans.ts'
+import { planShareRoutes, publicShareRoutes } from './routes/shares.ts'
 import type { AppEnv } from './types.ts'
 
 export interface AppDependencies {
@@ -70,6 +71,9 @@ export function createApp({ config, db, auth, staticFiles }: AppDependencies) {
   app.use('/api/plans', requireUser)
   app.use('/api/plans/*', requireUser)
   app.route('/api/plans', planRoutes(db))
+  app.route('/api/plans', planShareRoutes(db, config))
+  // Public: anyone with a share link may read the plan's structure.
+  app.route('/api/share', publicShareRoutes(db, config))
   app.use('/api/account/*', requireUser)
   app.route('/api/account', accountRoutes(db))
   app.all('/api/*', (c) => c.json({ error: 'not_found' }, 404))

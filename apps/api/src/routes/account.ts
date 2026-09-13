@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import type { Database } from '../db/connection.ts'
-import { plan, session, user } from '../db/schema.ts'
+import { plan, planShare, session, user } from '../db/schema.ts'
 import type { AppEnv } from '../types.ts'
 
 /** Self-service access to one's own data (Art. 15 and Art. 20 DSGVO). Deletion goes through Better Auth. */
@@ -42,13 +42,23 @@ export function accountRoutes(db: Database) {
       .from(session)
       .where(eq(session.userId, userId))
 
+    const shares = await db
+
+      .select({ planId: planShare.planId, createdAt: planShare.createdAt, revokedAt: planShare.revokedAt })
+
+      .from(planShare)
+
+      .innerJoin(plan, eq(planShare.planId, plan.id))
+
+      .where(eq(plan.userId, userId))
+
     const exportedAt = new Date()
     c.header(
       'Content-Disposition',
       `attachment; filename="studienplaner-daten-${exportedAt.toISOString().slice(0, 10)}.json"`,
     )
     c.header('Cache-Control', 'no-store')
-    return c.json({ format: 'study-plan.account-export', exportedAt, user: profile, plans, sessions })
+    return c.json({ format: 'study-plan.account-export', exportedAt, user: profile, plans, sessions, shares })
   })
 
   return routes

@@ -105,6 +105,7 @@ export function ModuleCard({
               {formatCredits(module.credits)} {creditLabel}
             </span>
             {module.countsTowardAverage ? null : <span>· zählt nicht zum Schnitt</span>}
+            {module.retired ? <span>· nicht mehr in der Prüfungsordnung</span> : null}
             <ResultBadge module={module} passThreshold={passThreshold} />
             {module.examDate ? (
               <span className="rounded bg-zinc-100 px-1.5 py-0.5 tabular-nums dark:bg-zinc-800">
@@ -141,7 +142,7 @@ export function ModuleCard({
               <Button
                 variant="ghost"
                 size="icon"
-                className="-mt-1 -mr-1"
+                className="-mt-1 -mr-1 print:hidden"
                 aria-label={`Aktionen für ${module.name}`}
               />
             }

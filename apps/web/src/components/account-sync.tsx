@@ -79,11 +79,14 @@ export function AccountSyncProvider({ children }: { children: ReactNode }) {
   const user = sessionUser ? { id: sessionUser.id, email: sessionUser.email } : null
   const userId = user?.id ?? null
 
+  const sessionFailed = session.error !== null
   useEffect(() => {
-    if (session.isPending) return
+    // A failed session request (API restarting, offline) says nothing about being signed out.
+    // Stopping here would unlink the browser plan from the account and ask again which plan to keep.
+    if (session.isPending || sessionFailed) return
     if (userId) void sync.start(userId)
     else sync.stop()
-  }, [sync, userId, session.isPending])
+  }, [sync, userId, session.isPending, sessionFailed])
 
   return (
     <AccountSyncContext.Provider value={{ sync, state, user, sessionPending: session.isPending }}>

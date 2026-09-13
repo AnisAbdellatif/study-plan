@@ -21,6 +21,7 @@ import { useAnnounce } from '../components/announcer.tsx'
 import { AppHeader } from '../components/app-header.tsx'
 import { GradeDialog } from '../components/board/grade-dialog.tsx'
 import { PlanInsights } from '../components/board/plan-insights.tsx'
+import { PresetUpdateBanner } from '../components/board/preset-update-banner.tsx'
 import { columnTitle, SemesterBoard } from '../components/board/semester-board.tsx'
 import { SummaryPanel } from '../components/board/summary-panel.tsx'
 import { StorageNotice } from '../components/storage-notice.tsx'
@@ -99,19 +100,24 @@ function Board({ plan }: { plan: Plan }) {
   return (
     <main className="mx-auto max-w-[96rem] space-y-4 px-4 py-5 sm:px-6">
       <AppHeader plan={plan} />
-      <StorageNotice plan={plan} />
-      <AccountSyncBanner />
+      <div className="space-y-4 empty:hidden print:hidden">
+        <PresetUpdateBanner plan={plan} />
+        <StorageNotice plan={plan} />
+        <AccountSyncBanner />
+      </div>
       <SummaryPanel plan={plan} summary={summary} />
-      <PlanInsights
-        plan={plan}
-        hints={issues.list}
-        whatIf={whatIf}
-        today={today}
-        upcoming={upcoming}
-        canExportCalendar={allDeadlines.length > 0}
-        onTargetChange={changeTarget}
-        onExportCalendar={exportCalendar}
-      />
+      <div className="print:hidden">
+        <PlanInsights
+          plan={plan}
+          hints={issues.list}
+          whatIf={whatIf}
+          today={today}
+          upcoming={upcoming}
+          canExportCalendar={allDeadlines.length > 0}
+          onTargetChange={changeTarget}
+          onExportCalendar={exportCalendar}
+        />
+      </div>
       <SemesterBoard
         plan={plan}
         summary={summary}

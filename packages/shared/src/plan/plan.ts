@@ -14,6 +14,8 @@ export const planModuleSchema = presetModuleSchema.extend({
   attempts: z.array(attemptSchema),
   /** Exam date the student entered, YYYY-MM-DD. */
   examDate: z.iso.date().optional(),
+  /** Set when a preset update removed the module but it stays in the plan because it has a result. */
+  retired: z.literal(true).optional(),
 })
 export type PlanModule = z.infer<typeof planModuleSchema>
 
@@ -111,6 +113,23 @@ export type Plan = z.infer<typeof planSchema>
 
 const DEGREE_LABEL = { bsc: 'B.Sc.', msc: 'M.Sc.' } as const
 
+/** The preset facts a plan snapshots. Used when creating a plan and when updating it to a newer preset. */
+export function presetInfoFrom(preset: Preset): PresetInfo {
+  return {
+    id: preset.id,
+    universityName: preset.university.name,
+    programmeName: preset.programme.name,
+    degree: preset.programme.degree,
+    poVersion: preset.poVersion,
+    handbookVersion: preset.handbookVersion,
+    standardSemesters: preset.standardSemesters,
+    totalCredits: preset.totalCredits,
+    creditLabel: preset.creditLabel,
+    codesAreOfficial: preset.codesAreOfficial,
+    withdrawalDaysBeforeExam: preset.examRules?.withdrawalDaysBeforeExam,
+  }
+}
+
 export interface CreatePlanOptions {
   id: string
   startTerm: Term
@@ -142,19 +161,7 @@ export function createPlanFromPreset(preset: Preset, options: CreatePlanOptions)
     name: options.name ?? `${preset.programme.name} ${DEGREE_LABEL[preset.programme.degree]}`,
     createdAt: timestamp,
     updatedAt: timestamp,
-    preset: {
-      id: preset.id,
-      universityName: preset.university.name,
-      programmeName: preset.programme.name,
-      degree: preset.programme.degree,
-      poVersion: preset.poVersion,
-      handbookVersion: preset.handbookVersion,
-      standardSemesters: preset.standardSemesters,
-      totalCredits: preset.totalCredits,
-      creditLabel: preset.creditLabel,
-      codesAreOfficial: preset.codesAreOfficial,
-      withdrawalDaysBeforeExam: preset.examRules?.withdrawalDaysBeforeExam,
-    },
+    preset: presetInfoFrom(preset),
     rules: structuredClone(preset.gradeRules),
     areas: structuredClone(preset.areas),
     startTerm: { ...options.startTerm },

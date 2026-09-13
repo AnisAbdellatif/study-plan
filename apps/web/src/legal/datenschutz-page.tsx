@@ -32,6 +32,7 @@ export function DatenschutzPage() {
           Drittanbietern wie Schriften oder Skripte.
         </li>
         <li>Wir setzen nur ein technisch notwendiges Cookie, und zwar erst, wenn du dich anmeldest.</li>
+        <li>Teilst du einen Plan per Link, sieht man darüber nur Semester und Module, nie deine Noten.</li>
         <li>Du kannst deine Daten jederzeit selbst herunterladen und dein Konto selbst löschen.</li>
       </ul>
 
@@ -90,7 +91,17 @@ export function DatenschutzPage() {
         weitergegeben.
       </p>
 
-      <h2>6. E-Mails</h2>
+      <h2>6. Geteilte Pläne</h2>
+      <p>
+        Wenn du einen Plan teilst, erzeugen wir einen zufälligen Link. Wir speichern davon nur einen Prüfwert
+        (Hash), den Zeitpunkt der Erstellung und ob du den Link deaktiviert hast. Wer den Link kennt, sieht
+        den Namen des Plans, Studiengang, Semester und Module, aber keine Noten, Prüfungstermine und keinen
+        Zielschnitt, und kann den Plan als eigene Kopie übernehmen. Du kannst den Link jederzeit deaktivieren;
+        er wird zusammen mit dem Plan oder deinem Konto gelöscht. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b
+        DSGVO.
+      </p>
+
+      <h2>7. E-Mails</h2>
       <p>
         Wir schicken dir nur E-Mails, die für dein Konto nötig sind: die Bestätigung deiner E-Mail-Adresse und
         Links zum Zurücksetzen deines Passworts (Art. 6 Abs. 1 lit. b DSGVO). Der Versand erfolgt über{' '}
@@ -98,21 +109,23 @@ export function DatenschutzPage() {
         Auftrag verarbeitet (Art. 28 DSGVO).
       </p>
 
-      <h2>7. Schutz vor Missbrauch</h2>
+      <h2>8. Schutz vor Missbrauch</h2>
       <p>
         Um wiederholte Anmeldeversuche und andere automatisierte Angriffe auf Konten zu begrenzen, speichern
-        wir kurzzeitig einen Zähler je IP-Adresse und aufgerufener Anmeldefunktion. Rechtsgrundlage ist unser
-        berechtigtes Interesse an der Sicherheit der Konten (Art. 6 Abs. 1 lit. f DSGVO).
+        wir kurzzeitig einen Zähler je IP-Adresse und aufgerufener Anmeldefunktion. Abrufe geteilter Pläne
+        begrenzen wir ebenso, dafür werden Zähler nur im Arbeitsspeicher gehalten und nicht dauerhaft
+        gespeichert. Rechtsgrundlage ist unser berechtigtes Interesse an der Sicherheit der Konten (Art. 6
+        Abs. 1 lit. f DSGVO).
       </p>
 
-      <h2>8. Cookies</h2>
+      <h2>9. Cookies</h2>
       <p>
         Nach der Anmeldung setzen wir ein Cookie mit deinem Sitzungsschlüssel, damit du angemeldet bleibst. Es
         ist für die Anmeldung unbedingt erforderlich (§ 25 Abs. 2 Nr. 2 TDDDG) und wird beim Abmelden
         entfernt. Weitere Cookies verwenden wir nicht.
       </p>
 
-      <h2>9. Deine Rechte</h2>
+      <h2>10. Deine Rechte</h2>
       <p>
         Du hast das Recht auf Auskunft (Art. 15 DSGVO), Berichtigung (Art. 16), Löschung (Art. 17),
         Einschränkung der Verarbeitung (Art. 18) und Datenübertragbarkeit (Art. 20). Gegen Verarbeitungen auf
@@ -128,7 +141,7 @@ export function DatenschutzPage() {
         Beispiel bei der für deinen Wohnort zuständigen.
       </p>
 
-      <h2>10. Sonstiges</h2>
+      <h2>11. Sonstiges</h2>
       <p>
         Die Nutzung ist freiwillig. Ein Konto brauchst du nur, wenn dein Plan auf mehreren Geräten verfügbar
         sein soll. Es findet keine automatisierte Entscheidungsfindung und kein Profiling statt.

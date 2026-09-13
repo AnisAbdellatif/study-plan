@@ -5,12 +5,16 @@ See [project.md](project.md) for the brief and [assessment.md](assessment.md) fo
 
 ## Status
 
-Milestone 4 of the assessment: accounts and a server, on top of the plan checks, what-if solver and deadlines.
+Milestone 5 of the assessment: sharing, grade import, printing and preset updates, on top of accounts and plan sync.
 
-- `apps/api`: Hono API on Bun with Better Auth (e-mail and password, e-mail verification, password reset) and Drizzle. Plans are stored per account as validated JSON documents with a revision number, so edits from another device are detected. Includes self-service data export and account deletion.
-- `apps/web`: React app. Works without an account in the browser; after signing in, the plan can be saved to the account and stays in sync across devices. Impressum and Datenschutzerklärung pages read the operator's details from build-time configuration.
-- `packages/shared`: Zod schemas, the grade engine with exact integer arithmetic, plan validation, the what-if solver and deadline logic.
-- `presets/`: Technische Informatik B.Sc. at Leibniz Universität Hannover and a fictional example. `presets.lock.json` and `CHANGELOG.md` make every preset change deliberate.
+- Sharing: signed-in students create an unlisted, revocable link to their account plan. The link shows semesters and modules but never results, exam dates or the target grade, and visitors can copy the plan into their own browser. Only a hash of each link is stored.
+- Grade import: paste a Notenspiegel table or load a CSV file. Module names are matched automatically, unclear lines can be assigned by hand, and several attempts at the same module keep the best result.
+- Printing: the board has a print layout, so the plan can be printed or saved as PDF from the browser.
+- Preset updates: when a bundled preset changes, the board lists added, removed and changed modules and updates the plan while keeping placements and results that still fit.
+- `apps/api`: Hono API on Bun with Better Auth and Drizzle; plans per account with revisions; share links; data export and account deletion.
+- `apps/web`: React app that works without an account and syncs with one.
+- `packages/shared`: Zod schemas, the grade engine, plan validation, what-if solver, deadlines, grade import and preset update logic.
+- `presets/`: Technische Informatik B.Sc. at Leibniz Universität Hannover and a fictional example, guarded by `presets.lock.json` and `CHANGELOG.md`.
 
 ## Requirements
 

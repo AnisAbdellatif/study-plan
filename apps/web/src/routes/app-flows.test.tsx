@@ -4,7 +4,9 @@ import {
   createPlanFromPreset,
   localIsoDate,
   type Plan,
+  setExamDate,
   setModuleResult,
+  toSharedPlan,
 } from '@study-plan/shared'
 import { createMemoryHistory, RouterProvider } from '@tanstack/react-router'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
@@ -291,5 +293,123 @@ describe('exam dates and deadlines', () => {
     const content = await blob.text()
     expect(content).toContain('SUMMARY:Prüfung: Grundlagen der Programmierung')
     expect(content).toContain(`DTSTART;VALUE=DATE:${examDate.replaceAll('-', '')}`)
+  })
+})
+
+describe('grade import', () => {
+  it('imports grades from pasted text after a preview, with a module picked by hand', async () => {
+    const { user, store } = renderApp({ plan: makePlan() })
+    await user.click(await screen.findByRole('button', { name: 'Weitere Aktionen' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Noten importieren…' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Noten importieren' })
+
+    fireEvent.change(within(dialog).getByLabelText('Text aus dem Notenspiegel'), {
+      target: { value: 'Modul\tNote\nGrundlagen der Programmierung\t1,3\nAnalysis I\t2,0\nLinA 1\t1,7' },
+    })
+    expect(within(dialog).getByRole('button', { name: '2 Ergebnisse übernehmen' })).toBeEnabled()
+    expect(within(dialog).getByText('Bitte Modul wählen')).toBeInTheDocument()
+    expect(within(dialog).getByText(/1 Zeile ohne Note übersprungen/)).toBeInTheDocument()
+
+    await user.selectOptions(within(dialog).getByLabelText('Modul für Zeile 4'), 'Lineare Algebra I')
+    await user.click(within(dialog).getByRole('button', { name: '3 Ergebnisse übernehmen' }))
+
+    const result = (code: string) =>
+      store.getState().plan?.modules.find((m) => m.code === code)?.attempts[0]?.grade
+    await waitFor(() => expect(result('INF-101')).toBe(1.3))
+    expect(result('MAT-102')).toBe(2.0)
+    expect(result('MAT-101')).toBe(1.7)
+    // Grundlagen group: (1.3 * 8 + 1.7 * 9 + 2.0 * 9) / 26 = 1.68, truncated
+    expect(screen.getByTestId('overall-grade')).toHaveTextContent('1,6')
+  })
+})
+
+describe('shared plans', () => {
+  afterEach(() => vi.restoreAllMocks())
+
+  it('shows the structure without results and copies it into the browser', async () => {
+    let privatePlan = setModuleResult(makePlan(), 'INF-101', { kind: 'graded', grade: 1.3 })
+    privatePlan = setExamDate(privatePlan, 'INF-102', '2027-07-20')
+    const response = {
+      name: 'Plan von Kim',
+      updatedAt: '2026-09-12T10:00:00.000Z',
+      sharedAt: '2026-09-12T10:00:00.000Z',
+      plan: toSharedPlan({ ...privatePlan, name: 'Plan von Kim' }),
+    }
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify(response), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    )
+
+    const { user, store } = renderApp({ path: '/geteilt/AAAAAAAAAAAAAAAAAAAAAAAA' })
+    expect(await screen.findByRole('heading', { name: 'Plan von Kim' })).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith('/api/share/AAAAAAAAAAAAAAAAAAAAAAAA', expect.anything())
+    expect(document.querySelector('meta[name="robots"]')?.getAttribute('content')).toContain('noindex')
+    expect(screen.getByRole('region', { name: '1. Semester' })).toHaveTextContent(
+      'Grundlagen der Programmierung',
+    )
+    expect(screen.queryByText('1,3')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Als eigenen Plan übernehmen' }))
+    expect(await screen.findByRole('region', { name: /^1\. Semester/ })).toBeInTheDocument()
+    const adopted = store.getState().plan
+    expect(adopted?.name).toBe('Plan von Kim')
+    expect(adopted?.id).not.toBe('shared')
+    expect(adopted?.modules.every((module) => module.attempts.length === 0)).toBe(true)
+  })
+
+  it('explains a deactivated link', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ error: 'not_found' }), {
+        status: 404,
+        headers: { 'content-type': 'application/json' },
+      }),
+    )
+    renderApp({ path: '/geteilt/AAAAAAAAAAAAAAAAAAAAAAAA' })
+    expect(await screen.findByText(/wurde deaktiviert oder existiert nicht/)).toBeInTheDocument()
+  })
+})
+
+describe('board menu actions', () => {
+  afterEach(() => vi.restoreAllMocks())
+
+  it('explains that sharing needs an account when signed out', async () => {
+    const { user } = renderApp({ plan: makePlan() })
+    await user.click(await screen.findByRole('button', { name: 'Weitere Aktionen' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Plan teilen…' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Plan teilen' })
+    expect(dialog).toHaveTextContent('Zum Teilen brauchst du ein Konto')
+  })
+
+  it('opens the print dialog', async () => {
+    const print = vi.spyOn(window, 'print').mockImplementation(() => {})
+    const { user } = renderApp({ plan: makePlan() })
+    await user.click(await screen.findByRole('button', { name: 'Weitere Aktionen' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Drucken oder als PDF speichern' }))
+    expect(print).toHaveBeenCalledOnce()
+  })
+})
+
+describe('preset updates on the board', () => {
+  it('offers the changes of a newer preset and applies them', async () => {
+    const outdated = makePlan()
+    outdated.modules = outdated.modules.map((module) =>
+      module.code === 'INF-101' ? { ...module, name: 'Programmieren 1 (alt)' } : module,
+    )
+    const { user, store } = renderApp({ plan: outdated })
+
+    expect(await screen.findByText(/gibt es eine aktualisierte Vorlage/)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Änderungen ansehen' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Vorlage aktualisieren' })
+    expect(dialog).toHaveTextContent('Grundlagen der Programmierung: Name')
+
+    await user.click(within(dialog).getByRole('button', { name: 'Plan aktualisieren' }))
+    await waitFor(() =>
+      expect(store.getState().plan?.modules.find((module) => module.code === 'INF-101')?.name).toBe(
+        'Grundlagen der Programmierung',
+      ),
+    )
+    expect(screen.queryByText(/gibt es eine aktualisierte Vorlage/)).not.toBeInTheDocument()
   })
 })

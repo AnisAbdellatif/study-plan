@@ -107,3 +107,18 @@ export const plan = pgTable(
   },
   (table) => [index('plan_user_id_idx').on(table.userId)],
 )
+
+/** Unlisted share links. Only a SHA-256 hash of the token is stored; the owner sees the token once. */
+export const planShare = pgTable(
+  'plan_share',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    planId: uuid('plan_id')
+      .notNull()
+      .references(() => plan.id, { onDelete: 'cascade' }),
+    tokenHash: text('token_hash').notNull().unique(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  },
+  (table) => [index('plan_share_plan_id_idx').on(table.planId)],
+)

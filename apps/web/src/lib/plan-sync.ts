@@ -166,6 +166,12 @@ export class PlanSync {
     await this.#push()
   }
 
+  /** The account plan this browser plan is saved to, or null when signed out or not saved yet. */
+  linkedPlanId(): string | null {
+    const link = this.#readLink()
+    return this.#userId !== null && link?.userId === this.#userId ? link.planId : null
+  }
+
   retry(): Promise<void> {
     return this.#push()
   }

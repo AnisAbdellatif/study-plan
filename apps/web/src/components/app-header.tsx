@@ -5,6 +5,8 @@ import { useState } from 'react'
 import { useGuestStore } from '../store/guest-store.ts'
 import { AccountButton } from './account-button.tsx'
 import { useAnnounce } from './announcer.tsx'
+import { ImportGradesDialog } from './board/import-grades-dialog.tsx'
+import { ShareDialog } from './board/share-dialog.tsx'
 import { ImportPlanButton } from './import-plan-button.tsx'
 import { Button } from './ui/button.tsx'
 import { ConfirmDialog } from './ui/dialog.tsx'
@@ -17,6 +19,8 @@ export function AppHeader({ plan }: { plan: Plan }) {
   const announce = useAnnounce()
   const exportPlan = useExportPlan()
   const [confirmReset, setConfirmReset] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
+  const [shareOpen, setShareOpen] = useState(false)
 
   return (
     <header className="flex flex-wrap items-center gap-3">
@@ -29,7 +33,7 @@ export function AppHeader({ plan }: { plan: Plan }) {
           {plan.preset.universityName} · {plan.preset.poVersion}
         </p>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 print:hidden">
         <AccountButton />
         <Button onClick={() => exportPlan(plan)}>
           <Download aria-hidden className="size-4" />
@@ -41,6 +45,10 @@ export function AppHeader({ plan }: { plan: Plan }) {
             <EllipsisVertical aria-hidden className="size-4" />
           </MenuTrigger>
           <MenuContent>
+            <MenuItem onClick={() => setImportOpen(true)}>Noten importieren…</MenuItem>
+            <MenuItem onClick={() => setShareOpen(true)}>Plan teilen…</MenuItem>
+            <MenuItem onClick={() => window.print()}>Drucken oder als PDF speichern</MenuItem>
+            <MenuSeparator />
             <MenuItem
               onClick={() => {
                 store.updatePlan(addSemester)
@@ -65,6 +73,8 @@ export function AppHeader({ plan }: { plan: Plan }) {
           </MenuContent>
         </MenuRoot>
       </div>
+      <ImportGradesDialog plan={plan} open={importOpen} onOpenChange={setImportOpen} />
+      <ShareDialog open={shareOpen} onOpenChange={setShareOpen} />
       <ConfirmDialog
         open={confirmReset}
         onOpenChange={setConfirmReset}
