@@ -1,7 +1,8 @@
-import type { ChoiceArea } from '@study-plan/shared'
+import type { ChoiceArea, Plan } from '@study-plan/shared'
 import { EllipsisVertical } from 'lucide-react'
 import { useId, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
+import { areaTone } from '../../lib/area-colors.ts'
 import { cn } from '../../lib/cn.ts'
 import { useDraggableAreaSlot } from '../../lib/dnd.ts'
 import { formatCredits } from '../../lib/format.ts'
@@ -24,6 +25,8 @@ interface TileProps {
   /** Semesters only. */
   destinations: readonly Destination[]
   actions: BoardActions
+  /** The plan's areas, for the tile colour. */
+  areas: Plan['areas']
 }
 
 /** "5 LP gewählt · 2 Platzhalter (≈10 LP) · Ziel 10–20 LP", with only the parts that apply. */
@@ -54,8 +57,9 @@ function useProgressText(choice: ChoiceArea, label: string): string {
   return parts.join(' · ')
 }
 
-function ChoiceAreaTile({ choice, creditLabel, destinations, actions }: TileProps) {
+function ChoiceAreaTile({ choice, creditLabel, destinations, actions, areas }: TileProps) {
   const { t } = useTranslation('board')
+  const tone = areaTone({ areas }, choice.area.id)
   const ref = useRef<HTMLLIElement>(null)
   const { isDragging } = useDraggableAreaSlot(ref, choice.area.id)
   const progress = useProgressText(choice, creditLabel)
@@ -72,13 +76,18 @@ function ChoiceAreaTile({ choice, creditLabel, destinations, actions }: TileProp
         actions.onBrowseArea(choice.area.id)
       }}
       className={cn(
-        'relative cursor-grab rounded-lg border border-indigo-300 bg-indigo-50/70 p-2.5 active:cursor-grabbing dark:border-indigo-800 dark:bg-indigo-950/30',
+        'relative cursor-grab rounded-lg border-l-4 p-2.5 ring-1 ring-zinc-900/10 active:cursor-grabbing dark:ring-white/10',
+        tone.stripe,
+        tone.soft,
         isDragging && 'opacity-40',
       )}
     >
       <div className="flex items-start gap-1">
         <div className="min-w-0 flex-1">
-          <h3 className="text-sm leading-snug font-medium">{choice.area.name}</h3>
+          <h3 className="flex items-center gap-1.5 text-sm leading-snug font-medium">
+            <span aria-hidden className={cn('size-2.5 shrink-0 rounded-full', tone.dot)} />
+            {choice.area.name}
+          </h3>
           <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">{progress}</p>
           <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
             {available > 0 ? t('choices.available', { count: available }) : t('choices.availableNone')}
@@ -122,10 +131,17 @@ export interface ChoiceAreaTilesProps {
   creditLabel: string
   destinations: readonly Destination[]
   actions: BoardActions
+  areas: Plan['areas']
 }
 
 /** Tiles for the backlog: one per area with modules to choose from. Drag one onto a semester to plan a slot. */
-export function ChoiceAreaTiles({ choices, creditLabel, destinations, actions }: ChoiceAreaTilesProps) {
+export function ChoiceAreaTiles({
+  choices,
+  creditLabel,
+  destinations,
+  actions,
+  areas,
+}: ChoiceAreaTilesProps) {
   const { t } = useTranslation('board')
   const headingId = useId()
   return (
@@ -142,6 +158,7 @@ export function ChoiceAreaTiles({ choices, creditLabel, destinations, actions }:
             creditLabel={creditLabel}
             destinations={destinations}
             actions={actions}
+            areas={areas}
           />
         ))}
       </ul>

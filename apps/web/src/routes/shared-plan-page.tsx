@@ -11,11 +11,14 @@ import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { formatDateTime, useAccountSync } from '../components/account-sync.tsx'
+import { ResultBadge } from '../components/board/module-card.tsx'
 import { Button } from '../components/ui/button.tsx'
 import { ConfirmDialog } from '../components/ui/dialog.tsx'
 import { currentLocale } from '../i18n/index.ts'
 import { ApiError, type SharedPlanResponse, shareApi } from '../lib/api.ts'
-import { formatCredits, newId } from '../lib/format.ts'
+import { areaTone, moduleTone } from '../lib/area-colors.ts'
+import { cn } from '../lib/cn.ts'
+import { formatCredits, formatGradeString, newId } from '../lib/format.ts'
 import { useGuestState, useGuestStore } from '../store/guest-store.ts'
 
 type LoadState =
@@ -37,6 +40,7 @@ function SharedPlanView({ response, plan }: { response: SharedPlanResponse; plan
   const areaNames = new Map(plan.areas.map((area) => [area.id, area.name]))
   const placeholderAreas = new Map((plan.placeholders ?? []).map((item) => [item.id, item.areaId]))
   const label = plan.preset.creditLabel
+  const withGrades = response.includeGrades === true
 
   const adopt = () => {
     store.replacePlan(forkPlan(plan, { id: newId(), now: new Date() }))
@@ -76,22 +80,54 @@ function SharedPlanView({ response, plan }: { response: SharedPlanResponse; plan
             {plan.preset.programmeName} · {plan.preset.universityName} · {plan.preset.poVersion}
           </p>
           <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
-            {t('lastChanged', { time: formatDateTime(response.updatedAt) })}
+            {withGrades
+              ? t('lastChangedWithGrades', { time: formatDateTime(response.updatedAt) })
+              : t('lastChanged', { time: formatDateTime(response.updatedAt) })}
           </p>
+          {withGrades && summary.overall.value !== null ? (
+            <p className="mt-2 inline-flex items-baseline gap-2 rounded-lg bg-indigo-50 px-3 py-1.5 text-sm ring-1 ring-indigo-200 dark:bg-indigo-950/40 dark:ring-indigo-900">
+              {t('average')}
+              <span className="text-lg font-semibold tabular-nums" data-testid="shared-average">
+                {formatGradeString(summary.overall.value)}
+              </span>
+            </p>
+          ) : null}
         </div>
-        <div className="flex flex-wrap gap-2 print:hidden">
+        <div className="flex flex-col items-end gap-1 print:hidden">
           <Button variant="primary" onClick={() => (localPlan ? setConfirm(true) : adopt())}>
             {t('adopt')}
           </Button>
+          {withGrades ? (
+            <p className="text-xs text-zinc-600 dark:text-zinc-400">{t('adoptWithoutGrades')}</p>
+          ) : null}
         </div>
       </header>
+
+      {plan.areas.length > 0 ? (
+        <ul aria-label={t('legend')} className="flex flex-wrap gap-x-4 gap-y-1.5 text-sm">
+          {plan.areas.map((area) => (
+            <li key={area.id} className="flex items-center gap-1.5">
+              <span
+                aria-hidden
+                className={cn('size-2.5 shrink-0 rounded-full', areaTone(plan, area.id).dot)}
+              />
+              {area.name}
+            </li>
+          ))}
+        </ul>
+      ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         {columns.map((column) => (
           <section
             key={column.key}
             aria-label={column.title}
-            className="rounded-xl bg-zinc-200/60 p-3 dark:bg-zinc-900/70 print:break-inside-avoid"
+            className={cn(
+              'rounded-xl p-3 print:break-inside-avoid',
+              column.key === 'backlog'
+                ? 'bg-slate-200/35 ring-1 ring-zinc-300/50 dark:bg-zinc-900/35 dark:ring-zinc-800/60'
+                : 'bg-slate-200/75 ring-1 ring-slate-300/60 dark:bg-zinc-900/80 dark:ring-zinc-800',
+            )}
           >
             <h2 className="text-sm font-semibold">{column.title}</h2>
             {column.subtitle ? (
@@ -103,11 +139,16 @@ function SharedPlanView({ response, plan }: { response: SharedPlanResponse; plan
                   const areaId = placeholderAreas.get(code)
                   // A placeholder without its record carries no information worth showing.
                   if (areaId === undefined) return null
+                  const tone = areaTone(plan, areaId)
                   return (
                     <li
                       key={code}
                       data-testid="shared-placeholder"
-                      className="rounded-lg border-2 border-dashed border-zinc-400 px-2.5 py-2 text-sm dark:border-zinc-600"
+                      className={cn(
+                        'rounded-lg border-2 border-l-4 border-dashed border-zinc-400 px-2.5 py-2 text-sm dark:border-zinc-500',
+                        tone.stripe,
+                        tone.soft,
+                      )}
                     >
                       <span className="block text-xs text-zinc-500 dark:text-zinc-400">
                         {t('placeholder')}
@@ -123,15 +164,27 @@ function SharedPlanView({ response, plan }: { response: SharedPlanResponse; plan
                 }
                 const module = names.get(code)
                 const category = module?.custom ? t('custom') : module?.category
+                // Same area colours as the board, so a shared plan reads like the owner's.
+                const tone = moduleTone(plan, code)
                 return (
                   <li
                     key={code}
-                    className="rounded-lg bg-white px-2.5 py-2 text-sm ring-1 ring-zinc-200 dark:bg-zinc-950 dark:ring-zinc-800"
+                    data-testid="shared-module"
+                    className={cn(
+                      'rounded-lg border-l-4 px-2.5 py-2 text-sm shadow-sm ring-1 ring-zinc-900/10 dark:ring-white/10',
+                      tone.stripe,
+                      tone.soft,
+                    )}
                   >
                     <span className="block leading-snug font-medium">{module?.name ?? code}</span>
-                    <span className="text-xs text-zinc-600 dark:text-zinc-400">
-                      {formatCredits(module?.credits ?? 0)} {label}
-                      {category ? ` · ${category}` : ''}
+                    <span className="flex flex-wrap items-center gap-1.5 text-xs text-zinc-600 dark:text-zinc-400">
+                      {withGrades && module ? (
+                        <ResultBadge module={module} passThreshold={plan.rules.passThreshold} />
+                      ) : null}
+                      <span>
+                        {formatCredits(module?.credits ?? 0)} {label}
+                        {category ? ` · ${category}` : ''}
+                      </span>
                     </span>
                   </li>
                 )

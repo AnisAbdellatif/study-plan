@@ -8,7 +8,16 @@ import {
   prerequisiteCodes,
   type WhatIfAnalysis,
 } from '@study-plan/shared'
-import { CalendarPlus, CircleAlert, GraduationCap, Info, TriangleAlert } from 'lucide-react'
+import {
+  CalendarClock,
+  CalendarPlus,
+  CircleAlert,
+  GraduationCap,
+  Info,
+  ListChecks,
+  Target,
+  TriangleAlert,
+} from 'lucide-react'
 import { useId } from 'react'
 import { useTranslation } from 'react-i18next'
 import { currentLocale } from '../../i18n/index.ts'
@@ -23,8 +32,9 @@ import {
 import type { IssueText } from '../../lib/issues.ts'
 import { Button } from '../ui/button.tsx'
 
-const cardClass = 'rounded-xl bg-white p-4 ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800'
-const headingClass = 'text-sm text-zinc-600 dark:text-zinc-400'
+const cardClass = 'rounded-xl bg-white p-4 shadow-sm ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800'
+const headingClass = 'flex items-center gap-1.5 text-sm text-zinc-600 dark:text-zinc-400'
+const headingIconClass = 'size-4 shrink-0 text-indigo-600 dark:text-indigo-400'
 
 function HintsCard({ hints }: { hints: readonly IssueText[] }) {
   const { t } = useTranslation('board')
@@ -34,6 +44,17 @@ function HintsCard({ hints }: { hints: readonly IssueText[] }) {
   return (
     <section aria-labelledby={headingId} className={cardClass}>
       <h2 id={headingId} className={headingClass}>
+        <ListChecks
+          aria-hidden
+          className={cn(
+            'size-4 shrink-0',
+            errors > 0
+              ? 'text-red-600 dark:text-red-400'
+              : warnings > 0
+                ? 'text-amber-600 dark:text-amber-400'
+                : 'text-emerald-600 dark:text-emerald-400',
+          )}
+        />
         {t('hints.title')}
       </h2>
       <p className="mt-1 text-lg font-semibold">
@@ -117,6 +138,7 @@ function WhatIfCard({
   return (
     <section aria-labelledby={headingId} className={cardClass}>
       <h2 id={headingId} className={headingClass}>
+        <Target aria-hidden className={headingIconClass} />
         {t('whatIf.title')}
       </h2>
       <div className="mt-1 flex items-center gap-2">
@@ -176,6 +198,7 @@ function DeadlinesCard({
     <section aria-labelledby={headingId} className={cardClass}>
       <div className="flex items-start justify-between gap-2">
         <h2 id={headingId} className={headingClass}>
+          <CalendarClock aria-hidden className={headingIconClass} />
           {t('deadlines.title')}
         </h2>
         <Button size="sm" variant="ghost" onClick={onExport} disabled={!canExport} className="-mt-1 -mr-1">
@@ -253,8 +276,8 @@ function RequirementCard({ plan, requirement }: { plan: Plan; requirement: Credi
 
   return (
     <section aria-labelledby={headingId} className={cardClass}>
-      <h2 id={headingId} className={cn(headingClass, 'flex items-center gap-1.5')}>
-        <GraduationCap aria-hidden className="size-4" />
+      <h2 id={headingId} className={headingClass}>
+        <GraduationCap aria-hidden className={headingIconClass} />
         {t('requirement.title', { name: requirement.name })}
       </h2>
       <p className="mt-1 text-lg font-semibold tabular-nums">
@@ -271,7 +294,10 @@ function RequirementCard({ plan, requirement }: { plan: Plan; requirement: Credi
         aria-valuemax={requirement.requiredCredits}
         aria-valuenow={requirement.earnedCredits}
       >
-        <div className="h-full rounded-full bg-indigo-500" style={{ width: `${percent}%` }} />
+        <div
+          className="h-full rounded-full bg-linear-to-r from-indigo-600 to-sky-500 dark:from-indigo-400 dark:to-sky-400"
+          style={{ width: `${percent}%` }}
+        />
       </div>
       <p className="mt-2 text-sm" data-testid="requirement-forecast">
         {forecast}

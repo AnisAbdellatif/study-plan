@@ -4,9 +4,13 @@ import type { Messages } from '../types.ts'
 export const sharedPlan = {
   eyebrow: 'Shared plan',
   lastChanged: 'Last changed {{time}}. Without grades, exam dates or target average.',
+  lastChangedWithGrades: 'Last changed {{time}}. With grades, without exam dates or target average.',
+  average: 'Grade average',
+  adoptWithoutGrades: 'Grades aren’t copied when you use this plan.',
   adopt: 'Use as my own plan',
   semester: 'Semester {{number}}',
   backlog: 'Not scheduled',
+  legend: 'Areas',
   placeholder: 'Placeholder',
   custom: 'Custom module',
   estimate: '≈ {{credits}} {{label}}',

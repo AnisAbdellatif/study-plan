@@ -1,3 +1,4 @@
+import type { CustomPresetFailure } from '@study-plan/shared'
 import { and, count, countDistinct, desc, eq, gt, ilike, inArray, isNull, lt, max, sql } from 'drizzle-orm'
 import { type Context, Hono } from 'hono'
 import { createMiddleware } from 'hono/factory'
@@ -9,6 +10,7 @@ import {
   notificationSetting,
   plan,
   planShare,
+  preset,
   reminderDelivery,
   session,
   user,
@@ -16,6 +18,14 @@ import {
 import { type MonitoredMailer, testMail } from '../mail.ts'
 import { createPasswordAccount, isAdminRole } from '../roles.ts'
 import type { AppEnv } from '../types.ts'
+import {
+  isUniqueViolation,
+  parsePresetUpload,
+  presetColumns,
+  presetExists,
+  presetRowId,
+  summaryColumns as presetSummaryColumns,
+} from './presets.ts'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 const AUDIT_RETENTION_DAYS = 365
@@ -309,6 +319,67 @@ export function adminRoutes(db: Database, auth: Auth, mailer: MonitoredMailer, p
       await audit(c, 'send_test_email', self.id)
     }
     return c.json({ ok: true, to: self.email })
+  })
+
+  /*
+   * Presets. The body is the programme file itself (programme.json), validated like a file loaded on the start
+   * page. University, programme, degree and PO version come from the file.
+   */
+  const invalidPreset = (c: Context<AppEnv>, failure: CustomPresetFailure) =>
+    c.json({ error: 'invalid_preset', reason: failure.reason, issues: failure.issues }, 400)
+  const presetExistsResponse = (c: Context<AppEnv>) => c.json({ error: 'preset_exists' }, 409)
+
+  routes.post('/presets', async (c) => {
+    const id = crypto.randomUUID()
+    const parsed = parsePresetUpload(await c.req.text(), id)
+    if (!parsed.success) return invalidPreset(c, parsed)
+    if (await presetExists(db, parsed.preset)) return presetExistsResponse(c)
+    let created: unknown
+    try {
+      ;[created] = await db
+        .insert(preset)
+        .values({ id, ...presetColumns(parsed.preset) })
+        .returning(presetSummaryColumns)
+    } catch (error) {
+      if (isUniqueViolation(error)) return presetExistsResponse(c)
+      throw error
+    }
+    await audit(c, 'create_preset', id)
+    return c.json({ preset: created, warnings: parsed.warnings }, 201)
+  })
+
+  /** Replaces the data and keeps the id, so plans created from the preset still point at it. */
+  routes.put('/presets/:id', async (c) => {
+    const id = presetRowId(c)
+    const [existing] = id ? await db.select({ id: preset.id }).from(preset).where(eq(preset.id, id)) : []
+    if (!id || !existing) return c.json({ error: 'not_found' }, 404)
+    const parsed = parsePresetUpload(await c.req.text(), id)
+    if (!parsed.success) return invalidPreset(c, parsed)
+    if (await presetExists(db, parsed.preset, id)) return presetExistsResponse(c)
+    let updated: { id: string } | undefined
+    try {
+      ;[updated] = await db
+        .update(preset)
+        .set({ ...presetColumns(parsed.preset), updatedAt: new Date() })
+        .where(eq(preset.id, id))
+        .returning(presetSummaryColumns)
+    } catch (error) {
+      if (isUniqueViolation(error)) return presetExistsResponse(c)
+      throw error
+    }
+    // Deleted by someone else in the meantime.
+    if (!updated) return c.json({ error: 'not_found' }, 404)
+    await audit(c, 'update_preset', id)
+    return c.json({ preset: updated, warnings: parsed.warnings })
+  })
+
+  /** Plans created from a deleted preset keep working: each plan carries its own copy of the programme data. */
+  routes.delete('/presets/:id', async (c) => {
+    const id = presetRowId(c)
+    const deleted = id ? await db.delete(preset).where(eq(preset.id, id)).returning({ id: preset.id }) : []
+    if (!id || deleted.length === 0) return c.json({ error: 'not_found' }, 404)
+    await audit(c, 'delete_preset', id)
+    return c.body(null, 204)
   })
 
   routes.get('/audit', async (c) => {

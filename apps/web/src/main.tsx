@@ -17,6 +17,12 @@ window.addEventListener('storage', (event) => {
   if (event.key === STORAGE_KEY || event.key === null) guestStore.reload()
 })
 
+// Plan changes are written when the browser is idle; leaving or hiding the page writes the last one right away.
+window.addEventListener('pagehide', () => guestStore.flush())
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') guestStore.flush()
+})
+
 const container = document.getElementById('root')
 if (!container) throw new Error('Missing #root element')
 

@@ -11,4 +11,21 @@ export default defineConfig({
     proxy: { '/api': 'http://localhost:3000' },
   },
   preview: { port: 4173, strictPort: true },
+  build: {
+    rolldownOptions: {
+      output: {
+        // Libraries change far less often than the app. In their own files they stay in the browser cache across
+        // deploys (assets/ is served as immutable), so a release only downloads the app code again.
+        codeSplitting: {
+          groups: [
+            { name: 'react', test: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/ },
+            { name: 'ui', test: /[\\/]node_modules[\\/](@base-ui|@floating-ui)[\\/]/ },
+            { name: 'router', test: /[\\/]node_modules[\\/]@tanstack[\\/]/ },
+            { name: 'i18n', test: /[\\/]node_modules[\\/](i18next|react-i18next)[\\/]/ },
+            { name: 'zod', test: /[\\/]node_modules[\\/]zod[\\/]/ },
+          ],
+        },
+      },
+    },
+  },
 })

@@ -96,6 +96,10 @@ export function AppHeader({ plan, onAddCustomModule }: { plan: Plan; onAddCustom
           </MenuContent>
         </MenuRoot>
       </div>
+      <div
+        aria-hidden
+        className="h-px basis-full bg-linear-to-r from-indigo-500/60 via-sky-400/40 to-transparent print:hidden dark:from-indigo-400/60 dark:via-sky-400/30"
+      />
       <ImportGradesDialog plan={plan} open={importOpen} onOpenChange={setImportOpen} />
       <ShareDialog open={shareOpen} onOpenChange={setShareOpen} />
       <ConfirmDialog

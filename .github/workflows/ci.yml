@@ -197,4 +197,8 @@ jobs:
              docker tag '$IMAGE:$TAG' '$IMAGE:$ALIAS'
              export APP_IMAGE='$IMAGE'
              docker compose up --detach --wait --remove-orphans
+             # Caddy reads its Caddyfile only at start, and up does not restart it when just the file changed.
+             if [ '$GITHUB_REF_NAME' = main ]; then
+               docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
+             fi
              docker image prune --all --force --filter until=336h"

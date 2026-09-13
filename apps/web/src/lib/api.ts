@@ -1,4 +1,11 @@
-import type { GuestDocument, Plan } from '@study-plan/shared'
+import type {
+  CustomPresetFailure,
+  CustomPresetIssue,
+  CustomPresetWarning,
+  GuestDocument,
+  Plan,
+  Preset,
+} from '@study-plan/shared'
 
 export interface PlanSummary {
   id: string
@@ -31,13 +38,33 @@ async function send(path: string, init: RequestInit = {}): Promise<Response> {
   })
 }
 
+/** A programme file the server rejected, with the same reason and issues the start page shows for files. */
+export class InvalidPresetError extends ApiError {
+  readonly reason: CustomPresetFailure['reason']
+  readonly issues: CustomPresetIssue[]
+
+  constructor(status: number, reason: CustomPresetFailure['reason'], issues: CustomPresetIssue[]) {
+    super(status, 'invalid_preset')
+    this.reason = reason
+    this.issues = issues
+  }
+}
+
+const REASONS = new Set<string>(['empty', 'no_json', 'invalid_json', 'invalid_preset'])
+
 async function readError(response: Response): Promise<ApiError> {
   const body: unknown = await response.json().catch(() => null)
-  const code =
-    typeof body === 'object' && body !== null && 'error' in body && typeof body.error === 'string'
-      ? body.error
-      : 'unknown'
-  return new ApiError(response.status, code)
+  if (typeof body !== 'object' || body === null || !('error' in body) || typeof body.error !== 'string') {
+    return new ApiError(response.status, 'unknown')
+  }
+  if (body.error === 'invalid_preset' && 'reason' in body && typeof body.reason === 'string') {
+    const reason = REASONS.has(body.reason)
+      ? (body.reason as CustomPresetFailure['reason'])
+      : 'invalid_preset'
+    const issues = 'issues' in body && Array.isArray(body.issues) ? (body.issues as CustomPresetIssue[]) : []
+    return new InvalidPresetError(response.status, reason, issues)
+  }
+  return new ApiError(response.status, body.error)
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -73,27 +100,38 @@ export type PlanApi = typeof planApi
 export interface ShareStatus {
   active: boolean
   createdAt: string | null
+  /** Whether the active link also shows results and grades. */
+  includeGrades: boolean
 }
 
 export interface CreatedShare {
   token: string
   url: string
   createdAt: string | null
+  includeGrades: boolean
 }
 
 export interface SharedPlanResponse {
   name: string
   updatedAt: string
   sharedAt: string
-  /** Structure only: no results, exam dates or target grade. Validate before use. */
+  /** True when the owner shared results and grades too. Missing from older servers means no grades. */
+  includeGrades?: boolean
+  /** Structure, plus results when `includeGrades`; never exam dates or the target grade. Validate before use. */
   plan: Plan
 }
 
 export const shareApi = {
   status: (planId: string): Promise<ShareStatus> =>
     request<ShareStatus>(`/api/plans/${encodeURIComponent(planId)}/share`),
-  create: (planId: string): Promise<CreatedShare> =>
-    request<CreatedShare>(`/api/plans/${encodeURIComponent(planId)}/share`, { method: 'POST' }),
+  create: (
+    planId: string,
+    options: { includeGrades: boolean } = { includeGrades: false },
+  ): Promise<CreatedShare> =>
+    request<CreatedShare>(`/api/plans/${encodeURIComponent(planId)}/share`, {
+      method: 'POST',
+      body: JSON.stringify(options),
+    }),
   revoke: (planId: string): Promise<void> =>
     request<void>(`/api/plans/${encodeURIComponent(planId)}/share`, { method: 'DELETE' }),
   get: (token: string): Promise<SharedPlanResponse> =>
@@ -116,6 +154,32 @@ export const notificationApi = {
     request<NotificationSettings>(`/api/notifications/unsubscribe?token=${encodeURIComponent(token)}`, {
       method: 'POST',
     }),
+}
+
+export interface PresetSummary {
+  /** Row id for URLs; the preset document's own id is "preset/<id>". */
+  id: string
+  universityName: string
+  programmeName: string
+  degree: 'bsc' | 'msc'
+  poVersion: string
+  updatedAt: string
+}
+
+const presetPath = (id: string) => `/api/presets/${encodeURIComponent(id)}`
+const adminPresetPath = (id: string) => `/api/admin/presets/${encodeURIComponent(id)}`
+
+/** Admin-managed presets. Public, no account needed. */
+export const presetApi = {
+  list: async (): Promise<PresetSummary[]> =>
+    (await request<{ presets: PresetSummary[] }>('/api/presets')).presets,
+  /** The full programme data. Validate before use. */
+  get: async (id: string): Promise<Preset> => (await request<{ preset: Preset }>(presetPath(id))).preset,
+}
+
+export interface SavedPreset {
+  preset: PresetSummary
+  warnings: CustomPresetWarning[]
 }
 
 export interface AdminStats {
@@ -157,10 +221,12 @@ export type AdminAction =
   | 'grant_admin'
   | 'revoke_admin'
 
+export type PresetAction = 'create_preset' | 'update_preset' | 'delete_preset'
+
 export interface AdminAuditEntry {
   id: string
   adminEmail: string
-  action: AdminAction | 'create_admin' | 'send_test_email'
+  action: AdminAction | 'create_admin' | 'send_test_email' | PresetAction
   targetUserId: string
   createdAt: string
 }
@@ -218,4 +284,14 @@ export const adminApi = {
   signOut: (id: string): Promise<{ sessions: number }> =>
     request<{ sessions: number }>(`${adminUser(id)}/sign-out`, { method: 'POST' }),
   deleteUser: (id: string): Promise<void> => request<void>(adminUser(id), { method: 'DELETE' }),
+  /**
+   * `file` is the programme file's text, sent as is. Rejected files throw an InvalidPresetError; an existing
+   * university, programme, degree and PO version throws an ApiError with code `preset_exists`.
+   */
+  createPreset: (file: string): Promise<SavedPreset> =>
+    request<SavedPreset>('/api/admin/presets', { method: 'POST', body: file }),
+  /** Replaces the data and keeps the id. */
+  replacePreset: (id: string, file: string): Promise<SavedPreset> =>
+    request<SavedPreset>(adminPresetPath(id), { method: 'PUT', body: file }),
+  deletePreset: (id: string): Promise<void> => request<void>(adminPresetPath(id), { method: 'DELETE' }),
 }

@@ -194,6 +194,7 @@ describe('programme flow on the start page', () => {
     expect(
       await screen.findByRole('heading', { level: 1, name: 'Create your study plan' }),
     ).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Choose your programme' })).toBeInTheDocument()
     await user.type(screen.getByLabelText('University'), 'Example University')
     await user.type(screen.getByLabelText('Degree programme'), 'Computer Science')
     await user.click(screen.getByRole('button', { name: 'Create prompt' }))

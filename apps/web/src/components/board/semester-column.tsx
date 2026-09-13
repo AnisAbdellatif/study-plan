@@ -1,19 +1,91 @@
-import type { ChoiceArea, PlanModule, SemesterLoad } from '@study-plan/shared'
-import { Plus, Search, TriangleAlert, X } from 'lucide-react'
-import { useId, useRef, useState } from 'react'
+import type { ChoiceArea, Plan, PlanModule, SemesterLoad } from '@study-plan/shared'
+import {
+  ArrowLeft,
+  ArrowLeftToLine,
+  ArrowRight,
+  ArrowRightToLine,
+  EllipsisVertical,
+  Plus,
+  Search,
+  Trash2,
+  TriangleAlert,
+  X,
+} from 'lucide-react'
+import { memo, useCallback, useId, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { areaTone, moduleTone } from '../../lib/area-colors.ts'
 import { cn } from '../../lib/cn.ts'
 import { useColumnDropTarget, useListAutoScroll } from '../../lib/dnd.ts'
 import { formatCredits } from '../../lib/format.ts'
 import type { IssueText } from '../../lib/issues.ts'
 import { moduleMatchesQuery } from '../../lib/module-search.ts'
 import { Button } from '../ui/button.tsx'
+import { MenuContent, MenuItem, MenuRoot, MenuSeparator, MenuTrigger } from '../ui/menu.tsx'
 import type { BoardActions } from './board-actions.ts'
 import { ChoiceAreaTiles } from './choice-area-tiles.tsx'
 import { type Destination, ModuleCard } from './module-card.tsx'
 import { PlaceholderCard } from './placeholder-card.tsx'
 
-const NO_NOTES: readonly IssueText[] = []
+/** Insert, move and delete for one semester; menu items keep all of it usable without dragging. */
+function SemesterMenu({
+  semesterId,
+  index,
+  count,
+  title,
+  actions,
+}: {
+  semesterId: string
+  index: number
+  count: number
+  title: string
+  actions: BoardActions
+}) {
+  const { t } = useTranslation('board')
+  return (
+    <MenuRoot>
+      <MenuTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon"
+            className="-my-2 -mr-2 print:hidden"
+            aria-label={t('semesterMenu.label', { column: title })}
+          />
+        }
+      >
+        <EllipsisVertical aria-hidden className="size-4" />
+      </MenuTrigger>
+      <MenuContent>
+        <MenuItem onClick={() => actions.onInsertSemester(index)}>
+          <ArrowLeftToLine aria-hidden className="size-4" />
+          {t('semesterMenu.insertBefore')}
+        </MenuItem>
+        <MenuItem onClick={() => actions.onInsertSemester(index + 1)}>
+          <ArrowRightToLine aria-hidden className="size-4" />
+          {t('semesterMenu.insertAfter')}
+        </MenuItem>
+        <MenuSeparator />
+        <MenuItem disabled={index === 0} onClick={() => actions.onMoveSemester(semesterId, index - 1)}>
+          <ArrowLeft aria-hidden className="size-4" />
+          {t('semesterMenu.moveLeft')}
+        </MenuItem>
+        <MenuItem disabled={index >= count - 1} onClick={() => actions.onMoveSemester(semesterId, index + 1)}>
+          <ArrowRight aria-hidden className="size-4" />
+          {t('semesterMenu.moveRight')}
+        </MenuItem>
+        <MenuSeparator />
+        <MenuItem
+          disabled={count <= 1}
+          className="text-red-700 dark:text-red-400"
+          onClick={() => actions.onDeleteSemester(semesterId)}
+        >
+          <Trash2 aria-hidden className="size-4" />
+          {t('semesterMenu.delete')}
+        </MenuItem>
+      </MenuContent>
+    </MenuRoot>
+  )
+}
 
 export type ColumnEntry =
   | {
@@ -23,6 +95,8 @@ export type ColumnEntry =
       index: number
       /** True for an option of a choice area, which can be turned back into a placeholder. */
       chosen: boolean
+      /** Validation notes for the card; the same array as before while its content is unchanged. */
+      notes: readonly IssueText[]
     }
   | {
       kind: 'placeholder'
@@ -36,6 +110,8 @@ export type ColumnEntry =
 
 export interface ColumnModel {
   id: string | null
+  /** Position among the semesters; null for the backlog. */
+  index: number | null
   title: string
   subtitle: string | null
   credits: number
@@ -53,22 +129,29 @@ export interface SemesterColumnProps {
   passThreshold: number
   creditLabel: string
   showCode: boolean
-  notesByCode: ReadonlyMap<string, readonly IssueText[]>
   destinations: readonly Destination[]
   actions: BoardActions
   registerElement: (id: string | null, element: HTMLElement | null) => void
+  /** The plan's areas, which colour the cards. */
+  areas: Plan['areas']
+  /** Number of semesters, for the move and delete menu items. */
+  semesterCount: number
 }
 
-export function SemesterColumn({
+const NO_CHOICES: readonly ChoiceArea[] = []
+
+/** Memoised: the board keeps a column's props identical while nothing in it changed. */
+export const SemesterColumn = memo(function SemesterColumn({
   column,
-  choices = [],
+  choices = NO_CHOICES,
   passThreshold,
   creditLabel,
   showCode,
-  notesByCode,
   destinations,
   actions,
   registerElement,
+  areas,
+  semesterCount,
 }: SemesterColumnProps) {
   const { t } = useTranslation('board')
   const headingId = useId()
@@ -87,36 +170,75 @@ export function SemesterColumn({
       !filtering ||
       (entry.kind === 'module' && moduleMatchesQuery(entry.module, query, showCode, customLabel)),
   )
-  const semesterDestinations = destinations.filter((destination) => destination.id !== null)
+  const semesterDestinations = useMemo(
+    () => destinations.filter((destination) => destination.id !== null),
+    [destinations],
+  )
+  const columnId = column.id
+  const setSectionRef = useCallback(
+    (element: HTMLElement | null) => {
+      ref.current = element
+      registerElement(columnId, element)
+    },
+    [registerElement, columnId],
+  )
 
   return (
     <section
-      ref={(element) => {
-        ref.current = element
-        registerElement(column.id, element)
-      }}
+      ref={setSectionRef}
       aria-labelledby={headingId}
       className={cn(
         // Phones and tablets show one to three columns and swipe. From xl, all columns share the width so a
         // typical plan fits without scrolling; below the minimum width (many semesters) the board scrolls again.
-        'print:w-[calc(33.333%-0.5rem)]! print:max-w-none! print:max-h-none print:break-inside-avoid flex max-h-[calc(100dvh-2rem)] w-[85vw] max-w-sm shrink-0 snap-start flex-col rounded-xl bg-zinc-200/60 p-2 ring-2 ring-transparent transition-colors sm:w-[calc((100%-0.75rem)/2)] md:w-[calc((100%-1.5rem)/3)] xl:w-auto xl:max-w-none xl:min-w-40 xl:basis-0 dark:bg-zinc-900/70',
+        'print:w-[calc(33.333%-0.5rem)]! print:max-w-none! print:max-h-none print:break-inside-avoid flex max-h-[calc(100dvh-2rem)] w-[85vw] max-w-sm shrink-0 snap-start flex-col rounded-xl p-2 transition-colors sm:w-[calc((100%-0.75rem)/2)] md:w-[calc((100%-1.5rem)/3)] xl:w-auto xl:max-w-none xl:min-w-40 xl:basis-0',
         // cn does not merge Tailwind classes, so each column gets exactly one flex-grow value.
         // The not-planned column is only as tall as its content; semesters stretch so their whole height is a drop zone.
-        isBacklog ? 'bg-zinc-200/30 sm:self-start xl:flex-[1.2] dark:bg-zinc-900/30' : 'xl:flex-1',
-        column.isCurrent && 'ring-indigo-500/50',
-        isOver && 'bg-indigo-50 ring-indigo-400 dark:bg-indigo-950/40',
+        isBacklog ? 'sm:self-start xl:flex-[1.2]' : 'xl:flex-1',
+        // Likewise exactly one background and ring per state: drop target, current semester, backlog, other semesters.
+        isOver
+          ? 'bg-indigo-100 ring-2 ring-indigo-500 dark:bg-indigo-900/40 dark:ring-indigo-400'
+          : column.isCurrent
+            ? 'bg-indigo-50 shadow-md ring-2 shadow-indigo-500/10 ring-indigo-500/70 dark:bg-indigo-950/50 dark:shadow-none dark:ring-indigo-400/70'
+            : isBacklog
+              ? 'bg-slate-200/35 ring-1 ring-zinc-300/50 dark:bg-zinc-900/35 dark:ring-zinc-800/60'
+              : 'bg-slate-200/75 ring-1 ring-slate-300/60 dark:bg-zinc-900/80 dark:ring-zinc-800',
       )}
     >
-      <header className="px-1.5 pt-1 pb-2">
+      <header
+        className={cn(
+          'mb-2 border-b px-1.5 pt-1 pb-2',
+          column.isCurrent
+            ? 'border-indigo-200 dark:border-indigo-800/70'
+            : 'border-zinc-300/70 dark:border-zinc-700/60',
+        )}
+      >
         <div className="flex items-center justify-between gap-2">
-          <h2 id={headingId} className="text-sm font-semibold">
+          <h2
+            id={headingId}
+            className={cn(
+              'text-sm font-semibold',
+              column.isCurrent && 'text-indigo-900 dark:text-indigo-100',
+              isBacklog && 'text-zinc-700 dark:text-zinc-300',
+            )}
+          >
             {column.title}
           </h2>
-          {column.isCurrent ? (
-            <span className="rounded-full bg-indigo-600 px-2 py-0.5 text-[11px] font-medium text-white">
-              {t('columns.current')}
-            </span>
-          ) : null}
+          <div className="flex items-center gap-1">
+            {column.isCurrent ? (
+              <span className="rounded-full bg-indigo-600 px-2 py-0.5 text-[11px] font-medium text-white shadow-sm">
+                {t('columns.current')}
+              </span>
+            ) : null}
+            {column.id !== null && column.index !== null ? (
+              <SemesterMenu
+                semesterId={column.id}
+                index={column.index}
+                count={semesterCount}
+                title={column.title}
+                actions={actions}
+              />
+            ) : null}
+          </div>
         </div>
         <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-zinc-600 dark:text-zinc-400">
           {column.subtitle ? <span>{column.subtitle}</span> : null}
@@ -145,6 +267,7 @@ export function SemesterColumn({
           creditLabel={creditLabel}
           destinations={semesterDestinations}
           actions={actions}
+          areas={areas}
         />
       ) : null}
 
@@ -221,6 +344,7 @@ export function SemesterColumn({
               creditLabel={creditLabel}
               destinations={semesterDestinations}
               actions={actions}
+              tone={areaTone({ areas }, entry.areaId)}
             />
           ) : (
             <ModuleCard
@@ -232,9 +356,10 @@ export function SemesterColumn({
               passThreshold={passThreshold}
               creditLabel={creditLabel}
               showCode={showCode}
-              notes={notesByCode.get(entry.module.code) ?? NO_NOTES}
+              notes={entry.notes}
               destinations={destinations}
               actions={actions}
+              tone={moduleTone({ areas }, entry.module.code)}
             />
           ),
         )}
@@ -262,4 +387,4 @@ export function SemesterColumn({
       </ul>
     </section>
   )
-}
+})

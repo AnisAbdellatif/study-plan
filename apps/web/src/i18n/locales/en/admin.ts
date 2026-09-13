@@ -4,6 +4,7 @@ import type { Messages } from '../types.ts'
 export const admin = {
   title: 'Admin dashboard',
   signedInAs: 'Signed in as {{email}}',
+  backToHome: 'Back to home',
   loadingStats: 'Loading numbers…',
   access: {
     notFound: 'Page not found',
@@ -165,10 +166,56 @@ export const admin = {
     testSent: 'Test email sent to {{email}}. Check your spam folder too.',
     testFailed: 'Sending failed: {{error}}',
   },
+  presets: {
+    heading: 'Presets',
+    intro:
+      'Presets are the degree programmes students pick on the start page. A preset is a programme file (JSON) in the same format as the file from the prompt. University, programme, degree and PO version come from the file; each combination exists only once.',
+    add: 'Add preset',
+    uploading: 'Uploading…',
+    addInput: 'Choose a programme file (JSON) for a new preset',
+    replaceInput: 'Choose a programme file (JSON) to replace the preset',
+    loadError: "The presets couldn't be loaded.",
+    empty: 'No presets yet. Students then only see the other options on the start page.',
+    columns: {
+      programme: 'Programme',
+      university: 'University',
+      poVersion: 'PO version',
+      updated: 'Last updated',
+      actions: 'Actions',
+    },
+    replace: 'Replace…',
+    replaceLabel: 'Replace {{name}}…',
+    delete: 'Delete…',
+    deleteLabel: 'Delete {{name}}…',
+    footnote:
+      'Replacing swaps the data and keeps the preset’s id. Existing plans keep their own copy of the data, even when a preset is deleted.',
+    added: 'Preset {{name}} added.',
+    replaced: 'Preset {{name}} replaced.',
+    deleted: 'Preset {{name}} deleted.',
+    exists:
+      'A preset for this university, programme, degree and PO version already exists. Replace the existing preset instead.',
+    tooLarge: 'The file is too large. The limit is 5 MB.',
+    notFound: 'This preset no longer exists.',
+    reasons: {
+      empty: 'The file is empty.',
+      no_json: 'The file contains no JSON.',
+      invalid_json: 'The JSON in the file is broken:',
+      invalid_preset: "The file doesn't match the structure of a programme file. These places are affected:",
+    },
+    moreIssues_one: 'and {{count}} more place',
+    moreIssues_other: 'and {{count}} more places',
+    confirmDelete: {
+      title: 'Delete preset?',
+      description:
+        'The preset {{name}} will be deleted and can no longer be picked on the start page. Existing plans are kept.',
+      label: 'Delete permanently',
+    },
+  },
   audit: {
     heading: 'Audit log',
     empty: 'No actions yet.',
     account: 'account {{id}}',
+    preset: 'preset {{id}}',
     footnote: 'The last 50 actions. Entries are deleted after one year.',
     actions: {
       send_verification_email: 'Confirmation email resent',
@@ -179,6 +226,9 @@ export const admin = {
       revoke_admin: 'Admin rights removed',
       create_admin: 'Admin created',
       send_test_email: 'Test email sent',
+      create_preset: 'Preset added',
+      update_preset: 'Preset replaced',
+      delete_preset: 'Preset deleted',
     },
   },
 } satisfies Messages<typeof de>

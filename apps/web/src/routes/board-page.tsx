@@ -7,15 +7,18 @@ import {
   choosePlaceholder,
   createIcs,
   creditRequirements,
+  insertSemester,
   isPlaceholderId,
   localIsoDate,
   moveModule,
+  moveSemester,
   PLACEHOLDER_PREFIX,
   type Plan,
   PlanError,
   planDeadlines,
   removeCustomModule,
   removePlaceholder,
+  removeSemester,
   semesterIndexAt,
   setExamDate,
   setModuleAttempts,
@@ -38,6 +41,7 @@ import { GradeDialog } from '../components/board/grade-dialog.tsx'
 import { ModuleDetailsDialog } from '../components/board/module-details-dialog.tsx'
 import { type PickerTarget, PlaceholderPickerDialog } from '../components/board/placeholder-picker-dialog.tsx'
 import { PlanInsights } from '../components/board/plan-insights.tsx'
+import { PlanOverview } from '../components/board/plan-overview.tsx'
 import { columnTitle, placeholderAreaName, SemesterBoard } from '../components/board/semester-board.tsx'
 import { SummaryPanel } from '../components/board/summary-panel.tsx'
 import { StorageNotice } from '../components/storage-notice.tsx'
@@ -47,10 +51,33 @@ import { useModuleDropMonitor } from '../lib/dnd.ts'
 import { calendarFilename, downloadFile } from '../lib/files.ts'
 import { formatGrade, newId } from '../lib/format.ts'
 import { describeIssues } from '../lib/issues.ts'
+import { usePrinting } from '../lib/use-printing.ts'
+import { useStableHandlers } from '../lib/use-stable-handlers.ts'
 import { useGuestState, useGuestStore } from '../store/guest-store.ts'
 
 /** How far ahead the deadlines card looks. The calendar export always contains every deadline. */
 const DEADLINE_HORIZON_DAYS = 120
+
+export const BOARD_VIEW_STORAGE_KEY = 'study-plan:board-view'
+const BOARD_VIEWS = ['board', 'overview'] as const
+type BoardView = (typeof BOARD_VIEWS)[number]
+
+// Storage can be missing or throw (private mode, blocked site data); the board view is the safe default.
+function readBoardView(): BoardView {
+  try {
+    return window.localStorage.getItem(BOARD_VIEW_STORAGE_KEY) === 'overview' ? 'overview' : 'board'
+  } catch {
+    return 'board'
+  }
+}
+
+function storeBoardView(view: BoardView) {
+  try {
+    window.localStorage.setItem(BOARD_VIEW_STORAGE_KEY, view)
+  } catch {
+    // The choice then only lasts until the page is reloaded.
+  }
+}
 
 export function BoardPage() {
   const { plan } = useGuestState()
@@ -89,6 +116,11 @@ function Board({ plan }: { plan: Plan }) {
   const [picker, setPicker] = useState<PickerTarget | null>(null)
   const [customTarget, setCustomTarget] = useState<CustomModuleTarget | null>(null)
   const [deleteCode, setDeleteCode] = useState<string | null>(null)
+  const [view, setView] = useState<BoardView>(readBoardView)
+  const changeView = (next: BoardView) => {
+    setView(next)
+    storeBoardView(next)
+  }
   const today = localIsoDate(new Date())
 
   const summary = useMemo(() => summarizePlan(plan), [plan])
@@ -155,37 +187,67 @@ function Board({ plan }: { plan: Plan }) {
     },
     [plan, apply, announce, t, areaName],
   )
-  useModuleDropMonitor(move, placeArea)
 
-  const actions = useMemo(
-    (): BoardActions => ({
-      onMove: move,
-      onGrade: setGradingCode,
-      onDetails: setDetailsCode,
-      onPlaceArea: placeArea,
-      onBrowseArea: (areaId) => setPicker({ mode: 'browse', areaId }),
-      onChoose: (placeholderId) => setPicker({ mode: 'choose', placeholderId }),
-      onRemovePlaceholder: (placeholderId) => {
-        const area = placeholderAreaName(plan, placeholderId) ?? placeholderId
-        if (apply((current) => removePlaceholder(current, placeholderId)))
-          announce(t('announce.placeholderRemoved', { area }))
-      },
-      onUnchoose: (code) => {
-        if (apply((current) => unchooseModule(current, code)))
-          announce(t('announce.unchosen', { name: moduleName(code) }))
-      },
-      onChooseOther: (code) => {
-        const id = newPlaceholderId()
-        if (!apply((current) => unchooseModule(current, code, id.slice(PLACEHOLDER_PREFIX.length)))) return
-        announce(t('announce.unchosen', { name: moduleName(code) }))
-        setPicker({ mode: 'choose', placeholderId: id })
-      },
-      onAddCustom: () => setCustomTarget({ mode: 'create' }),
-      onEditCustom: (code) => setCustomTarget({ mode: 'edit', code }),
-      onDeleteCustom: setDeleteCode,
-    }),
-    [plan, move, placeArea, apply, announce, t, moduleName],
+  /** Semester waiting for the delete confirmation; only non-empty semesters ask. */
+  const [deleteSemesterId, setDeleteSemesterId] = useState<string | null>(null)
+
+  const deleteSemester = useCallback(
+    (semesterId: string) => {
+      const title = columnTitle(plan, semesterId)
+      if (apply((current) => removeSemester(current, semesterId))) {
+        announce(t('announce.semesterDeleted', { column: title }))
+      }
+    },
+    [plan, apply, announce, t],
   )
+
+  // One object for the whole lifetime of the board: cards and columns are memoised and must not re-render just
+  // because a handler now sees the newer plan.
+  const actions = useStableHandlers<BoardActions>({
+    onMove: move,
+    onGrade: setGradingCode,
+    onDetails: setDetailsCode,
+    onPlaceArea: placeArea,
+    onBrowseArea: (areaId) => setPicker({ mode: 'browse', areaId }),
+    onChoose: (placeholderId) => setPicker({ mode: 'choose', placeholderId }),
+    onRemovePlaceholder: (placeholderId) => {
+      const area = placeholderAreaName(plan, placeholderId) ?? placeholderId
+      if (apply((current) => removePlaceholder(current, placeholderId)))
+        announce(t('announce.placeholderRemoved', { area }))
+    },
+    onUnchoose: (code) => {
+      if (apply((current) => unchooseModule(current, code)))
+        announce(t('announce.unchosen', { name: moduleName(code) }))
+    },
+    onChooseOther: (code) => {
+      const id = newPlaceholderId()
+      if (!apply((current) => unchooseModule(current, code, id.slice(PLACEHOLDER_PREFIX.length)))) return
+      announce(t('announce.unchosen', { name: moduleName(code) }))
+      setPicker({ mode: 'choose', placeholderId: id })
+    },
+    onAddCustom: () => setCustomTarget({ mode: 'create' }),
+    onEditCustom: (code) => setCustomTarget({ mode: 'edit', code }),
+    onDeleteCustom: setDeleteCode,
+    onInsertSemester: (index) => {
+      if (apply((current) => insertSemester(current, index))) {
+        announce(t('announce.semesterInserted', { number: index + 1 }))
+      }
+    },
+    onMoveSemester: (semesterId, toIndex) => {
+      if (apply((current) => moveSemester(current, semesterId, toIndex))) {
+        announce(t('announce.semesterMoved', { number: toIndex + 1 }))
+      }
+    },
+    onDeleteSemester: (semesterId) => {
+      const semester = plan.semesters.find((candidate) => candidate.id === semesterId)
+      if (!semester) return
+      if (semester.moduleCodes.length > 0) setDeleteSemesterId(semesterId)
+      else deleteSemester(semesterId)
+    },
+  })
+  useModuleDropMonitor(actions.onMove, actions.onPlaceArea)
+  const printing = usePrinting()
+  const semesterToDelete = plan.semesters.find((semester) => semester.id === deleteSemesterId) ?? null
 
   const choose = (placeholderId: string, code: string) => {
     const area = placeholderAreaName(plan, placeholderId) ?? placeholderId
@@ -257,12 +319,68 @@ function Board({ plan }: { plan: Plan }) {
           onExportCalendar={exportCalendar}
         />
       </div>
-      <SemesterBoard
-        plan={plan}
-        summary={summary}
-        currentIndex={currentIndex}
-        actions={actions}
-        notesByCode={issues.byModule}
+      {/* Native radios give arrow-key navigation and the checked state for free; the label is the visible segment. */}
+      <fieldset className="print:hidden">
+        <legend className="sr-only">{t('view.label')}</legend>
+        <div className="inline-flex rounded-lg bg-zinc-100 p-1 dark:bg-zinc-900">
+          {BOARD_VIEWS.map((option) => (
+            <label
+              key={option}
+              className={
+                view === option
+                  ? 'flex h-8 cursor-pointer items-center rounded-md bg-white px-3 text-sm font-medium text-zinc-900 shadow-sm has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-indigo-500 dark:bg-zinc-800 dark:text-zinc-100'
+                  : 'flex h-8 cursor-pointer items-center rounded-md px-3 text-sm font-medium text-zinc-600 hover:text-zinc-900 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-indigo-500 dark:text-zinc-400 dark:hover:text-zinc-100'
+              }
+            >
+              <input
+                type="radio"
+                name="board-view"
+                value={option}
+                checked={view === option}
+                onChange={() => changeView(option)}
+                className="sr-only"
+              />
+              {t(`view.${option}`)}
+            </label>
+          ))}
+        </div>
+      </fieldset>
+      {view === 'board' && (
+        <div className="print:hidden">
+          <SemesterBoard
+            plan={plan}
+            summary={summary}
+            currentIndex={currentIndex}
+            actions={actions}
+            notesByCode={issues.byModule}
+          />
+        </div>
+      )}
+      {/* Printing always gives the overview. On the board it only mounts for printing, so edits don't rebuild it. */}
+      {view === 'overview' || printing ? (
+        <div className={view === 'overview' ? undefined : 'hidden print:block'}>
+          <PlanOverview plan={plan} summary={summary} />
+        </div>
+      ) : null}
+      <ConfirmDialog
+        open={semesterToDelete !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteSemesterId(null)
+        }}
+        title={
+          semesterToDelete
+            ? t('semesterMenu.deleteTitle', { column: columnTitle(plan, semesterToDelete.id) })
+            : ''
+        }
+        description={t('semesterMenu.deleteDescription', {
+          count: semesterToDelete?.moduleCodes.length ?? 0,
+        })}
+        confirmLabel={t('semesterMenu.deleteConfirm')}
+        destructive
+        onConfirm={() => {
+          if (semesterToDelete) deleteSemester(semesterToDelete.id)
+          setDeleteSemesterId(null)
+        }}
       />
       <GradeDialog
         module={plan.modules.find((m) => m.code === gradingCode) ?? null}
