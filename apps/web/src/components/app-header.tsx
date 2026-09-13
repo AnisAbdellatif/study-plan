@@ -1,4 +1,4 @@
-import { addSemester, type Plan, removeLastSemester } from '@study-plan/shared'
+import { addSemester, type Plan, removeLastSemester, resetPlan } from '@study-plan/shared'
 import { useNavigate } from '@tanstack/react-router'
 import { Download, EllipsisVertical } from 'lucide-react'
 import { useState } from 'react'
@@ -23,6 +23,8 @@ export function AppHeader({ plan }: { plan: Plan }) {
   const announce = useAnnounce()
   const exportPlan = useExportPlan()
   const [confirmReset, setConfirmReset] = useState(false)
+  const [restoreOpen, setRestoreOpen] = useState(false)
+  const [clearResults, setClearResults] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
 
@@ -76,6 +78,14 @@ export function AppHeader({ plan }: { plan: Plan }) {
               {t('header.removeLastSemester')}
             </MenuItem>
             <MenuSeparator />
+            <MenuItem
+              onClick={() => {
+                setClearResults(false)
+                setRestoreOpen(true)
+              }}
+            >
+              {t('header.restoreDefault')}
+            </MenuItem>
             <MenuItem className="text-red-700 dark:text-red-400" onClick={() => setConfirmReset(true)}>
               {t('header.startOver')}
             </MenuItem>
@@ -84,6 +94,31 @@ export function AppHeader({ plan }: { plan: Plan }) {
       </div>
       <ImportGradesDialog plan={plan} open={importOpen} onOpenChange={setImportOpen} />
       <ShareDialog open={shareOpen} onOpenChange={setShareOpen} />
+      <ConfirmDialog
+        open={restoreOpen}
+        onOpenChange={setRestoreOpen}
+        title={t('header.restoreDefaultTitle')}
+        description={
+          <>
+            <span className="block">{t('header.restoreDefaultDescription')}</span>
+            <label className="mt-3 flex items-start gap-2 text-zinc-900 dark:text-zinc-100">
+              <input
+                type="checkbox"
+                className="mt-0.5 size-4 accent-indigo-600"
+                checked={clearResults}
+                onChange={(event) => setClearResults(event.target.checked)}
+              />
+              <span>{t('header.restoreDefaultClearResults')}</span>
+            </label>
+          </>
+        }
+        confirmLabel={t('header.restoreDefaultConfirm')}
+        destructive={clearResults}
+        onConfirm={() => {
+          store.updatePlan((current) => resetPlan(current, { clearResults }))
+          announce(t(clearResults ? 'header.restoreDefaultDoneCleared' : 'header.restoreDefaultDone'))
+        }}
+      />
       <ConfirmDialog
         open={confirmReset}
         onOpenChange={setConfirmReset}

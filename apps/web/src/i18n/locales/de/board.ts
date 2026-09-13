@@ -10,6 +10,14 @@ export const board = {
     semesterAdded: 'Semester hinzugefügt',
     removeLastSemester: 'Letztes Semester entfernen',
     lastSemesterRemoved: 'Letztes Semester entfernt, seine Module sind jetzt nicht eingeplant',
+    restoreDefault: 'Auf Standardplan zurücksetzen…',
+    restoreDefaultTitle: 'Plan auf den Standard zurücksetzen?',
+    restoreDefaultDescription:
+      'Alle Module kommen wieder in ihr empfohlenes Semester, Wahlmodule nach „Nicht eingeplant“. Zusätzliche Semester werden entfernt.',
+    restoreDefaultClearResults: 'Auch Noten, Prüfungstermine und Zielschnitt entfernen',
+    restoreDefaultConfirm: 'Zurücksetzen',
+    restoreDefaultDone: 'Plan auf den Standard zurückgesetzt, Noten behalten',
+    restoreDefaultDoneCleared: 'Plan auf den Standard zurückgesetzt, Noten entfernt',
     startOver: 'Neu beginnen…',
     resetTitle: 'Plan löschen und neu beginnen?',
     resetDescription:

@@ -1,6 +1,12 @@
 import { z } from 'zod'
 import { toHalves } from '../engine/units.ts'
-import { type Preset, presetAreaSchema, presetModuleSchema } from '../schema/preset.ts'
+import {
+  type Preset,
+  type PresetArea,
+  type PresetModule,
+  presetAreaSchema,
+  presetModuleSchema,
+} from '../schema/preset.ts'
 import { creditValueSchema, gradeRulesSchema, gradeValueSchema } from '../schema/rules.ts'
 import { type Term, termSchema } from './terms.ts'
 
@@ -145,10 +151,10 @@ export function presetInfoFrom(preset: Preset): PresetInfo {
  * same semester add up to more than the maximum (e.g. 14 Proseminare of 5 LP each in a 10 LP area). Modules
  * that fit, like a compulsory module of the same area in another semester, are not choices.
  */
-function inferredChoices(preset: Preset): Set<string> {
-  const byCode = new Map(preset.modules.map((module) => [module.code, module]))
+function inferredChoices(modules: readonly PresetModule[], areas: readonly PresetArea[]): Set<string> {
+  const byCode = new Map(modules.map((module) => [module.code, module]))
   const choices = new Set<string>()
-  for (const area of preset.areas) {
+  for (const area of areas) {
     if (area.maxCredits === undefined) continue
     const groups = new Map<number, { codes: string[]; halves: number }>()
     for (const code of area.moduleCodes) {
@@ -166,6 +172,58 @@ function inferredChoices(preset: Preset): Set<string> {
   return choices
 }
 
+/**
+ * Where modules start in a new plan: their recommended semester, while choices, modules without a recommendation
+ * and modules kept only for their results (retired) start unplanned.
+ */
+function defaultPlacement(
+  modules: readonly (PresetModule & { retired?: true })[],
+  areas: readonly PresetArea[],
+  standardSemesters: number,
+): { semesters: PlanSemester[]; backlog: string[] } {
+  const semesters: PlanSemester[] = Array.from({ length: standardSemesters }, (_, index) => ({
+    id: `s${index + 1}`,
+    kind: 'regular',
+    moduleCodes: [],
+  }))
+  const backlog: string[] = []
+  const choices = inferredChoices(modules, areas)
+  for (const module of modules) {
+    const unplanned = module.retired === true || (module.elective ?? choices.has(module.code))
+    const target =
+      module.typicalSemester === undefined || unplanned ? undefined : semesters[module.typicalSemester - 1]
+    if (target) target.moduleCodes.push(module.code)
+    else backlog.push(module.code)
+  }
+  return { semesters, backlog }
+}
+
+export interface ResetPlanOptions {
+  /** Also remove results, exam dates, the target grade and modules that were only kept for their results. */
+  clearResults?: boolean
+}
+
+/**
+ * Puts every module back where a new plan from the same programme data would place it, with the standard number
+ * of semesters. Results, exam dates and the target grade stay unless `clearResults` is set.
+ */
+export function resetPlan(plan: Plan, options: ResetPlanOptions = {}): Plan {
+  const { targetGrade, ...withoutTarget } = plan
+  const modules = options.clearResults
+    ? plan.modules
+        .filter((module) => !module.retired)
+        .map(({ examDate: _examDate, ...module }) => ({ ...module, attempts: [] }))
+    : plan.modules
+  const { semesters, backlog } = defaultPlacement(modules, plan.areas, plan.preset.standardSemesters)
+  return {
+    ...withoutTarget,
+    ...(options.clearResults || targetGrade === undefined ? {} : { targetGrade }),
+    modules,
+    semesters,
+    backlog,
+  }
+}
+
 export interface CreatePlanOptions {
   id: string
   startTerm: Term
@@ -178,21 +236,7 @@ export interface CreatePlanOptions {
  * within the standard duration, otherwise in the backlog.
  */
 export function createPlanFromPreset(preset: Preset, options: CreatePlanOptions): Plan {
-  const semesters: PlanSemester[] = Array.from({ length: preset.standardSemesters }, (_, index) => ({
-    id: `s${index + 1}`,
-    kind: 'regular',
-    moduleCodes: [],
-  }))
-  const backlog: string[] = []
-  const choices = inferredChoices(preset)
-
-  for (const module of preset.modules) {
-    const isChoice = module.elective ?? choices.has(module.code)
-    const target =
-      module.typicalSemester === undefined || isChoice ? undefined : semesters[module.typicalSemester - 1]
-    if (target) target.moduleCodes.push(module.code)
-    else backlog.push(module.code)
-  }
+  const { semesters, backlog } = defaultPlacement(preset.modules, preset.areas, preset.standardSemesters)
 
   const timestamp = options.now.toISOString()
   return {

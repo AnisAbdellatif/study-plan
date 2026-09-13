@@ -13,6 +13,14 @@ export const board = {
     semesterAdded: 'Semester added',
     removeLastSemester: 'Remove last semester',
     lastSemesterRemoved: 'Last semester removed, its modules are now not planned',
+    restoreDefault: 'Reset to default plan…',
+    restoreDefaultTitle: 'Reset the plan to its default?',
+    restoreDefaultDescription:
+      'Every module goes back to its recommended semester, and electives go back to “Not planned”. Extra semesters are removed.',
+    restoreDefaultClearResults: 'Also remove grades, exam dates and target average',
+    restoreDefaultConfirm: 'Reset',
+    restoreDefaultDone: 'Plan reset to its default, grades kept',
+    restoreDefaultDoneCleared: 'Plan reset to its default, grades removed',
     startOver: 'Start over…',
     resetTitle: 'Delete plan and start over?',
     resetDescription:
