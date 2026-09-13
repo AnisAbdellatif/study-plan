@@ -15,6 +15,8 @@ import { Button } from '../components/ui/button.tsx'
 import { ConfirmDialog } from '../components/ui/dialog.tsx'
 import { currentLocale } from '../i18n/index.ts'
 import { ApiError, type SharedPlanResponse, shareApi } from '../lib/api.ts'
+import { areaTone, moduleTone } from '../lib/area-colors.ts'
+import { cn } from '../lib/cn.ts'
 import { formatCredits, newId } from '../lib/format.ts'
 import { useGuestState, useGuestStore } from '../store/guest-store.ts'
 
@@ -86,12 +88,31 @@ function SharedPlanView({ response, plan }: { response: SharedPlanResponse; plan
         </div>
       </header>
 
+      {plan.areas.length > 0 ? (
+        <ul aria-label={t('legend')} className="flex flex-wrap gap-x-4 gap-y-1.5 text-sm">
+          {plan.areas.map((area) => (
+            <li key={area.id} className="flex items-center gap-1.5">
+              <span
+                aria-hidden
+                className={cn('size-2.5 shrink-0 rounded-full', areaTone(plan, area.id).dot)}
+              />
+              {area.name}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         {columns.map((column) => (
           <section
             key={column.key}
             aria-label={column.title}
-            className="rounded-xl bg-zinc-200/60 p-3 dark:bg-zinc-900/70 print:break-inside-avoid"
+            className={cn(
+              'rounded-xl p-3 print:break-inside-avoid',
+              column.key === 'backlog'
+                ? 'bg-slate-200/35 ring-1 ring-zinc-300/50 dark:bg-zinc-900/35 dark:ring-zinc-800/60'
+                : 'bg-slate-200/75 ring-1 ring-slate-300/60 dark:bg-zinc-900/80 dark:ring-zinc-800',
+            )}
           >
             <h2 className="text-sm font-semibold">{column.title}</h2>
             {column.subtitle ? (
@@ -103,11 +124,16 @@ function SharedPlanView({ response, plan }: { response: SharedPlanResponse; plan
                   const areaId = placeholderAreas.get(code)
                   // A placeholder without its record carries no information worth showing.
                   if (areaId === undefined) return null
+                  const tone = areaTone(plan, areaId)
                   return (
                     <li
                       key={code}
                       data-testid="shared-placeholder"
-                      className="rounded-lg border-2 border-dashed border-zinc-400 px-2.5 py-2 text-sm dark:border-zinc-600"
+                      className={cn(
+                        'rounded-lg border-2 border-l-4 border-dashed border-zinc-400 px-2.5 py-2 text-sm dark:border-zinc-500',
+                        tone.stripe,
+                        tone.soft,
+                      )}
                     >
                       <span className="block text-xs text-zinc-500 dark:text-zinc-400">
                         {t('placeholder')}
@@ -123,10 +149,17 @@ function SharedPlanView({ response, plan }: { response: SharedPlanResponse; plan
                 }
                 const module = names.get(code)
                 const category = module?.custom ? t('custom') : module?.category
+                // Same area colours as the board, so a shared plan reads like the owner's.
+                const tone = moduleTone(plan, code)
                 return (
                   <li
                     key={code}
-                    className="rounded-lg bg-white px-2.5 py-2 text-sm ring-1 ring-zinc-200 dark:bg-zinc-950 dark:ring-zinc-800"
+                    data-testid="shared-module"
+                    className={cn(
+                      'rounded-lg border-l-4 px-2.5 py-2 text-sm shadow-sm ring-1 ring-zinc-900/10 dark:ring-white/10',
+                      tone.stripe,
+                      tone.soft,
+                    )}
                   >
                     <span className="block leading-snug font-medium">{module?.name ?? code}</span>
                     <span className="text-xs text-zinc-600 dark:text-zinc-400">

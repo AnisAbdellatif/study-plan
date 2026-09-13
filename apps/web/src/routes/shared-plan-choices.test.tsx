@@ -8,6 +8,7 @@ import {
 import { createMemoryHistory, RouterProvider } from '@tanstack/react-router'
 import { render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { areaTone, moduleTone, NEUTRAL_TONE } from '../lib/area-colors.ts'
 import { createAppRouter } from '../router.tsx'
 import { createGuestStore, GuestStoreContext } from '../store/guest-store.ts'
 import { luhPreset } from '../test/fixtures.ts'
@@ -68,5 +69,28 @@ describe('shared plans with placeholders and custom modules', () => {
     expect(first).toHaveTextContent('Japanisch A1')
     expect(first).toHaveTextContent('Eigenes Modul')
     expect(first).not.toHaveTextContent('custom')
+
+    // Same area colours as the board: modules and placeholders carry their area's tone, custom modules the
+    // neutral one, and a legend names the areas.
+    const hasTone = (element: HTMLElement | undefined, classes: string) => {
+      for (const name of classes.split(' ')) expect(element).toHaveClass(name)
+    }
+    hasTone(placeholder, areaTone(plan, 'vertiefung-informatik').stripe)
+    const cards = within(first).getAllByTestId('shared-module')
+    hasTone(
+      cards.find((card) => card.textContent?.includes('Japanisch A1')),
+      NEUTRAL_TONE.stripe,
+    )
+    const areaModule = plan.semesters[0]?.moduleCodes.find((code) =>
+      plan.modules.some((module) => module.code === code && !module.custom),
+    )
+    const areaModuleName = plan.modules.find((module) => module.code === areaModule)?.name ?? ''
+    expect(moduleTone(plan, areaModule ?? '')).not.toBe(NEUTRAL_TONE)
+    hasTone(
+      cards.find((card) => card.textContent?.includes(areaModuleName)),
+      moduleTone(plan, areaModule ?? '').stripe,
+    )
+    const legend = screen.getByRole('list', { name: 'Bereiche' })
+    expect(within(legend).getByText('Vertiefung der Informatik')).toBeInTheDocument()
   })
 })

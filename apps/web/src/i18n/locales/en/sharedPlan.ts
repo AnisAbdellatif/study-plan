@@ -7,6 +7,7 @@ export const sharedPlan = {
   adopt: 'Use as my own plan',
   semester: 'Semester {{number}}',
   backlog: 'Not scheduled',
+  legend: 'Areas',
   placeholder: 'Placeholder',
   custom: 'Custom module',
   estimate: '≈ {{credits}} {{label}}',
