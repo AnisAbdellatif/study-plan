@@ -135,29 +135,51 @@ export function SummaryPanel({ plan, summary }: { plan: Plan; summary: PlanSumma
       </section>
 
       <section className="col-span-2 rounded-xl bg-white p-4 ring-1 ring-zinc-200 lg:col-span-1 dark:bg-zinc-900 dark:ring-zinc-800">
-        <h2 className="text-sm text-zinc-600 dark:text-zinc-400">{t('summary.areas')}</h2>
+        <div className="flex items-baseline justify-between gap-2">
+          <h2 className="text-sm text-zinc-600 dark:text-zinc-400">{t('summary.areas')}</h2>
+          <span className="text-xs text-zinc-500">{t('summary.areaLegend')}</span>
+        </div>
         <ul className="mt-2 space-y-2.5">
-          {summary.areas.map((area) => (
-            <li key={area.id}>
-              <div className="flex justify-between gap-2 text-sm">
-                <span className="truncate">{area.name}</span>
-                <span className="shrink-0 tabular-nums text-zinc-600 dark:text-zinc-400">
-                  {formatCredits(area.earnedCredits)} / {formatCredits(area.minCredits)}
-                  {area.maxCredits !== undefined && area.maxCredits !== area.minCredits
-                    ? ` ${t('summary.areaMax', { credits: formatCredits(area.maxCredits) })}`
-                    : ''}
-                </span>
-              </div>
-              <div className="mt-1">
-                <CreditBar
-                  earned={area.earnedCredits}
-                  planned={area.plannedCredits}
-                  total={Math.max(area.minCredits, area.plannedCredits)}
-                  label={area.name}
-                />
-              </div>
-            </li>
-          ))}
+          {summary.areas.map((area) => {
+            const planned = area.plannedCredits + area.placeholderCredits
+            const hasRange = area.maxCredits !== undefined && area.maxCredits !== area.minCredits
+            const target = hasRange
+              ? t('summary.areaRange', {
+                  min: formatCredits(area.minCredits),
+                  max: formatCredits(area.maxCredits ?? area.minCredits),
+                })
+              : formatCredits(area.minCredits)
+            const plannedText = `${area.placeholderCredits > 0 ? '≈' : ''}${formatCredits(planned)}`
+            return (
+              <li key={area.id}>
+                <div className="flex justify-between gap-2 text-sm">
+                  <span className="truncate">{area.name}</span>
+                  <span
+                    className="shrink-0 tabular-nums text-zinc-600 dark:text-zinc-400"
+                    title={t('summary.areaValue', {
+                      earned: formatCredits(area.earnedCredits),
+                      planned: plannedText,
+                      target,
+                      label,
+                    })}
+                  >
+                    <span className="font-medium text-zinc-900 dark:text-zinc-100">
+                      {formatCredits(area.earnedCredits)}
+                    </span>{' '}
+                    / {plannedText} <span className="text-zinc-500">({target})</span>
+                  </span>
+                </div>
+                <div className="mt-1">
+                  <CreditBar
+                    earned={area.earnedCredits}
+                    planned={planned}
+                    total={Math.max(area.minCredits, planned)}
+                    label={area.name}
+                  />
+                </div>
+              </li>
+            )
+          })}
         </ul>
       </section>
 
