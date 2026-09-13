@@ -123,6 +123,7 @@ export const dialogs = {
       prerequisites: 'Voraussetzungen',
       requiresCredits: 'Mindest-LP',
       maxAttempts: 'Anzahl Versuche',
+      details: 'Angaben aus dem Modulkatalog',
     },
     info: {
       id: 'Vorlage',

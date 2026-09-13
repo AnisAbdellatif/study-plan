@@ -300,6 +300,193 @@
             "type": "integer",
             "minimum": 1,
             "maximum": 10
+          },
+          "details": {
+            "type": "object",
+            "properties": {
+              "englishName": {
+                "type": "string",
+                "minLength": 1
+              },
+              "responsible": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "lecturers": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "examiners": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "organisationalUnit": {
+                "type": "string",
+                "minLength": 1
+              },
+              "languages": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "frequency": {
+                "type": "string",
+                "minLength": 1
+              },
+              "durationSemesters": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 6
+              },
+              "sws": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 60
+              },
+              "courses": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "title": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "sws": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 60
+                    }
+                  },
+                  "required": [
+                    "type"
+                  ]
+                }
+              },
+              "workload": {
+                "type": "object",
+                "properties": {
+                  "totalHours": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 10000
+                  },
+                  "contactHours": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 10000
+                  },
+                  "selfStudyHours": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 10000
+                  }
+                }
+              },
+              "examForms": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "examRegistration": {
+                "type": "string",
+                "minLength": 1
+              },
+              "courseworkRequirements": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "gradingNote": {
+                "type": "string",
+                "minLength": 1
+              },
+              "participationRequirements": {
+                "type": "string",
+                "minLength": 1
+              },
+              "recommendedPrerequisites": {
+                "type": "string",
+                "minLength": 1
+              },
+              "learningOutcomes": {
+                "type": "string",
+                "minLength": 1
+              },
+              "content": {
+                "type": "string",
+                "minLength": 1
+              },
+              "literature": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "teachingMethods": {
+                "type": "string",
+                "minLength": 1
+              },
+              "usability": {
+                "type": "string",
+                "minLength": 1
+              },
+              "specialisations": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "website": {
+                "type": "string",
+                "minLength": 1
+              },
+              "remarks": {
+                "type": "string",
+                "minLength": 1
+              },
+              "additionalFields": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "label": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "value": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "label",
+                    "value"
+                  ]
+                }
+              }
+            }
           }
         },
         "required": [

@@ -13,6 +13,7 @@ export type ModuleField =
   | 'prerequisites'
   | 'requiresCredits'
   | 'maxAttempts'
+  | 'details'
 
 const MODULE_FIELDS: ModuleField[] = [
   'name',
@@ -25,6 +26,7 @@ const MODULE_FIELDS: ModuleField[] = [
   'prerequisites',
   'requiresCredits',
   'maxAttempts',
+  'details',
 ]
 
 export interface ModuleChange {

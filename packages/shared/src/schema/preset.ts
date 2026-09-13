@@ -5,6 +5,76 @@ const presetIdSchema = z.string().regex(/^[a-z0-9-]+\/[a-z0-9-]+$/)
 
 const slugSchema = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Use lowercase letters, digits and dashes')
 
+const detailText = z.string().min(1)
+const hours = z.number().nonnegative().max(10000)
+const swsValue = z.number().nonnegative().max(60)
+
+/**
+ * Descriptive facts from the Modulkatalog entry. Everything is optional and informational: the planner never
+ * computes with these fields. Texts stay in the language of the catalog.
+ */
+export const moduleDetailsSchema = z.object({
+  /** Englischer Titel */
+  englishName: detailText.optional(),
+  /** Modulverantwortliche(r) */
+  responsible: z.array(detailText).optional(),
+  /** Dozent/in, Lehrende */
+  lecturers: z.array(detailText).optional(),
+  /** Prüfer/in */
+  examiners: z.array(detailText).optional(),
+  /** Organisationseinheit, Institut, Fakultät, Lehreinheit */
+  organisationalUnit: detailText.optional(),
+  /** Unterrichtssprache(n), verbatim */
+  languages: z.array(detailText).optional(),
+  /** Turnus as written, e.g. "jedes Wintersemester" */
+  frequency: detailText.optional(),
+  durationSemesters: z.number().int().min(1).max(6).optional(),
+  /** Total Semesterwochenstunden */
+  sws: swsValue.optional(),
+  /** Courses of the module, e.g. 2V + 2Ü */
+  courses: z
+    .array(z.object({ type: detailText, title: detailText.optional(), sws: swsValue.optional() }))
+    .optional(),
+  /** Arbeitsaufwand in hours */
+  workload: z
+    .object({
+      totalHours: hours.optional(),
+      contactHours: hours.optional(),
+      selfStudyHours: hours.optional(),
+    })
+    .optional(),
+  /** Prüfungsleistung(en) as written, e.g. "Klausur (90 Min.)" */
+  examForms: z.array(detailText).optional(),
+  /** Prüfungsanmeldung */
+  examRegistration: detailText.optional(),
+  /** Studienleistung(en) */
+  courseworkRequirements: z.array(detailText).optional(),
+  /** Prüfungsbewertungen, Benotung */
+  gradingNote: detailText.optional(),
+  /** Binding Teilnahmevoraussetzungen as written */
+  participationRequirements: detailText.optional(),
+  /** Empfohlene Vorkenntnisse */
+  recommendedPrerequisites: detailText.optional(),
+  /** Qualifikationsziele, Lernergebnisse */
+  learningOutcomes: detailText.optional(),
+  /** Inhalt */
+  content: detailText.optional(),
+  /** Literatur, one entry per item */
+  literature: z.array(detailText).optional(),
+  /** Lehr- und Lernformen, Medien */
+  teachingMethods: detailText.optional(),
+  /** Verwendbarkeit, Einordnung in Studiengänge */
+  usability: detailText.optional(),
+  /** Schwerpunkt, Micro-Degree */
+  specialisations: z.array(detailText).optional(),
+  website: detailText.optional(),
+  /** Weitere Angaben, Bemerkungen */
+  remarks: detailText.optional(),
+  /** Any other field of the catalog entry, label and value verbatim */
+  additionalFields: z.array(z.object({ label: detailText, value: detailText })).optional(),
+})
+export type ModuleDetails = z.infer<typeof moduleDetailsSchema>
+
 /** A prerequisite is a module code, or a group where any one of the listed modules suffices. */
 export const prerequisiteSchema = z.union([
   z.string().min(1),
@@ -30,6 +100,8 @@ export const presetModuleSchema = z.object({
   requiresCredits: creditValueSchema.optional(),
   /** Overrides `examRules.maxAttempts` for this module, e.g. fewer attempts for a Bachelorarbeit. */
   maxAttempts: z.number().int().min(1).max(10).optional(),
+  /** Descriptive facts from the Modulkatalog. */
+  details: moduleDetailsSchema.optional(),
 })
 export type PresetModule = z.infer<typeof presetModuleSchema>
 

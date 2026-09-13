@@ -22,6 +22,7 @@ import { AccountSyncBanner } from '../components/account-sync.tsx'
 import { useAnnounce } from '../components/announcer.tsx'
 import { AppHeader } from '../components/app-header.tsx'
 import { GradeDialog } from '../components/board/grade-dialog.tsx'
+import { ModuleDetailsDialog } from '../components/board/module-details-dialog.tsx'
 import { PlanInsights } from '../components/board/plan-insights.tsx'
 import { PresetUpdateBanner } from '../components/board/preset-update-banner.tsx'
 import { columnTitle, SemesterBoard } from '../components/board/semester-board.tsx'
@@ -64,6 +65,7 @@ function Board({ plan }: { plan: Plan }) {
   const store = useGuestStore()
   const announce = useAnnounce()
   const [gradingCode, setGradingCode] = useState<string | null>(null)
+  const [detailsCode, setDetailsCode] = useState<string | null>(null)
   const today = localIsoDate(new Date())
 
   const summary = useMemo(() => summarizePlan(plan), [plan])
@@ -137,6 +139,7 @@ function Board({ plan }: { plan: Plan }) {
         currentIndex={currentIndex}
         onMove={move}
         onGrade={setGradingCode}
+        onDetails={setDetailsCode}
         notesByCode={issues.byModule}
       />
       <GradeDialog
@@ -144,6 +147,11 @@ function Board({ plan }: { plan: Plan }) {
         plan={plan}
         onSave={saveResult}
         onClose={() => setGradingCode(null)}
+      />
+      <ModuleDetailsDialog
+        module={plan.modules.find((m) => m.code === detailsCode) ?? null}
+        plan={plan}
+        onClose={() => setDetailsCode(null)}
       />
     </main>
   )

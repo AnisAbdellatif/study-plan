@@ -13,6 +13,8 @@ export const start = {
   semesterCount_one: '{{count}} semester',
   semesterCount_other: '{{count}} semesters',
   fictionalNote: 'Made up, not based on any real examination regulations.',
+  customMissing: 'Your university or programme is missing?',
+  customLink: 'Add your own programme',
   startTerm: 'Start of studies',
   winter: 'Winter semester',
   summer: 'Summer semester',

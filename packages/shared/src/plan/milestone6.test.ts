@@ -329,3 +329,21 @@ describe('reminders', () => {
     expect(dueReminders(passed, '2027-02-08')).toEqual([])
   })
 })
+
+describe('module details in preset updates', () => {
+  it('reports changed Modulkatalog details and takes them over', () => {
+    const plan = planFor(example)
+    const updated = presetSchema.parse({
+      ...readPreset('example/informatik-bsc-example.json'),
+      modules: example.modules.map((module) =>
+        module.code === 'INF-101'
+          ? { ...module, details: { lecturers: ['Prof. Dr. Ada Lovelace'] } }
+          : module,
+      ),
+    })
+    const diff = diffPresetUpdate(plan, updated)
+    expect(diff.changed).toEqual([
+      { code: 'INF-101', name: 'Grundlagen der Programmierung', fields: ['details'], resultCleared: false },
+    ])
+  })
+})

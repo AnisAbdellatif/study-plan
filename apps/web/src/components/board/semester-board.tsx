@@ -14,6 +14,7 @@ export interface SemesterBoardProps {
   currentIndex: number
   onMove: MoveHandler
   onGrade: (code: string) => void
+  onDetails: (code: string) => void
   notesByCode: ReadonlyMap<string, readonly IssueText[]>
 }
 
@@ -28,6 +29,7 @@ export function SemesterBoard({
   currentIndex,
   onMove,
   onGrade,
+  onDetails,
   notesByCode,
 }: SemesterBoardProps) {
   const { t } = useTranslation('board')
@@ -127,6 +129,7 @@ export function SemesterBoard({
             destinations={destinations}
             onMove={onMove}
             onGrade={onGrade}
+            onDetails={onDetails}
             registerElement={registerElement}
           />
         ))}

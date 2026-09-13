@@ -16,6 +16,7 @@ import {
   UnsubscribePage,
 } from './routes/auth-pages.tsx'
 import { BoardPage } from './routes/board-page.tsx'
+import { CustomPresetPage } from './routes/custom-preset-page.tsx'
 import { SharedPlanPage } from './routes/shared-plan-page.tsx'
 import { StartPage } from './routes/start-page.tsx'
 
@@ -34,6 +35,11 @@ const rootRoute = createRootRoute({
 
 const boardRoute = createRoute({ getParentRoute: () => rootRoute, path: '/', component: BoardPage })
 const startRoute = createRoute({ getParentRoute: () => rootRoute, path: '/start', component: StartPage })
+const customPresetRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/start/custom',
+  component: CustomPresetPage,
+})
 const signInRoute = createRoute({ getParentRoute: () => rootRoute, path: '/sign-in', component: SignInPage })
 const signUpRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -82,6 +88,7 @@ const adminRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin'
 export const routeTree = rootRoute.addChildren([
   boardRoute,
   startRoute,
+  customPresetRoute,
   signInRoute,
   signUpRoute,
   forgotRoute,

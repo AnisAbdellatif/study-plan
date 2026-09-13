@@ -10,6 +10,8 @@ export const start = {
   semesterCount_one: '{{count}} Semester',
   semesterCount_other: '{{count}} Semester',
   fictionalNote: 'Frei erfunden, basiert auf keiner echten Prüfungsordnung.',
+  customMissing: 'Deine Hochschule oder dein Studiengang fehlt?',
+  customLink: 'Eigenen Studiengang hinzufügen',
   startTerm: 'Studienbeginn',
   winter: 'Wintersemester',
   summer: 'Sommersemester',

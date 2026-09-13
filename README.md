@@ -66,6 +66,19 @@ Before publishing:
 2. Conclude data processing agreements (Art. 28 DSGVO) with the hosting provider and the mail provider.
 3. Make sure the web server's own logs match the retention stated in the Datenschutzerklärung.
 
+## Custom programmes
+
+Students whose university or programme has no bundled preset can add their own at `/start/custom`:
+
+1. They enter the university, programme, degree and optionally the PO version.
+2. The app generates a prompt (`buildExtractionPrompt` in `packages/shared/src/custom-preset/prompt.ts`). The student gives it to an LLM of their choice together with the Prüfungsordnung and the Modulkatalog. The app itself never contacts an LLM.
+3. The student pastes the answer. `parseCustomPreset` finds the JSON, validates it against the preset schema and shows either the problems (with a follow-up message for the LLM) or a preview.
+4. A plan is created from the result, exactly as from a bundled preset.
+
+The prompt asks for everything the planner uses: modules with credits, grading, offering, recommended semester, prerequisites and credit requirements, areas, exam rules (withdrawal deadline, attempts, retakes, supplementary exam) and the grade calculation as an aggregation tree. It also asks for the Modulkatalog details of every module (people, languages, SWS and courses, workload, exam forms, requirements, learning outcomes, content, literature and any other catalog field), which the board shows under "Moduldetails". The prompt embeds the JSON Schema generated from the Zod schema, so it changes automatically with the schema. It is written in English because models follow English instructions most reliably; extracted names and texts stay in the documents' language.
+
+An extracted preset can be downloaded and, after checking, contributed like any other preset (see [presets/README.md](presets/README.md)).
+
 ## Languages
 
 The web app is available in German and English; e-mails follow the language of the account.

@@ -33,6 +33,7 @@ export interface ModuleCardProps {
   destinations: readonly Destination[]
   onMove: MoveHandler
   onGrade: (code: string) => void
+  onDetails: (code: string) => void
   /** Validation notes for this module, already worded for the card. */
   notes: readonly IssueText[]
 }
@@ -71,6 +72,7 @@ export function ModuleCard({
   destinations,
   onMove,
   onGrade,
+  onDetails,
   notes,
 }: ModuleCardProps) {
   const { t } = useTranslation('board')
@@ -161,6 +163,7 @@ export function ModuleCard({
             <EllipsisVertical aria-hidden className="size-4" />
           </MenuTrigger>
           <MenuContent>
+            <MenuItem onClick={() => onDetails(module.code)}>{t('card.details')}</MenuItem>
             <MenuItem onClick={() => onGrade(module.code)}>
               {module.grading === 'graded' ? t('card.enterGrade') : t('card.enterResult')}
             </MenuItem>

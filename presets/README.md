@@ -15,6 +15,10 @@ Durchschnittsnote, so every value needs a source.
 
 The best reviewer is a student of the programme: check the finished preset against a real Notenspiegel.
 
+## Starting from an LLM extraction
+
+The app can generate a prompt that extracts a preset from a PO and a Modulkatalog (start page, "add your own programme"). The downloaded result is a good first draft for a contribution, but LLMs make mistakes, especially in the grade calculation. Check every value against the documents as described below before opening a pull request, replace the generated `custom/…` id with `<university>/<programme>-<po-year>`, and move the file to the matching path.
+
 ## Sources
 
 Use the versions that apply to the students the preset is for, and name them with their date in `notes`:
@@ -39,6 +43,7 @@ too, e.g. "Proseminar is one placeholder for any Proseminar".
   N credits". `packages/shared/src/presets/luh-technische-informatik.test.ts` shows how to pin such rules in tests.
 - `gradeRules.allowedValues` lists every grade a module can end up with. Include composite values like 1.2 when
   module grades are means of several exams, and list the exam steps in `standardGrades`.
+- `modules[].details` holds descriptive Modulkatalog facts (people, languages, SWS, workload, exam forms, requirements, content, literature, other fields). They are optional and never used for calculations; copy texts verbatim.
 - `examRules` only with a PO paragraph behind each value: `withdrawalDaysBeforeExam`, `maxAttempts` (including
   the first attempt), `retakePassedExams`, `supplementaryExamOnLastAttempt`. `modules[].maxAttempts` overrides
   the limit for a single module.

@@ -2,6 +2,7 @@ import { admin as deAdmin } from './locales/de/admin.ts'
 import { auth as deAuth } from './locales/de/auth.ts'
 import { board as deBoard } from './locales/de/board.ts'
 import { common as deCommon } from './locales/de/common.ts'
+import { customPreset as deCustomPreset } from './locales/de/customPreset.ts'
 import { dialogs as deDialogs } from './locales/de/dialogs.ts'
 import { issues as deIssues } from './locales/de/issues.ts'
 import { legal as deLegal } from './locales/de/legal.ts'
@@ -11,6 +12,7 @@ import { admin as enAdmin } from './locales/en/admin.ts'
 import { auth as enAuth } from './locales/en/auth.ts'
 import { board as enBoard } from './locales/en/board.ts'
 import { common as enCommon } from './locales/en/common.ts'
+import { customPreset as enCustomPreset } from './locales/en/customPreset.ts'
 import { dialogs as enDialogs } from './locales/en/dialogs.ts'
 import { issues as enIssues } from './locales/en/issues.ts'
 import { legal as enLegal } from './locales/en/legal.ts'
@@ -24,6 +26,7 @@ import { start as enStart } from './locales/en/start.ts'
 export const resources = {
   de: {
     common: deCommon,
+    customPreset: deCustomPreset,
     board: deBoard,
     dialogs: deDialogs,
     issues: deIssues,
@@ -35,6 +38,7 @@ export const resources = {
   },
   en: {
     common: enCommon,
+    customPreset: enCustomPreset,
     board: enBoard,
     dialogs: enDialogs,
     issues: enIssues,

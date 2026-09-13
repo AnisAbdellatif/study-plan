@@ -1,35 +1,28 @@
-import { addTerms, createPlanFromPreset, formatTerm, type Term, termAt } from '@study-plan/shared'
+import { createPlanFromPreset, type Term, termAt } from '@study-plan/shared'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { type FormEvent, useId, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ImportPlanButton } from '../components/import-plan-button.tsx'
+import { fieldClass, StartTermFields } from '../components/start-term-fields.tsx'
 import { Button } from '../components/ui/button.tsx'
 import { ConfirmDialog } from '../components/ui/dialog.tsx'
-import { currentLocale } from '../i18n/index.ts'
 import { DEGREE_LABEL, newId } from '../lib/format.ts'
 import { currentPresets, findPreset } from '../presets.ts'
 import { useGuestState, useGuestStore } from '../store/guest-store.ts'
 
-const fieldClass =
-  'mt-1 h-10 w-full rounded-lg bg-white px-3 text-sm ring-1 ring-zinc-300 ring-inset focus-visible:outline-2 focus-visible:outline-indigo-500 dark:bg-zinc-950 dark:ring-zinc-700'
-
 export function StartPage() {
   const { t } = useTranslation(['start', 'common'])
-  const locale = currentLocale()
   const store = useGuestStore()
   const { plan, loadError } = useGuestState()
   const navigate = useNavigate()
-  const ids = { preset: useId(), year: useId() }
+  const presetFieldId = useId()
 
   const currentTerm = useMemo(() => termAt(new Date()), [])
   const [presetId, setPresetId] = useState(currentPresets[0]?.preset.id ?? '')
-  const [season, setSeason] = useState<Term['season']>(currentTerm.season)
-  const [year, setYear] = useState(currentTerm.year)
+  const [startTerm, setStartTerm] = useState<Term>(currentTerm)
   const [confirmReplace, setConfirmReplace] = useState(false)
 
   const entry = findPreset(presetId)
-  const startTerm: Term = { season, year }
-  const years = Array.from({ length: 9 }, (_, index) => currentTerm.year - 7 + index)
 
   const create = () => {
     if (!entry) return
@@ -70,11 +63,11 @@ export function StartPage() {
         className="mt-6 space-y-5 rounded-xl bg-white p-5 ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800"
       >
         <div>
-          <label htmlFor={ids.preset} className="block text-sm font-medium">
+          <label htmlFor={presetFieldId} className="block text-sm font-medium">
             {t('programme')}
           </label>
           <select
-            id={ids.preset}
+            id={presetFieldId}
             value={presetId}
             onChange={(event) => setPresetId(event.target.value)}
             className={fieldClass}
@@ -93,57 +86,22 @@ export function StartPage() {
               {entry.fictional ? `. ${t('fictionalNote')}` : ''}
             </p>
           ) : null}
+          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+            {t('customMissing')}{' '}
+            <Link
+              to="/start/custom"
+              className="font-medium text-indigo-700 underline-offset-4 hover:underline dark:text-indigo-300"
+            >
+              {t('customLink')}
+            </Link>
+          </p>
         </div>
 
-        <fieldset>
-          <legend className="text-sm font-medium">{t('startTerm')}</legend>
-          <div className="mt-1 grid grid-cols-[1fr_auto] gap-3">
-            <div className="flex rounded-lg p-1 ring-1 ring-zinc-300 ring-inset dark:ring-zinc-700">
-              {(['winter', 'summer'] as const).map((value) => (
-                <label
-                  key={value}
-                  className="flex h-8 flex-1 cursor-pointer items-center justify-center rounded-md text-sm has-[:checked]:bg-indigo-600 has-[:checked]:text-white has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-indigo-500"
-                >
-                  <input
-                    type="radio"
-                    name="season"
-                    value={value}
-                    checked={season === value}
-                    onChange={() => setSeason(value)}
-                    className="sr-only"
-                  />
-                  {value === 'winter' ? t('winter') : t('summer')}
-                </label>
-              ))}
-            </div>
-            <div>
-              <label htmlFor={ids.year} className="sr-only">
-                {t('year')}
-              </label>
-              <select
-                id={ids.year}
-                value={year}
-                onChange={(event) => setYear(Number(event.target.value))}
-                className={`${fieldClass} mt-0`}
-              >
-                {years.map((value) => (
-                  <option key={value} value={value}>
-                    {value}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
-            {t('semesterTerm', { number: 1, term: formatTerm(startTerm, locale) })}
-            {entry
-              ? ` · ${t('semesterTerm', {
-                  number: entry.preset.standardSemesters,
-                  term: formatTerm(addTerms(startTerm, entry.preset.standardSemesters - 1), locale),
-                })}`
-              : ''}
-          </p>
-        </fieldset>
+        <StartTermFields
+          value={startTerm}
+          onChange={setStartTerm}
+          standardSemesters={entry?.preset.standardSemesters}
+        />
 
         <Button type="submit" variant="primary" className="w-full" disabled={!entry}>
           {t('submit')}

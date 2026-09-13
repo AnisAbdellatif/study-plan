@@ -29,6 +29,7 @@ export interface SemesterColumnProps {
   destinations: readonly Destination[]
   onMove: MoveHandler
   onGrade: (code: string) => void
+  onDetails: (code: string) => void
   registerElement: (id: string | null, element: HTMLElement | null) => void
 }
 
@@ -41,6 +42,7 @@ export function SemesterColumn({
   destinations,
   onMove,
   onGrade,
+  onDetails,
   registerElement,
 }: SemesterColumnProps) {
   const { t } = useTranslation('board')
@@ -105,6 +107,7 @@ export function SemesterColumn({
             destinations={destinations}
             onMove={onMove}
             onGrade={onGrade}
+            onDetails={onDetails}
           />
         ))}
         {column.modules.length === 0 ? (
