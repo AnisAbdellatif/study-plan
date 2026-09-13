@@ -130,6 +130,7 @@ jobs:
     if: vars.DEPLOY_HOST != '' && (github.ref_name == 'main' || vars.DEV_DEPLOY_PATH != '')
     needs: image
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     environment: ${{ github.ref_name == 'main' && 'production' || 'development' }}
     concurrency:
       group: deploy-${{ github.ref_name }}
@@ -143,6 +144,8 @@ jobs:
       DEPLOY_PORT: ${{ vars.DEPLOY_PORT || '22' }}
       PRODUCTION_PATH: ${{ vars.DEPLOY_PATH || '/opt/study-plan' }}
       TARGET_PATH: ${{ github.ref_name == 'main' && (vars.DEPLOY_PATH || '/opt/study-plan') || vars.DEV_DEPLOY_PATH }}
+      # Fail instead of waiting for a password or a host key confirmation that nobody can type.
+      SSH_OPTIONS: -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Refuse to deploy dev into the production directory
@@ -156,7 +159,13 @@ jobs:
         env:
           SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          ENVIRONMENT_NAME: ${{ github.ref_name == 'main' && 'production' || 'development' }}
+        # Secrets stored only in one GitHub environment (e.g. production) arrive empty in the other one.
         run: |
+          if [ -z "$SSH_KEY" ] || [ -z "$KNOWN_HOSTS" ]; then
+            echo "::error::DEPLOY_SSH_KEY or DEPLOY_KNOWN_HOSTS is empty in the '$ENVIRONMENT_NAME' environment. Add both as repository secrets, or to this environment."
+            exit 1
+          fi
           install -m 700 -d ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
           printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
@@ -164,10 +173,10 @@ jobs:
       - name: Copy the stack definition
         run: |
           if [ "$GITHUB_REF_NAME" = main ]; then
-            scp -i ~/.ssh/deploy_key -P "$DEPLOY_PORT" deploy/compose.yaml deploy/Caddyfile \
+            scp -i ~/.ssh/deploy_key $SSH_OPTIONS -P "$DEPLOY_PORT" deploy/compose.yaml deploy/Caddyfile \
               "$DEPLOY_USER@$DEPLOY_HOST:$TARGET_PATH/"
           else
-            scp -i ~/.ssh/deploy_key -P "$DEPLOY_PORT" deploy/compose.dev.yaml \
+            scp -i ~/.ssh/deploy_key $SSH_OPTIONS -P "$DEPLOY_PORT" deploy/compose.dev.yaml \
               "$DEPLOY_USER@$DEPLOY_HOST:$TARGET_PATH/compose.yaml"
           fi
       - name: Pull and restart
@@ -179,7 +188,7 @@ jobs:
         # The registry token goes through stdin, never on a command line. It expires when this job ends.
         # The pulled image is tagged as latest/dev on the VPS, so manual compose commands use it without a pull.
         run: |
-          echo "$TOKEN" | ssh -i ~/.ssh/deploy_key -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
+          echo "$TOKEN" | ssh -i ~/.ssh/deploy_key $SSH_OPTIONS -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
             "set -eu
              cd '$TARGET_PATH'
              docker network create study-plan-proxy >/dev/null 2>&1 || true
