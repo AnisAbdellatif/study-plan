@@ -24,7 +24,7 @@ export const customPreset = {
       'Attach the examination regulations (Prüfungsordnung, with amendments and annexes) and the module handbook (Modulkatalog or Modulhandbuch), plus the recommended study plan if it’s a separate document.',
     stepSend: 'Send the prompt.',
     stepAnswer:
-      'Download the JSON file if the language model created one and load it below with “Load from file”. Otherwise copy the complete answer and paste it below.',
+      'Download the JSON file if the language model created one and load it below with “Load answer file”. Otherwise copy the complete answer and paste it below.',
     label: 'Prompt',
     copy: 'Copy prompt',
     download: 'Download as file',
@@ -36,7 +36,9 @@ export const customPreset = {
   answer: {
     heading: '3. Paste the answer',
     label: 'Answer from the language model',
-    loadFile: 'Load from file',
+    loadFile: 'Load answer file',
+    fileHint:
+      'If the language model created a file (usually programme.json), load it here instead of pasting the answer. University and programme then come from step 1.',
     fileInput: 'Choose a file with the answer',
     fileError: 'The file couldn’t be read.',
     check: 'Check answer',

@@ -1,4 +1,11 @@
-import { createPlanFromPreset, type Plan, type Term, termAt } from '@study-plan/shared'
+import {
+  type CustomPresetResult,
+  createPlanFromPreset,
+  type Plan,
+  type Preset,
+  type Term,
+  termAt,
+} from '@study-plan/shared'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { type FormEvent, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -7,6 +14,7 @@ import { AnswerPanel } from '../components/programme-extraction/answer-panel.tsx
 import { DescribeForm } from '../components/programme-extraction/describe-form.tsx'
 import { emptyDraft, loadDraft, useProgrammeExtraction } from '../components/programme-extraction/draft.ts'
 import { PresetPreview } from '../components/programme-extraction/preset-preview.tsx'
+import { ProgrammeFileImport } from '../components/programme-extraction/programme-file-import.tsx'
 import { PromptPanel } from '../components/programme-extraction/prompt-panel.tsx'
 import { hintClass, Section } from '../components/programme-extraction/section.tsx'
 import { StartTermFields } from '../components/start-term-fields.tsx'
@@ -20,7 +28,38 @@ export const DRAFT_KEY = 'study-plan:custom-preset-draft'
 
 const linkClass = 'font-medium text-indigo-700 underline-offset-4 hover:underline dark:text-indigo-300'
 
-type Pending = 'programme' | 'example'
+/** Where the new plan comes from: the LLM steps, a programme file, or the example. */
+type Pending = 'programme' | 'file' | 'example'
+
+function CreatePlanForm({
+  preset,
+  startTerm,
+  onStartTermChange,
+  onSubmit,
+}: {
+  preset: Preset
+  startTerm: Term
+  onStartTermChange: (term: Term) => void
+  onSubmit: () => void
+}) {
+  const { t } = useTranslation('customPreset')
+  const submit = (event: FormEvent) => {
+    event.preventDefault()
+    onSubmit()
+  }
+  return (
+    <form onSubmit={submit} className="space-y-4">
+      <StartTermFields
+        value={startTerm}
+        onChange={onStartTermChange}
+        standardSemesters={preset.standardSemesters}
+      />
+      <Button type="submit" variant="primary" className="w-full">
+        {t('create.submit')}
+      </Button>
+    </form>
+  )
+}
 
 export function StartPage() {
   const { t } = useTranslation(['start', 'customPreset', 'common'])
@@ -32,6 +71,7 @@ export function StartPage() {
     initialDraft: () => loadDraft(DRAFT_KEY) ?? emptyDraft,
   })
   const { draft, result } = extraction
+  const [fileResult, setFileResult] = useState<CustomPresetResult | null>(null)
   const [startTerm, setStartTerm] = useState<Term>(() => termAt(new Date()))
   const [pending, setPending] = useState<Pending | null>(null)
 
@@ -48,6 +88,10 @@ export function StartPage() {
       open(createPlanFromPreset(demoPreset, { id: newId(), startTerm: termAt(now), now }))
       return
     }
+    if (action === 'file') {
+      if (fileResult?.success) open(createPlanFromPreset(fileResult.preset, { id: newId(), startTerm, now }))
+      return
+    }
     if (!result?.success) return
     extraction.finish()
     open(createPlanFromPreset(result.preset, { id: newId(), startTerm, now }))
@@ -56,11 +100,6 @@ export function StartPage() {
   const request = (action: Pending) => {
     if (plan) setPending(action)
     else run(action)
-  }
-
-  const submitPlan = (event: FormEvent) => {
-    event.preventDefault()
-    request('programme')
   }
 
   return (
@@ -84,11 +123,14 @@ export function StartPage() {
       ) : null}
 
       <div className="mt-4 space-y-3 text-sm">
-        <div className="flex flex-wrap items-center gap-2">
+        <div>
           <Button onClick={() => request('example')}>{t('tryExample')}</Button>
-          <ImportPlanButton label={t('import')} variant="ghost" />
+          <p className={`mt-1 ${hintClass}`}>{t('exampleNote')}</p>
         </div>
-        <p className={hintClass}>{t('exampleNote')}</p>
+        <div>
+          <ImportPlanButton label={t('import')} variant="ghost" className="-ml-3" />
+          <p className={hintClass}>{t('importNote')}</p>
+        </div>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <Link to="/sign-in" className={linkClass}>
             {t('haveAccount')}
@@ -100,6 +142,19 @@ export function StartPage() {
           ) : null}
         </div>
       </div>
+
+      <ProgrammeFileImport result={fileResult} onResult={setFileResult}>
+        {fileResult?.success ? (
+          <CreatePlanForm
+            preset={fileResult.preset}
+            startTerm={startTerm}
+            onStartTermChange={setStartTerm}
+            onSubmit={() => request('file')}
+          />
+        ) : null}
+      </ProgrammeFileImport>
+
+      <p className="mt-8 text-sm font-medium text-zinc-600 dark:text-zinc-400">{t('orSteps')}</p>
 
       <DescribeForm draft={draft} onChange={extraction.update} onGenerate={extraction.generate} />
 
@@ -119,16 +174,12 @@ export function StartPage() {
 
       {draft.promptFor && result?.success ? (
         <Section heading={t('customPreset:create.heading')}>
-          <form onSubmit={submitPlan} className="space-y-4">
-            <StartTermFields
-              value={startTerm}
-              onChange={setStartTerm}
-              standardSemesters={result.preset.standardSemesters}
-            />
-            <Button type="submit" variant="primary" className="w-full">
-              {t('customPreset:create.submit')}
-            </Button>
-          </form>
+          <CreatePlanForm
+            preset={result.preset}
+            startTerm={startTerm}
+            onStartTermChange={setStartTerm}
+            onSubmit={() => request('programme')}
+          />
         </Section>
       ) : null}
 

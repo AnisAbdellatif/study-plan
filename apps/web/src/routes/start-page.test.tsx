@@ -146,6 +146,48 @@ describe('programme flow on the start page', () => {
     expect((screen.getByLabelText('Prompt') as HTMLTextAreaElement).value).toContain('Medieninformatik')
   })
 
+  it('creates a plan straight from a programme file, without entering university and programme', async () => {
+    const { user, store } = renderApp()
+    const section = await screen.findByRole('region', { name: 'Studiengang aus Datei laden' })
+    expect(
+      within(section).getByText(/Hochschule, Studiengang und Abschluss stehen in der Datei/),
+    ).toBeInTheDocument()
+
+    const file = new File([JSON.stringify(withDetails)], 'programme.json', { type: 'application/json' })
+    await user.upload(within(section).getByLabelText('Studiengangsdatei (JSON) auswählen'), file)
+
+    expect(await within(section).findByText('Geladen: programme.json')).toBeInTheDocument()
+    expect(within(section).getByText('Die Antwort passt')).toBeInTheDocument()
+    expect(screen.getByLabelText('Hochschule')).toHaveValue('')
+
+    await user.click(within(section).getByRole('button', { name: 'Plan anlegen' }))
+    expect(await screen.findByRole('heading', { name: '1. Semester' })).toBeInTheDocument()
+    const plan = store.getState().plan
+    expect(plan?.preset.universityName).toBe(example.university.name)
+    expect(plan?.preset.programmeName).toBe(example.programme.name)
+    expect(plan?.preset.id).toMatch(/^custom\//)
+  })
+
+  it('reports an invalid programme file in place', async () => {
+    const { user } = renderApp()
+    const section = await screen.findByRole('region', { name: 'Studiengang aus Datei laden' })
+    const file = new File(['{"modules": []}'], 'kaputt.json', { type: 'application/json' })
+    await user.upload(within(section).getByLabelText('Studiengangsdatei (JSON) auswählen'), file)
+
+    const alert = await within(section).findByRole('alert')
+    expect(within(alert).getByText('Die Antwort passt noch nicht')).toBeInTheDocument()
+    expect(within(alert).getByText(/^university\.name/)).toBeInTheDocument()
+    expect(within(section).queryByRole('button', { name: 'Plan anlegen' })).not.toBeInTheDocument()
+  })
+
+  it('explains the difference between restoring a saved plan and loading a programme file', async () => {
+    renderApp()
+    expect(
+      await screen.findByRole('button', { name: 'Gesicherten Plan wiederherstellen' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/vorher über „Exportieren“ gespeichert hast/)).toBeInTheDocument()
+  })
+
   it('shows English headings', async () => {
     await i18n.changeLanguage('en')
     const { user } = renderApp()

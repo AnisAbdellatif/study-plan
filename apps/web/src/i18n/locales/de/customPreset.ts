@@ -21,7 +21,7 @@ export const customPreset = {
       'Hänge die Prüfungsordnung (mit Änderungssatzungen und Anlagen) und den Modulkatalog bzw. das Modulhandbuch an, dazu den Studienverlaufsplan, falls er ein eigenes Dokument ist.',
     stepSend: 'Schick den Prompt ab.',
     stepAnswer:
-      'Lade die JSON-Datei herunter, wenn das Sprachmodell eine erstellt hat, und lade sie unten mit „Aus Datei laden“. Sonst kopiere die komplette Antwort und füge sie unten ein.',
+      'Lade die JSON-Datei herunter, wenn das Sprachmodell eine erstellt hat, und lade sie unten mit „Antwort-Datei laden“. Sonst kopiere die komplette Antwort und füge sie unten ein.',
     label: 'Prompt',
     copy: 'Prompt kopieren',
     download: 'Als Datei herunterladen',
@@ -33,7 +33,9 @@ export const customPreset = {
   answer: {
     heading: '3. Antwort einfügen',
     label: 'Antwort des Sprachmodells',
-    loadFile: 'Aus Datei laden',
+    loadFile: 'Antwort-Datei laden',
+    fileHint:
+      'Hat das Sprachmodell eine Datei erstellt (meist programme.json), lädst du sie hier statt die Antwort einzufügen. Hochschule und Studiengang kommen dann aus Schritt 1.',
     fileInput: 'Datei mit der Antwort auswählen',
     fileError: 'Die Datei konnte nicht gelesen werden.',
     check: 'Antwort prüfen',

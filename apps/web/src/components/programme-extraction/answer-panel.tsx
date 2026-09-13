@@ -74,6 +74,7 @@ export function AnswerPanel({ answer, onAnswerChange, onCheck, result, children 
           onChange={onFile}
         />
       </div>
+      <p className="text-xs text-zinc-600 dark:text-zinc-400">{t('answer.fileHint')}</p>
       {fileError ? (
         <p role="alert" className="text-sm text-red-700 dark:text-red-300">
           {t('answer.fileError')}
@@ -85,7 +86,8 @@ export function AnswerPanel({ answer, onAnswerChange, onCheck, result, children 
   )
 }
 
-function FailureReport({ failure }: { failure: CustomPresetFailure }) {
+/** What is wrong with an answer or programme file, with a report the student can send back to the LLM. */
+export function FailureReport({ failure }: { failure: CustomPresetFailure }) {
   const { t } = useTranslation('customPreset')
   const { ok, copy } = useCopy()
   return (

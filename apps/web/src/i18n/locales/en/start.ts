@@ -16,7 +16,21 @@ export const start = {
   summer: 'Summer semester',
   year: 'Year',
   semesterTerm: 'Semester {{number}}: {{term}}',
-  import: 'Import plan from file',
+  import: 'Restore a saved plan',
+  importNote:
+    'For a plan file you saved earlier with “Export”. It contains your whole plan with grades and placements. A programme file from a language model goes into “Load programme from file” below instead.',
+  programmeFile: {
+    heading: 'Load programme from file',
+    intro:
+      'Already have a programme file, for example the programme.json a language model created with our prompt, or a file from someone in your programme? Load it directly here. University, programme and degree are in the file, so you don’t need to enter them.',
+    choose: 'Choose programme file',
+    fileInput: 'Choose a programme file (JSON)',
+    loaded: 'Loaded: {{name}}',
+    notABackup:
+      'The file only contains the programme’s modules and rules, no grades. It creates a new, empty plan.',
+    readError: 'The file couldn’t be read.',
+  },
+  orSteps: 'No programme file yet? Create one with a language model in four steps:',
   haveAccount: 'Already have an account? Sign in',
   backToPlan: 'Back to your plan',
   replace: {

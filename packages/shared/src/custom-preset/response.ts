@@ -73,13 +73,19 @@ const formatPath = (path: readonly PropertyKey[]): string =>
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
+const nameIn = (value: unknown, key: string): string => {
+  const field = isRecord(value) ? value[key] : undefined
+  return typeof field === 'string' ? field : ''
+}
+
 /**
- * Parses and validates an LLM answer for a custom programme. The id, university and programme come from the
- * student's input, so they never clash with bundled presets; `idSuffix` should be random.
+ * Parses and validates an LLM answer or a programme file for a custom programme. The id is always generated, so
+ * it never clashes with other plans; `idSuffix` should be random. University, programme and degree come from the
+ * student's input when given, otherwise from the file itself (a programme.json loaded directly).
  */
 export function parseCustomPreset(
   text: string,
-  input: CustomProgrammeInput,
+  input: CustomProgrammeInput | null,
   idSuffix: string,
 ): CustomPresetResult {
   if (text.trim() === '') return { success: false, reason: 'empty', issues: [] }
@@ -104,16 +110,20 @@ export function parseCustomPreset(
     }
   }
 
-  const universitySlug = slugify(input.universityName, 'university')
-  const programmeSlug = slugify(`${input.programmeName}-${input.degree}`, 'programme')
   const { $schema: _schema, ...rest } = data
+  const universityName = (input?.universityName ?? nameIn(rest.university, 'name')).trim()
+  const programmeName = (input?.programmeName ?? nameIn(rest.programme, 'name')).trim()
+  // An unknown degree in a file is passed on as is, so validation reports it at programme.degree.
+  const degree = input?.degree ?? (isRecord(rest.programme) ? rest.programme.degree : undefined)
+  const universitySlug = slugify(universityName, 'university')
+  const programmeSlug = slugify(`${programmeName}-${typeof degree === 'string' ? degree : ''}`, 'programme')
   const candidate = {
     ...rest,
     schemaVersion: 1,
     id: `custom/${programmeSlug.slice(0, 40)}-${slugify(idSuffix, 'x')}`,
-    university: { slug: universitySlug, name: input.universityName.trim() },
-    programme: { slug: programmeSlug, name: input.programmeName.trim(), degree: input.degree },
-    ...(input.poVersion?.trim() ? { poVersion: input.poVersion.trim() } : {}),
+    university: { slug: universitySlug, name: universityName },
+    programme: { slug: programmeSlug, name: programmeName, degree },
+    ...(input?.poVersion?.trim() ? { poVersion: input.poVersion.trim() } : {}),
   }
 
   const result = presetSchema.safeParse(candidate)

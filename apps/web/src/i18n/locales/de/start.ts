@@ -13,7 +13,21 @@ export const start = {
   summer: 'Sommersemester',
   year: 'Jahr',
   semesterTerm: '{{number}}. Semester: {{term}}',
-  import: 'Plan aus Datei importieren',
+  import: 'Gesicherten Plan wiederherstellen',
+  importNote:
+    'Für eine Plan-Datei, die du vorher über „Exportieren“ gespeichert hast. Sie enthält deinen ganzen Plan mit Noten und Platzierungen. Eine Studiengangsdatei vom Sprachmodell lädst du dagegen unten unter „Studiengang aus Datei laden“.',
+  programmeFile: {
+    heading: 'Studiengang aus Datei laden',
+    intro:
+      'Du hast schon eine Studiengangsdatei, zum Beispiel die programme.json, die ein Sprachmodell mit unserem Prompt erstellt hat, oder eine Datei von jemandem aus deinem Studiengang? Dann lade sie direkt hier. Hochschule, Studiengang und Abschluss stehen in der Datei, du musst sie nicht eingeben.',
+    choose: 'Studiengangsdatei auswählen',
+    fileInput: 'Studiengangsdatei (JSON) auswählen',
+    loaded: 'Geladen: {{name}}',
+    notABackup:
+      'Die Datei enthält nur Module und Regeln des Studiengangs, keine Noten. Daraus entsteht ein neuer, leerer Plan.',
+    readError: 'Die Datei konnte nicht gelesen werden.',
+  },
+  orSteps: 'Noch keine Studiengangsdatei? Dann erstellst du sie in vier Schritten mit einem Sprachmodell:',
   haveAccount: 'Schon ein Konto? Anmelden',
   backToPlan: 'Zurück zu deinem Plan',
   replace: {
