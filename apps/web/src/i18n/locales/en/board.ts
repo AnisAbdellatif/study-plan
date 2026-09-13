@@ -9,11 +9,6 @@ export const board = {
     sharePlan: 'Share plan…',
     print: 'Print or save as PDF',
     updateProgramme: 'Update programme data…',
-    addCustomModule: 'Add custom module…',
-    addSemester: 'Add semester',
-    semesterAdded: 'Semester added',
-    removeLastSemester: 'Remove last semester',
-    lastSemesterRemoved: 'Last semester removed, its modules are now not planned',
     restoreDefault: 'Reset to default plan…',
     restoreDefaultTitle: 'Reset the plan to its default?',
     restoreDefaultDescription:
@@ -29,12 +24,15 @@ export const board = {
     resetConfirm: 'Delete plan',
   },
   storage: {
+    accountReminder:
+      "Your plan is only stored in this browser so far. Some browsers, such as Safari, delete data from sites you haven't visited in a while. Save it to your account to have it on all your devices, or export it as a file.",
     saveFailed: "Your plan couldn't be saved in the browser. Export it as a file so nothing gets lost.",
     exportReminder:
       "Without an account, your plan lives only in this browser. Some browsers, such as Safari, delete data from sites you haven't visited in a while. Back up your plan as a file regularly.",
     later: 'Later',
   },
   columns: {
+    dragSemester: 'Drag to move this semester',
     semester: 'Semester {{number}}',
     semesterShort: '{{number}}',
     backlog: 'Not planned',

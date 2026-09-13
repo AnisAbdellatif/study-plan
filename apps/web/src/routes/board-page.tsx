@@ -47,7 +47,7 @@ import { SummaryPanel } from '../components/board/summary-panel.tsx'
 import { StorageNotice } from '../components/storage-notice.tsx'
 import { ConfirmDialog } from '../components/ui/dialog.tsx'
 import i18n from '../i18n/index.ts'
-import { useModuleDropMonitor } from '../lib/dnd.ts'
+import { useModuleDropMonitor, useSemesterDropMonitor } from '../lib/dnd.ts'
 import { calendarFilename, downloadFile } from '../lib/files.ts'
 import { formatGrade, newId } from '../lib/format.ts'
 import { describeIssues } from '../lib/issues.ts'
@@ -246,6 +246,7 @@ function Board({ plan }: { plan: Plan }) {
     },
   })
   useModuleDropMonitor(actions.onMove, actions.onPlaceArea)
+  useSemesterDropMonitor(actions.onMoveSemester)
   const printing = usePrinting()
   const semesterToDelete = plan.semesters.find((semester) => semester.id === deleteSemesterId) ?? null
 
@@ -300,7 +301,7 @@ function Board({ plan }: { plan: Plan }) {
 
   return (
     <main className="mx-auto max-w-[240rem] space-y-4 px-4 py-5 sm:px-6">
-      <AppHeader plan={plan} onAddCustomModule={actions.onAddCustom} />
+      <AppHeader plan={plan} />
       <div className="space-y-4 empty:hidden print:hidden">
         <StorageNotice plan={plan} />
         <AccountSyncBanner />

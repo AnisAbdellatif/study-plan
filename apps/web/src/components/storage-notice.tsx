@@ -32,17 +32,17 @@ function Notice({
     >
       <TriangleAlert aria-hidden className="hidden size-4 shrink-0 sm:block" />
       <p className="flex-1">{children}</p>
-      <div className="flex gap-2">{actions}</div>
+      <div className="flex flex-wrap gap-2">{actions}</div>
     </div>
   )
 }
 
 /** Guest data lives only in this browser. Warn when saving fails and nudge regular exports. */
 export function StorageNotice({ plan }: { plan: Plan }) {
-  const { t } = useTranslation('board')
+  const { t } = useTranslation(['board', 'auth'])
   const { saveFailed, lastExportedAt } = useGuestState()
   const exportPlan = useExportPlan()
-  const { user, state } = useAccountSync()
+  const { user, state, sync } = useAccountSync()
   const [dismissed, setDismissed] = useState(false)
 
   const exportButton = (
@@ -60,6 +60,33 @@ export function StorageNotice({ plan }: { plan: Plan }) {
     )
   }
 
+  const laterButton = (
+    <Button size="sm" variant="ghost" onClick={() => setDismissed(true)}>
+      {t('storage.later')}
+    </Button>
+  )
+
+  // Signed in, but the plan is not in the account yet: one notice offers both ways to keep it safe.
+  if (user !== null && state.kind === 'no_account_plan') {
+    if (dismissed) return null
+    return (
+      <Notice
+        tone="warning"
+        actions={
+          <>
+            <Button size="sm" variant="primary" onClick={() => void sync.uploadLocal()}>
+              {t('auth:sync.banner.upload')}
+            </Button>
+            {exportButton}
+            {laterButton}
+          </>
+        }
+      >
+        {t('storage.accountReminder')}
+      </Notice>
+    )
+  }
+
   const exportIsStale =
     lastExportedAt === null || Date.now() - Date.parse(lastExportedAt) > EXPORT_REMINDER_DAYS * DAY_MS
   const hasChanges = plan.updatedAt !== plan.createdAt
@@ -73,9 +100,7 @@ export function StorageNotice({ plan }: { plan: Plan }) {
       actions={
         <>
           {exportButton}
-          <Button size="sm" variant="ghost" onClick={() => setDismissed(true)}>
-            {t('storage.later')}
-          </Button>
+          {laterButton}
         </>
       }
     >

@@ -144,16 +144,7 @@ export function AccountSyncBanner() {
   const box =
     'flex flex-col gap-3 rounded-lg px-4 py-3 text-sm sm:flex-row sm:items-center bg-indigo-50 text-indigo-950 ring-1 ring-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-100 dark:ring-indigo-900'
 
-  if (state.kind === 'no_account_plan') {
-    return (
-      <div role="status" className={box}>
-        <p className="flex-1">{t('sync.banner.uploadText')}</p>
-        <Button size="sm" variant="primary" onClick={() => void sync.uploadLocal()}>
-          {t('sync.banner.upload')}
-        </Button>
-      </div>
-    )
-  }
+  // A plan that is not in the account yet is handled by StorageNotice, together with the export reminder.
   if (state.kind === 'error') {
     return (
       <div role="alert" className={box}>

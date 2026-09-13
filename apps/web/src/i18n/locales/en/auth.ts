@@ -146,7 +146,6 @@ export const auth = {
       loadAccount: 'Load the plan from your account',
     },
     banner: {
-      uploadText: 'Save your plan to your account to have it on all your devices.',
       upload: 'Save to account',
       errorText: 'Your plan couldn’t be saved to your account just now. Your changes stay in this browser.',
       retry: 'Try again',

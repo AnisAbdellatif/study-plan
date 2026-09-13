@@ -114,8 +114,7 @@ describe('custom modules', () => {
 
   it('disables counting for ungraded modules', async () => {
     const { user, store } = renderBoard(makePlan())
-    await user.click(await screen.findByRole('button', { name: 'Weitere Aktionen' }))
-    await user.click(await screen.findByRole('menuitem', { name: 'Eigenes Modul hinzufügen…' }))
+    await user.click(await screen.findByRole('button', { name: 'Eigenes Modul hinzufügen' }))
     const dialog = await screen.findByRole('dialog', { name: 'Eigenes Modul hinzufügen' })
     const counts = within(dialog).getByLabelText('zählt zum Notenschnitt')
     expect(counts).toBeChecked()
@@ -152,8 +151,7 @@ describe('custom modules', () => {
   it('is labelled in English', async () => {
     await i18n.changeLanguage('en')
     const { user } = renderBoard(makePlan())
-    await user.click(await screen.findByRole('button', { name: 'More actions' }))
-    await user.click(await screen.findByRole('menuitem', { name: 'Add custom module…' }))
+    await user.click(await screen.findByRole('button', { name: 'Add custom module' }))
     const dialog = await screen.findByRole('dialog', { name: 'Add custom module' })
     await user.type(within(dialog).getByLabelText('Name'), 'Japanese A1')
     await user.type(within(dialog).getByLabelText(/^Credits/), '5')

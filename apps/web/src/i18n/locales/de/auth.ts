@@ -147,7 +147,6 @@ export const auth = {
       loadAccount: 'Plan aus dem Konto laden',
     },
     banner: {
-      uploadText: 'Sichere deinen Plan im Konto, dann ist er auf allen deinen Geräten verfügbar.',
       upload: 'Im Konto sichern',
       errorText:
         'Dein Plan konnte gerade nicht im Konto gespeichert werden. Die Änderungen bleiben in diesem Browser.',

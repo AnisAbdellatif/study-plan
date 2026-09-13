@@ -25,6 +25,8 @@ const MODULE = 'plan-module'
 const COLUMN = 'plan-column'
 /** A choice area tile from the backlog; dropping it creates a placeholder. */
 const AREA_SLOT = 'plan-area-slot'
+/** A semester column, dragged by its header to reorder the semesters. */
+const SEMESTER = 'plan-semester'
 /** Drag data must be serialisable, so the backlog (null) travels as a sentinel. */
 const BACKLOG = '__backlog__'
 
@@ -51,6 +53,12 @@ function readModule(
   return typeof code === 'string' && typeof column === 'string' && typeof index === 'number'
     ? { code, column, index }
     : null
+}
+
+function readSemester(data: Record<string | symbol, unknown>): { semesterId: string; index: number } | null {
+  if (data.type !== SEMESTER) return null
+  const { semesterId, index } = data
+  return typeof semesterId === 'string' && typeof index === 'number' ? { semesterId, index } : null
 }
 
 function readAreaSlot(data: Record<string | symbol, unknown>): string | null {
@@ -105,25 +113,113 @@ export function useDraggableModule(ref: RefObject<HTMLElement | null>, position:
   return { isDragging, closestEdge }
 }
 
-/** Makes a whole column a drop target, so cards can be dropped into empty space or empty columns. */
-export function useColumnDropTarget(ref: RefObject<HTMLElement | null>, columnId: string | null) {
+/**
+ * Makes a whole column a drop target, so cards can be dropped into empty space or empty columns. Semester columns
+ * (with a `semesterIndex`) also accept a dragged semester and report on which side it would land.
+ */
+export function useColumnDropTarget(
+  ref: RefObject<HTMLElement | null>,
+  columnId: string | null,
+  semesterIndex: number | null = null,
+) {
   const [isOver, setOver] = useState(false)
+  const [semesterEdge, setSemesterEdge] = useState<Edge | null>(null)
 
   useEffect(() => {
     const element = ref.current
     if (!element) return
+    const data = { type: COLUMN, column: encodeColumn(columnId), index: semesterIndex ?? -1 }
     return dropTargetForElements({
       element,
-      getData: () => ({ type: COLUMN, column: encodeColumn(columnId) }),
+      getData: ({ input, source }) =>
+        source.data.type === SEMESTER
+          ? attachClosestEdge(data, { element, input, allowedEdges: ['left', 'right'] })
+          : data,
       canDrop: ({ source }) =>
-        source.data.type === MODULE || (source.data.type === AREA_SLOT && columnId !== null),
-      onDragEnter: () => setOver(true),
-      onDragLeave: () => setOver(false),
-      onDrop: () => setOver(false),
+        source.data.type === MODULE ||
+        (source.data.type === AREA_SLOT && columnId !== null) ||
+        (source.data.type === SEMESTER && semesterIndex !== null),
+      onDragEnter: ({ source }) => {
+        if (source.data.type !== SEMESTER) setOver(true)
+      },
+      onDrag: ({ self, source }) => {
+        const dragged = readSemester(source.data)
+        if (!dragged || semesterIndex === null) return
+        const edge = extractClosestEdge(self.data)
+        // No marker where dropping would leave the semester where it already is.
+        const isNoop =
+          dragged.index === semesterIndex ||
+          (dragged.index === semesterIndex - 1 && edge === 'left') ||
+          (dragged.index === semesterIndex + 1 && edge === 'right')
+        setSemesterEdge(isNoop ? null : edge)
+      },
+      onDragLeave: () => {
+        setOver(false)
+        setSemesterEdge(null)
+      },
+      onDrop: () => {
+        setOver(false)
+        setSemesterEdge(null)
+      },
     })
-  }, [ref, columnId])
+  }, [ref, columnId, semesterIndex])
 
-  return { isOver }
+  return { isOver, semesterEdge }
+}
+
+/** Makes a semester column draggable by its header (the handle), to reorder the semesters. */
+export function useDraggableSemester(
+  ref: RefObject<HTMLElement | null>,
+  handleRef: RefObject<HTMLElement | null>,
+  semesterId: string | null,
+  index: number | null,
+) {
+  const [isDragging, setDragging] = useState(false)
+
+  useEffect(() => {
+    const element = ref.current
+    const dragHandle = handleRef.current
+    if (!element || !dragHandle || semesterId === null || index === null) return
+    return draggable({
+      element,
+      dragHandle,
+      getInitialData: () => ({ type: SEMESTER, semesterId, index }),
+      onDragStart: () => setDragging(true),
+      onDrop: () => setDragging(false),
+    })
+  }, [ref, handleRef, semesterId, index])
+
+  return { isDragging }
+}
+
+/** Listens for dropped semesters and turns the drop position into a new index. */
+export function useSemesterDropMonitor(onMoveSemester: (semesterId: string, toIndex: number) => void): void {
+  const latest = useRef(onMoveSemester)
+  useEffect(() => {
+    latest.current = onMoveSemester
+  }, [onMoveSemester])
+
+  useEffect(
+    () =>
+      monitorForElements({
+        canMonitor: ({ source }) => source.data.type === SEMESTER,
+        onDrop: ({ source, location }) => {
+          const dragged = readSemester(source.data)
+          const target = location.current.dropTargets.find(
+            (candidate) => candidate.data.type === COLUMN && typeof candidate.data.index === 'number',
+          )
+          if (!dragged || !target || typeof target.data.index !== 'number' || target.data.index < 0) return
+          const toIndex = getReorderDestinationIndex({
+            startIndex: dragged.index,
+            indexOfTarget: target.data.index,
+            closestEdgeOfTarget: extractClosestEdge(target.data),
+            axis: 'horizontal',
+          })
+          if (toIndex !== dragged.index) latest.current(dragged.semesterId, toIndex)
+        },
+      }),
+    [],
+  )
 }
 
 /** Makes a choice area tile draggable onto semesters, where it becomes a placeholder. */
@@ -203,6 +299,18 @@ export function useModuleDropMonitor(onMove: MoveHandler, onPlaceArea?: PlaceAre
       }),
     [],
   )
+}
+
+/** Scrolls the board sideways while a card, area tile or semester is dragged near its left or right edge. */
+export function useBoardAutoScroll(ref: RefObject<HTMLElement | null>): void {
+  useEffect(() => {
+    const element = ref.current
+    if (!element) return
+    return autoScrollForElements({
+      element,
+      canScroll: ({ source }) => isBoardDrag(source.data) || source.data.type === SEMESTER,
+    })
+  }, [ref])
 }
 
 /** Scrolls a module list while a module or area tile is dragged near its top or bottom edge. */

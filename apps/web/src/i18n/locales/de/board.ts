@@ -6,11 +6,6 @@ export const board = {
     sharePlan: 'Plan teilen…',
     print: 'Drucken oder als PDF speichern',
     updateProgramme: 'Studiengangsdaten aktualisieren…',
-    addCustomModule: 'Eigenes Modul hinzufügen…',
-    addSemester: 'Semester hinzufügen',
-    semesterAdded: 'Semester hinzugefügt',
-    removeLastSemester: 'Letztes Semester entfernen',
-    lastSemesterRemoved: 'Letztes Semester entfernt, seine Module sind jetzt nicht eingeplant',
     restoreDefault: 'Auf Standardplan zurücksetzen…',
     restoreDefaultTitle: 'Plan auf den Standard zurücksetzen?',
     restoreDefaultDescription:
@@ -26,6 +21,8 @@ export const board = {
     resetConfirm: 'Plan löschen',
   },
   storage: {
+    accountReminder:
+      'Dein Plan liegt bisher nur in diesem Browser. Manche Browser, etwa Safari, löschen Daten von Seiten, die du länger nicht besucht hast. Sichere ihn im Konto, dann ist er auf allen deinen Geräten verfügbar, oder exportiere ihn als Datei.',
     saveFailed:
       'Dein Plan konnte nicht im Browser gespeichert werden. Exportiere ihn als Datei, damit nichts verloren geht.',
     exportReminder:
@@ -33,6 +30,7 @@ export const board = {
     later: 'Später',
   },
   columns: {
+    dragSemester: 'Ziehen, um das Semester zu verschieben',
     semester: '{{number}}. Semester',
     semesterShort: '{{number}}.',
     backlog: 'Nicht eingeplant',

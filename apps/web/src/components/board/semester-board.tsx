@@ -12,6 +12,7 @@ import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import i18n, { currentLocale } from '../../i18n/index.ts'
 import { cn } from '../../lib/cn.ts'
+import { useBoardAutoScroll } from '../../lib/dnd.ts'
 import type { IssueText } from '../../lib/issues.ts'
 import type { BoardActions } from './board-actions.ts'
 import type { Destination } from './module-card.tsx'
@@ -67,6 +68,8 @@ export function SemesterBoard({ plan, summary, currentIndex, actions, notesByCod
   const { t } = useTranslation('board')
   const locale = currentLocale()
   const elements = useRef(new Map<string | null, HTMLElement>())
+  const scrollerRef = useRef<HTMLDivElement>(null)
+  useBoardAutoScroll(scrollerRef)
   const registerElement = useCallback((id: string | null, element: HTMLElement | null) => {
     if (element) elements.current.set(id, element)
     else elements.current.delete(id)
@@ -225,7 +228,11 @@ export function SemesterBoard({ plan, summary, currentIndex, actions, notesByCod
           </button>
         ))}
       </nav>
-      <div className="-mx-4 flex snap-x snap-mandatory scroll-px-4 items-start gap-3 overflow-x-auto px-4 pb-4 sm:mx-0 sm:scroll-px-0 sm:items-stretch sm:px-0 print:mx-0 print:flex-wrap print:overflow-visible print:px-0">
+      {/* A little padding on every side: the scroll area clips, and the current semester's ring sits outside its box. */}
+      <div
+        ref={scrollerRef}
+        className="-mx-4 flex snap-x snap-mandatory scroll-px-4 items-start gap-3 overflow-x-auto px-4 pt-1 pb-4 sm:-mx-1 sm:scroll-px-1 sm:items-stretch sm:px-1 print:mx-0 print:flex-wrap print:overflow-visible print:px-0 print:pt-0"
+      >
         {columns.map((column) => (
           <SemesterColumn
             key={column.id ?? 'backlog'}

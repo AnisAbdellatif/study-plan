@@ -1,4 +1,4 @@
-import { addSemester, type Plan, removeLastSemester, resetPlan } from '@study-plan/shared'
+import { type Plan, resetPlan } from '@study-plan/shared'
 import { useNavigate } from '@tanstack/react-router'
 import { Download, EllipsisVertical } from 'lucide-react'
 import { useState } from 'react'
@@ -18,7 +18,7 @@ import { ConfirmDialog } from './ui/dialog.tsx'
 import { MenuContent, MenuItem, MenuRoot, MenuSeparator, MenuTrigger } from './ui/menu.tsx'
 import { useExportPlan } from './use-export-plan.ts'
 
-export function AppHeader({ plan, onAddCustomModule }: { plan: Plan; onAddCustomModule?: () => void }) {
+export function AppHeader({ plan }: { plan: Plan }) {
   const { t } = useTranslation(['board', 'common'])
   const store = useGuestStore()
   const navigate = useNavigate()
@@ -54,32 +54,11 @@ export function AppHeader({ plan, onAddCustomModule }: { plan: Plan; onAddCustom
             <EllipsisVertical aria-hidden className="size-4" />
           </MenuTrigger>
           <MenuContent>
-            {onAddCustomModule ? (
-              <MenuItem onClick={onAddCustomModule}>{t('header.addCustomModule')}</MenuItem>
-            ) : null}
             <MenuItem onClick={() => setImportOpen(true)}>{t('header.importGrades')}</MenuItem>
             <MenuItem onClick={() => setShareOpen(true)}>{t('header.sharePlan')}</MenuItem>
             <MenuItem onClick={() => window.print()}>{t('header.print')}</MenuItem>
             <MenuItem onClick={() => void navigate({ to: '/plan/update' })}>
               {t('header.updateProgramme')}
-            </MenuItem>
-            <MenuSeparator />
-            <MenuItem
-              onClick={() => {
-                store.updatePlan(addSemester)
-                announce(t('header.semesterAdded'))
-              }}
-            >
-              {t('header.addSemester')}
-            </MenuItem>
-            <MenuItem
-              disabled={plan.semesters.length <= 1}
-              onClick={() => {
-                store.updatePlan(removeLastSemester)
-                announce(t('header.lastSemesterRemoved'))
-              }}
-            >
-              {t('header.removeLastSemester')}
             </MenuItem>
             <MenuSeparator />
             <MenuItem
