@@ -186,6 +186,7 @@ export const adminAuditLog = pgTable(
         'grant_admin',
         'revoke_admin',
         'create_admin',
+        'send_test_email',
       ],
     }).notNull(),
     targetUserId: text('target_user_id').notNull(),

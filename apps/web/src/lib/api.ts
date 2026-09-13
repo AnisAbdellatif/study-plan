@@ -160,10 +160,26 @@ export type AdminAction =
 export interface AdminAuditEntry {
   id: string
   adminEmail: string
-  action: AdminAction | 'create_admin'
+  action: AdminAction | 'create_admin' | 'send_test_email'
   targetUserId: string
   createdAt: string
 }
+
+export interface MailDelivery {
+  at: string
+  error?: string
+}
+
+export interface MailStatus {
+  transport: 'smtp' | 'console' | 'memory'
+  from: string
+  server: { host: string; port: number; secure: boolean; username: string | null } | null
+  lastSuccess: MailDelivery | null
+  lastFailure: MailDelivery | null
+}
+
+export type MailCheck = { ok: true; durationMs: number } | { ok: false; error: string }
+export type TestMailResult = { ok: true; to: string } | { ok: false; error: string }
 
 export interface NewAdmin {
   email: string
@@ -177,6 +193,10 @@ const adminUser = (id: string) => `/api/admin/users/${encodeURIComponent(id)}`
 export const adminApi = {
   me: (): Promise<{ email: string; role: Exclude<UserRole, 'user'> }> => request('/api/admin/me'),
   stats: (): Promise<AdminStats> => request<AdminStats>('/api/admin/stats'),
+  mailStatus: (): Promise<MailStatus> => request<MailStatus>('/api/admin/mail'),
+  verifyMail: (): Promise<MailCheck> => request<MailCheck>('/api/admin/mail/verify', { method: 'POST' }),
+  sendTestMail: (): Promise<TestMailResult> =>
+    request<TestMailResult>('/api/admin/mail/test', { method: 'POST' }),
   users: async (query: string, { adminsOnly = false } = {}): Promise<AdminUser[]> =>
     (
       await request<{ users: AdminUser[] }>(

@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useGuestStore } from '../store/guest-store.ts'
 import { AccountButton } from './account-button.tsx'
+import { AdminButton } from './admin-button.tsx'
 import { useAnnounce } from './announcer.tsx'
 import { ImportGradesDialog } from './board/import-grades-dialog.tsx'
 import { ShareDialog } from './board/share-dialog.tsx'
@@ -42,6 +43,7 @@ export function AppHeader({ plan, onAddCustomModule }: { plan: Plan; onAddCustom
       <div className="flex items-center gap-2 print:hidden">
         <LanguageMenu />
         <ThemeToggle />
+        <AdminButton labelClassName="sr-only sm:not-sr-only" />
         <AccountButton />
         <Button onClick={() => exportPlan(plan)}>
           <Download aria-hidden className="size-4" />

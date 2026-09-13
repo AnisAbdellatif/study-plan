@@ -13,6 +13,7 @@ import {
   adminApi,
   type UserRole,
 } from '../lib/api.ts'
+import { MailSection } from './admin-mail-section.tsx'
 
 const cardClass = 'rounded-xl bg-white p-4 ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800'
 const inputClass =
@@ -705,6 +706,7 @@ export function AdminPage() {
         </p>
       </header>
       {stats ? <Overview stats={stats} /> : <p className="text-sm">{t('loadingStats')}</p>}
+      <MailSection onChanged={changed} />
       {viewer === 'superadmin' ? <AdminTeam {...sectionProps} /> : null}
       <Accounts {...sectionProps} />
       <AuditLog entries={audit} />

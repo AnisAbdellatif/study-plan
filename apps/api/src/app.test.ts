@@ -64,7 +64,7 @@ beforeAll(async () => {
   connection = await openDatabase(config.databaseUrl)
   await connection.migrate()
   auth = createAuth({ config, db: connection.db, mailer })
-  app = createApp({ config, db: connection.db, auth })
+  app = createApp({ config, db: connection.db, auth, mailer })
 })
 
 afterAll(async () => {
@@ -813,6 +813,51 @@ describe('admin', () => {
     await call(`/api/admin/users/${pendingId}/sign-out`, { method: 'POST', cookie: adminCookie })
     const rows = await connection.db.select().from(adminAuditLog).where(eq(adminAuditLog.targetUserId, 'alt'))
     expect(rows).toEqual([])
+  })
+
+  it('reports mail delivery, checks the connection and sends a test e-mail to the admin', async () => {
+    const status = await json<{ transport: string; lastSuccess: { at: string } | null }>(
+      await call('/api/admin/mail', { cookie: adminCookie }),
+    )
+    expect(status.transport).toBe('memory')
+    expect(status.lastSuccess).not.toBeNull()
+    expect(
+      await json(await call('/api/admin/mail/verify', { method: 'POST', cookie: adminCookie })),
+    ).toMatchObject({
+      ok: true,
+    })
+
+    const sent = await call('/api/admin/mail/test', { method: 'POST', cookie: adminCookie })
+    expect(await json(sent)).toEqual({ ok: true, to: 'admin@example.org' })
+    expect(lastMailTo('admin@example.org').subject).toContain('Test')
+
+    mailer.failWith = 'Invalid login: 535 Authentication failed'
+    try {
+      expect(
+        await json(await call('/api/admin/mail/verify', { method: 'POST', cookie: adminCookie })),
+      ).toEqual({
+        ok: false,
+        error: 'Invalid login: 535 Authentication failed',
+      })
+      expect(await json(await call('/api/admin/mail/test', { method: 'POST', cookie: adminCookie }))).toEqual(
+        {
+          ok: false,
+          error: 'Invalid login: 535 Authentication failed',
+        },
+      )
+      const after = await json<{ lastFailure: { error: string } | null }>(
+        await call('/api/admin/mail', { cookie: adminCookie }),
+      )
+      expect(after.lastFailure?.error).toBe('Invalid login: 535 Authentication failed')
+    } finally {
+      mailer.failWith = null
+    }
+
+    const { entries } = await json<{ entries: { action: string }[] }>(
+      await call('/api/admin/audit', { cookie: adminCookie }),
+    )
+    expect(entries.slice(0, 2).map((entry) => entry.action)).toEqual(['send_test_email', 'send_test_email'])
+    expect((await call('/api/admin/mail')).status).toBe(404)
   })
 
   describe('superadmin', () => {

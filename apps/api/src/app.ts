@@ -6,6 +6,7 @@ import { secureHeaders } from 'hono/secure-headers'
 import type { Auth } from './auth.ts'
 import type { Config } from './config.ts'
 import type { Database } from './db/connection.ts'
+import type { MonitoredMailer } from './mail.ts'
 import { UNSUBSCRIBE_PATH } from './reminders.ts'
 import { accountRoutes } from './routes/account.ts'
 import { adminRoutes, requireAdmin } from './routes/admin.ts'
@@ -18,11 +19,13 @@ export interface AppDependencies {
   config: Config
   db: Database
   auth: Auth
+  /** The mailer Better Auth and reminders use; the admin dashboard shows its status. */
+  mailer: MonitoredMailer
   /** Runtime-specific static file handlers for the built web app, see main.ts. */
   staticFiles?: { assets: MiddlewareHandler; index: MiddlewareHandler }
 }
 
-export function createApp({ config, db, auth, staticFiles }: AppDependencies) {
+export function createApp({ config, db, auth, mailer, staticFiles }: AppDependencies) {
   const app = new Hono<AppEnv>()
 
   if (config.env !== 'test') {
@@ -85,7 +88,7 @@ export function createApp({ config, db, auth, staticFiles }: AppDependencies) {
   app.route('/api/account', accountRoutes(db))
   app.route('/api/notifications', unsubscribeRoutes(db, config))
   app.use('/api/admin/*', requireAdmin(auth, db))
-  app.route('/api/admin', adminRoutes(db, auth))
+  app.route('/api/admin', adminRoutes(db, auth, mailer))
   app.all('/api/*', (c) => c.json({ error: 'not_found' }, 404))
 
   if (staticFiles) {

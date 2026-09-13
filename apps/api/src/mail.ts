@@ -11,10 +11,100 @@ export interface Mailer {
   send(mail: OutgoingMail): Promise<void>
 }
 
-export function createSmtpMailer(url: string, from: string): Mailer {
-  const transport = nodemailer.createTransport(url)
+export interface MailDelivery {
+  at: string
+  error?: string
+}
+
+/** What the admin dashboard shows about mail delivery. Counts since the process started; no addresses. */
+export interface MailStatus {
+  transport: 'smtp' | 'console' | 'memory'
+  from: string
+  server: { host: string; port: number; secure: boolean; username: string | null } | null
+  lastSuccess: MailDelivery | null
+  lastFailure: MailDelivery | null
+}
+
+export type MailCheck = { ok: true; durationMs: number } | { ok: false; error: string }
+
+/** A mailer that remembers how its last deliveries went and can test its connection. */
+export interface MonitoredMailer extends Mailer {
+  status(): MailStatus
+  /** Connects and logs in without sending anything. Never throws. */
+  verify(): Promise<MailCheck>
+}
+
+const errorMessage = (error: unknown) => (error instanceof Error ? error.message : String(error))
+
+function monitored(
+  base: Omit<MailStatus, 'lastSuccess' | 'lastFailure'>,
+  deliver: (mail: OutgoingMail) => Promise<void>,
+  check: () => Promise<void>,
+  /** Removes secrets from error messages before they are stored, logged or shown. */
+  redact: (message: string) => string = (message) => message,
+): MonitoredMailer {
+  let lastSuccess: MailDelivery | null = null
+  let lastFailure: MailDelivery | null = null
   return {
     async send(mail) {
+      try {
+        await deliver(mail)
+        lastSuccess = { at: new Date().toISOString() }
+      } catch (error) {
+        const message = redact(errorMessage(error))
+        lastFailure = { at: new Date().toISOString(), error: message }
+        // No recipient in the log: the dashboard and this line are enough to diagnose the server side.
+        console.error(`[mail] delivery failed: ${message}`)
+        throw new Error(message)
+      }
+    },
+    status: () => ({ ...base, lastSuccess, lastFailure }),
+    async verify() {
+      const started = performance.now()
+      try {
+        await check()
+        return { ok: true, durationMs: Math.round(performance.now() - started) }
+      } catch (error) {
+        return { ok: false, error: redact(errorMessage(error)) }
+      }
+    },
+  }
+}
+
+/** Host, port, TLS mode and login name of an SMTP URL, for display. Never the password. */
+export function describeSmtpUrl(url: string): NonNullable<MailStatus['server']> | null {
+  try {
+    const parsed = new URL(url)
+    const secure = parsed.protocol === 'smtps:'
+    return {
+      host: parsed.hostname,
+      port: parsed.port ? Number(parsed.port) : secure ? 465 : 587,
+      secure,
+      username: parsed.username ? decodeURIComponent(parsed.username) : null,
+    }
+  } catch {
+    return null
+  }
+}
+
+export function createSmtpMailer(url: string, from: string): MonitoredMailer {
+  // Short timeouts, so an unreachable server fails a sign-up or a dashboard check quickly instead of after minutes.
+  const transport = nodemailer.createTransport({
+    url,
+    connectionTimeout: 15_000,
+    greetingTimeout: 15_000,
+    socketTimeout: 30_000,
+  })
+  let password = ''
+  try {
+    password = decodeURIComponent(new URL(url).password)
+  } catch {
+    // An unparsable URL fails on the first delivery; there is no password to hide.
+  }
+  const redact = (message: string) => (password ? message.split(password).join('***') : message)
+  return monitored(
+    { transport: 'smtp', from, server: describeSmtpUrl(url) },
+    async (mail) => {
       await transport.sendMail({
         from,
         to: mail.to,
@@ -23,25 +113,54 @@ export function createSmtpMailer(url: string, from: string): Mailer {
         headers: mail.headers,
       })
     },
-  }
+    async () => {
+      await transport.verify()
+    },
+    redact,
+  )
 }
 
 /** Development only: prints e-mails, including their links, to the console. */
-export function createConsoleMailer(): Mailer {
-  return {
-    async send(mail) {
+export function createConsoleMailer(): MonitoredMailer {
+  return monitored(
+    { transport: 'console', from: 'console', server: null },
+    async (mail) => {
       console.info(`[mail] An: ${mail.to}\n[mail] Betreff: ${mail.subject}\n\n${mail.text}\n`)
     },
-  }
+    async () => {},
+  )
 }
 
-export function createMemoryMailer(): Mailer & { sent: OutgoingMail[] } {
+/** Tests: keeps sent mails; set `failWith` to make deliveries and checks fail with that message. */
+export function createMemoryMailer(): MonitoredMailer & { sent: OutgoingMail[]; failWith: string | null } {
   const sent: OutgoingMail[] = []
+  // The closures read failWith from the returned object, so tests can switch it at any time.
+  const result: MonitoredMailer & { sent: OutgoingMail[]; failWith: string | null } = Object.assign(
+    monitored(
+      { transport: 'memory', from: 'test@example.org', server: null },
+      async (mail) => {
+        if (result.failWith) throw new Error(result.failWith)
+        sent.push(mail)
+      },
+      async () => {
+        if (result.failWith) throw new Error(result.failWith)
+      },
+    ),
+    { sent, failWith: null as string | null },
+  )
+  return result
+}
+
+/** A short bilingual message to confirm that delivery works end to end. */
+export function testMail(to: string): OutgoingMail {
   return {
-    sent,
-    async send(mail) {
-      sent.push(mail)
-    },
+    to,
+    subject: 'Studienplaner: Test-E-Mail / test email',
+    text: [
+      'Diese Test-E-Mail wurde aus der Verwaltung des Studienplaners verschickt. Der E-Mail-Versand funktioniert.',
+      '',
+      'This test email was sent from the Study Planner admin dashboard. Email delivery works.',
+    ].join('\n'),
   }
 }
 
