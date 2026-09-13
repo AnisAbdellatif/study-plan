@@ -27,20 +27,17 @@ export interface PlanOverviewProps {
 const PRINT_PAGE_STYLE = '@media print { @page { size: A4 landscape; margin: 10mm; } }'
 
 type Block =
-  | { kind: 'module'; key: string; column: number; start: number; span: number; module: PlanModule }
-  | {
-      kind: 'placeholder'
-      key: string
-      column: number
-      start: number
-      span: number
-      areaId: string
-      areaName: string
-      credits: number
-    }
+  | { kind: 'module'; key: string; credits: number; module: PlanModule }
+  | { kind: 'placeholder'; key: string; credits: number; areaId: string; areaName: string }
 
-/** Half-credit rows, so 2.5 LP modules still get a whole number of rows. At least one row per block. */
-const halves = (credits: number): number => Math.max(1, Math.round(credits * 2))
+/**
+ * Height grows with credits (--overview-lp per credit point), but only as a minimum: a card with more text than
+ * its credits allow grows instead of cutting text off. Each semester stacks on its own, so a tall card never
+ * stretches the others.
+ */
+const blockHeight = (credits: number): CSSProperties => ({
+  minHeight: `calc(${Math.max(credits, 1)} * var(--overview-lp))`,
+})
 
 /** "2V+2Ü" when every course has hours and a short type, otherwise "4 SWS", or nothing. */
 function teachingHours(module: PlanModule): string | null {
@@ -73,57 +70,46 @@ export function PlanOverview({ plan, summary }: PlanOverviewProps) {
   const locale = currentLocale()
   const label = plan.preset.creditLabel
 
-  const { blocks, rows, unplanned, hasNeutral } = useMemo(() => {
+  const { stacks, unplanned, hasNeutral } = useMemo(() => {
     const byCode = new Map(plan.modules.map((m) => [m.code, m]))
     const estimates = placeholderCredits(plan)
     const areaNames = new Map(plan.areas.map((area) => [area.id, area.name]))
     const placeholders = new Map((plan.placeholders ?? []).map((p) => [p.id, p]))
     const areaCodes = new Set(plan.areas.flatMap((area) => area.moduleCodes))
-    const list: Block[] = []
-    let rows = 1
     let hasNeutral = false
 
-    plan.semesters.forEach((semester, column) => {
-      let start = 0
+    const stacks = plan.semesters.map((semester) => {
+      const list: Block[] = []
       for (const code of semester.moduleCodes) {
         if (isPlaceholderId(code)) {
           const placeholder = placeholders.get(code)
           if (!placeholder) continue
-          const credits = estimates.get(code) ?? 0
-          const span = halves(credits)
           list.push({
             kind: 'placeholder',
             key: code,
-            column,
-            start,
-            span,
+            credits: estimates.get(code) ?? 0,
             areaId: placeholder.areaId,
             areaName: areaNames.get(placeholder.areaId) ?? placeholder.areaId,
-            credits,
           })
-          start += span
           continue
         }
         const module = byCode.get(code)
         if (!module) continue
-        const span = halves(module.credits)
-        list.push({ kind: 'module', key: code, column, start, span, module })
+        list.push({ kind: 'module', key: code, credits: module.credits, module })
         if (!areaCodes.has(code)) hasNeutral = true
-        start += span
       }
-      rows = Math.max(rows, start)
+      return list
     })
 
     // Same count as the board's backlog: options of choice areas are not open work.
     const optionCodes = new Set([...choiceOptionCodes(plan).values()].flat())
     const unplanned = plan.backlog.filter((code) => byCode.has(code) && !optionCodes.has(code)).length
-    return { blocks: list, rows, unplanned, hasNeutral }
+    return { stacks, unplanned, hasNeutral }
   }, [plan])
 
   const columns = plan.semesters.length
-  // Row 1 holds the headers, the module rows follow, the totals come last.
-  const gridStyle = { '--overview-cols': columns, '--overview-rows': rows } as CSSProperties
-  const footerRow = rows + 2
+  // Row 1 holds the headers, row 2 one stack of cards per semester, row 3 the totals.
+  const gridStyle = { '--overview-cols': columns } as CSSProperties
 
   return (
     <section
@@ -151,7 +137,7 @@ export function PlanOverview({ plan, summary }: PlanOverviewProps) {
       <div className="overflow-x-auto pb-1 print:overflow-visible print:pb-0">
         <div
           style={gridStyle}
-          className="grid grid-cols-[repeat(var(--overview-cols),minmax(10rem,1fr))] grid-rows-[auto_repeat(var(--overview-rows),minmax(0.625rem,auto))_auto] gap-x-2 gap-y-1 print:grid-cols-[repeat(var(--overview-cols),minmax(0,1fr))] print:grid-rows-[auto_repeat(var(--overview-rows),minmax(0.3rem,auto))_auto] print:gap-x-1 print:gap-y-0.5"
+          className="grid grid-cols-[repeat(var(--overview-cols),minmax(10rem,1fr))] grid-rows-[auto_1fr_auto] gap-x-2 gap-y-1 [--overview-lp:0.75rem] print:grid-cols-[repeat(var(--overview-cols),minmax(0,1fr))] print:gap-x-1 print:gap-y-0.5 print:[--overview-lp:0.5rem]"
         >
           {plan.semesters.map((semester, index) => (
             <div
@@ -170,57 +156,63 @@ export function PlanOverview({ plan, summary }: PlanOverviewProps) {
             </div>
           ))}
 
-          {blocks.map((block) => {
-            const placement = {
-              gridColumn: block.column + 1,
-              gridRow: `${block.start + 2} / span ${block.span}`,
-            }
-            if (block.kind === 'placeholder') {
-              const tone = areaTone(plan, block.areaId)
-              return (
-                <div
-                  key={block.key}
-                  data-testid="overview-placeholder"
-                  style={placement}
-                  className={cn(
-                    'flex min-w-0 break-inside-avoid flex-col rounded-md border border-dashed border-zinc-500/60 px-2 py-1 text-xs leading-snug print:rounded-sm print:px-1 print:py-0.5 print:text-[7pt] dark:border-zinc-400/60',
-                    tone.soft,
-                  )}
-                >
-                  <span className="font-semibold">{t('overview.placeholder')}</span>
-                  <span className={tone.text}>{block.areaName}</span>
-                  <span className="text-zinc-700 dark:text-zinc-300">
-                    {t('placeholder.estimate', { credits: formatCredits(block.credits), label })}
-                  </span>
-                </div>
-              )
-            }
-            const { module } = block
-            const tone = moduleTone(plan, module.code)
-            const hours = teachingHours(module)
-            const people = module.details?.lecturers ?? module.details?.responsible ?? []
-            return (
-              <div
-                key={block.key}
-                data-testid="overview-module"
-                style={placement}
-                className={cn(
-                  'relative flex min-w-0 break-inside-avoid flex-col rounded-md border border-zinc-900/10 py-1 pr-5 pl-2 text-xs leading-snug print:rounded-sm print:py-0.5 print:pr-4 print:pl-1 print:text-[7pt] dark:border-white/10',
-                  tone.strong,
-                )}
-              >
-                <span className="font-semibold">{module.name}</span>
-                <span className="text-zinc-700 dark:text-zinc-300">
-                  ({hours ? `${hours}, ` : ''}
-                  {formatCredits(module.credits)} {label})
-                </span>
-                {people.length > 0 && (
-                  <span className="text-zinc-700 dark:text-zinc-300">{people.join(', ')}</span>
-                )}
-                <ResultMark module={module} passThreshold={plan.rules.passThreshold} />
-              </div>
-            )
-          })}
+          {stacks.map((stack, index) => (
+            <div
+              key={`stack-${plan.semesters[index]?.id ?? index}`}
+              data-testid="overview-column"
+              style={{ gridColumn: index + 1, gridRow: 2 }}
+              className="flex min-w-0 flex-col gap-1 print:gap-0.5"
+            >
+              {stack.map((block) => {
+                const placement = blockHeight(block.credits)
+                if (block.kind === 'placeholder') {
+                  const tone = areaTone(plan, block.areaId)
+                  return (
+                    <div
+                      key={block.key}
+                      data-testid="overview-placeholder"
+                      style={placement}
+                      className={cn(
+                        'flex min-w-0 break-inside-avoid flex-col rounded-md border border-dashed border-zinc-500/60 px-2 py-1 text-xs leading-snug print:rounded-sm print:px-1 print:py-0.5 print:text-[7pt] dark:border-zinc-400/60',
+                        tone.soft,
+                      )}
+                    >
+                      <span className="font-semibold">{t('overview.placeholder')}</span>
+                      <span className={tone.text}>{block.areaName}</span>
+                      <span className="text-zinc-700 dark:text-zinc-300">
+                        {t('placeholder.estimate', { credits: formatCredits(block.credits), label })}
+                      </span>
+                    </div>
+                  )
+                }
+                const { module } = block
+                const tone = moduleTone(plan, module.code)
+                const hours = teachingHours(module)
+                const people = module.details?.lecturers ?? module.details?.responsible ?? []
+                return (
+                  <div
+                    key={block.key}
+                    data-testid="overview-module"
+                    style={placement}
+                    className={cn(
+                      'relative flex min-w-0 break-inside-avoid flex-col rounded-md border border-zinc-900/10 py-1 pr-5 pl-2 text-xs leading-snug print:rounded-sm print:py-0.5 print:pr-4 print:pl-1 print:text-[7pt] dark:border-white/10',
+                      tone.strong,
+                    )}
+                  >
+                    <span className="font-semibold">{module.name}</span>
+                    <span className="text-zinc-700 dark:text-zinc-300">
+                      ({hours ? `${hours}, ` : ''}
+                      {formatCredits(module.credits)} {label})
+                    </span>
+                    {people.length > 0 && (
+                      <span className="text-zinc-700 dark:text-zinc-300">{people.join(', ')}</span>
+                    )}
+                    <ResultMark module={module} passThreshold={plan.rules.passThreshold} />
+                  </div>
+                )
+              })}
+            </div>
+          ))}
 
           {plan.semesters.map((semester, index) => {
             const info = summary.semesters[index]
@@ -230,7 +222,7 @@ export function PlanOverview({ plan, summary }: PlanOverviewProps) {
               <p
                 key={`total-${semester.id}`}
                 data-testid="overview-total"
-                style={{ gridColumn: index + 1, gridRow: footerRow }}
+                style={{ gridColumn: index + 1, gridRow: 3 }}
                 className="mt-1 border-t-2 border-zinc-300 pt-1 text-center text-sm font-semibold tabular-nums print:text-[8pt] dark:border-zinc-700"
               >
                 {estimate > 0

@@ -77,8 +77,10 @@ describe('plan overview', () => {
     expect(block).toBeDefined()
     expect(block).toHaveTextContent(`(2V+2Ü, ${String(module.credits).replace('.', ',')} LP)`)
     expect(block).toHaveTextContent('Prof. Dr. Ada Lovelace, Dr. Alan Turing')
-    expect(block?.style.gridColumn).toBe('1')
-    expect(block?.style.gridRow).toBe(`2 / span ${module.credits * 2}`)
+    expect(
+      within(screen.getAllByTestId('overview-column')[0] as HTMLElement).getAllByTestId('overview-module'),
+    ).toContain(block)
+    expect(block?.style.minHeight).toBe(`calc(${module.credits} * var(--overview-lp))`)
   })
 
   it('shows placeholders and the credits per semester', () => {
@@ -89,7 +91,7 @@ describe('plan overview', () => {
     expect(placeholder).toHaveTextContent('Wahlpflichtmodul')
     expect(placeholder).toHaveTextContent('Vertiefung der Informatik')
     expect(placeholder).toHaveTextContent('≈ 5 LP')
-    expect(placeholder.style.gridColumn).toBe('5')
+    expect(screen.getAllByTestId('overview-column')[4]).toContainElement(placeholder)
 
     const totals = screen.getAllByTestId('overview-total')
     expect(totals).toHaveLength(plan.semesters.length)
