@@ -1,12 +1,13 @@
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
-import { APIError } from 'better-auth/api'
+import { APIError, createAuthMiddleware } from 'better-auth/api'
 import { eq } from 'drizzle-orm'
 import type { Config } from './config.ts'
 import type { Database } from './db/connection.ts'
 import { account, rateLimit, session, user, verification } from './db/schema.ts'
 import { type Mailer, mailLocale, passwordResetMail, verificationMail } from './mail.ts'
 import { hashPassword, verifyPassword } from './password.ts'
+import { verifySuperadminEmail } from './roles.ts'
 
 const HOUR = 60 * 60
 const DAY = 24 * HOUR
@@ -28,6 +29,15 @@ export function createAuth({ config, db, mailer }: AuthDependencies) {
       provider: 'pg',
       schema: { user, session, account, verification, rateLimit },
     }),
+    hooks: {
+      // The superadmin never needs e-mail verification: before its sign-in is checked, its address counts as
+      // verified. Everyone else still has to confirm theirs (requireEmailVerification below).
+      before: createAuthMiddleware(async (ctx) => {
+        if (ctx.path !== '/sign-in/email') return
+        const email: unknown = ctx.body?.email
+        if (typeof email === 'string') await verifySuperadminEmail(db, email)
+      }),
+    },
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: true,

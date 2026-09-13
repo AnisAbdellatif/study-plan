@@ -907,6 +907,39 @@ describe('admin', () => {
       expect(row?.role ?? 'user').toBe('user')
     })
 
+    it('never needs e-mail verification: dashboard, sign-in and restarts all work unverified', async () => {
+      const unverify = () =>
+        connection.db
+          .update(userTable)
+          .set({ emailVerified: false })
+          .where(eq(userTable.email, SUPERADMIN.email))
+
+      await unverify()
+      expect((await call('/api/admin/me', { cookie: superCookie })).status).toBe(200)
+
+      const signedIn = await signIn(SUPERADMIN.email.toUpperCase(), SUPERADMIN.password)
+      expect(signedIn.status).toBe(200)
+      expect((await userRow(SUPERADMIN.email)).emailVerified).toBe(true)
+
+      await unverify()
+      expect(await ensureSuperadmin(connection.db, auth, SUPERADMIN)).toBe('exists')
+      expect((await userRow(SUPERADMIN.email)).emailVerified).toBe(true)
+    })
+
+    it('still requires verification from everyone else, admins included', async () => {
+      await connection.db
+        .update(userTable)
+        .set({ emailVerified: false })
+        .where(eq(userTable.email, 'admin@example.org'))
+      expect((await call('/api/admin/me', { cookie: adminCookie })).status).toBe(404)
+      expect((await signIn('admin@example.org')).status).toBe(403)
+      expect((await userRow('admin@example.org')).emailVerified).toBe(false)
+      await connection.db
+        .update(userTable)
+        .set({ emailVerified: true })
+        .where(eq(userTable.email, 'admin@example.org'))
+    })
+
     it('protects the superadmin from admins and from deleting itself', async () => {
       const superId = (await userRow('chef@example.org')).id
       for (const [path, method] of [
