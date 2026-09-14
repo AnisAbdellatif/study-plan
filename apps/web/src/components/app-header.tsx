@@ -1,9 +1,10 @@
-import { type Plan, resetPlan } from '@study-plan/shared'
+import { formatTerm, type Plan, resetPlan, setStartTerm } from '@study-plan/shared'
 import { useNavigate } from '@tanstack/react-router'
 import { Download, EllipsisVertical, Moon, Sun, Upload } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { isLocale, LOCALES } from '../i18n/config.ts'
+import { currentLocale } from '../i18n/index.ts'
 import { setTheme, useTheme } from '../lib/theme.ts'
 import { useGuestStore } from '../store/guest-store.ts'
 import { AccountButton } from './account-button.tsx'
@@ -11,6 +12,7 @@ import { AdminButton } from './admin-button.tsx'
 import { useAnnounce } from './announcer.tsx'
 import { ImportGradesDialog } from './board/import-grades-dialog.tsx'
 import { ShareDialog } from './board/share-dialog.tsx'
+import { StartTermDialog } from './board/start-term-dialog.tsx'
 import { BrandMark } from './brand-logo.tsx'
 import { useImportPlan } from './import-plan-button.tsx'
 import { LanguageMenu } from './language-menu.tsx'
@@ -45,6 +47,7 @@ export function AppHeader({ plan }: { plan: Plan }) {
   const [clearResults, setClearResults] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
+  const [startTermOpen, setStartTermOpen] = useState(false)
 
   return (
     <header className="space-y-3">
@@ -96,6 +99,7 @@ export function AppHeader({ plan }: { plan: Plan }) {
               <MenuItem onClick={() => void navigate({ to: '/plan/update' })}>
                 {t('header.updateProgramme')}
               </MenuItem>
+              <MenuItem onClick={() => setStartTermOpen(true)}>{t('header.changeStartTerm')}</MenuItem>
               <MenuSeparator />
               <MenuItem
                 onClick={() => {
@@ -156,6 +160,16 @@ export function AppHeader({ plan }: { plan: Plan }) {
       {importer.element}
       <ImportGradesDialog plan={plan} open={importOpen} onOpenChange={setImportOpen} />
       <ShareDialog open={shareOpen} onOpenChange={setShareOpen} />
+      <StartTermDialog
+        open={startTermOpen}
+        onOpenChange={setStartTermOpen}
+        plan={plan}
+        onSave={(term) => {
+          store.updatePlan((current) => setStartTerm(current, term))
+          setStartTermOpen(false)
+          announce(t('startTerm.changed', { term: formatTerm(term, currentLocale()) }))
+        }}
+      />
       <ConfirmDialog
         open={restoreOpen}
         onOpenChange={setRestoreOpen}

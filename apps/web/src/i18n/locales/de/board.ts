@@ -6,6 +6,7 @@ export const board = {
     sharePlan: 'Plan teilen…',
     print: 'Drucken oder als PDF speichern',
     updateProgramme: 'Studiengangsdaten aktualisieren…',
+    changeStartTerm: 'Studienbeginn ändern…',
     restoreDefault: 'Auf Standardplan zurücksetzen…',
     restoreDefaultTitle: 'Plan auf den Standard zurücksetzen?',
     restoreDefaultDescription:
@@ -415,6 +416,16 @@ export const board = {
     calendarName: '{{name}}: Prüfungstermine',
     calendarExam: 'Prüfung: {{module}}',
     calendarWithdrawal: 'Letzter Tag zur Abmeldung: {{module}}',
+  },
+  startTerm: {
+    title: 'Studienbeginn ändern',
+    description: 'Alle Semester rücken mit ihren Modulen und Noten auf die neuen Semester.',
+    wrongTerms_one:
+      'Danach liegt {{count}} Modul in einem Semester, in dem es nicht angeboten wird. Die Hinweise zeigen, welches.',
+    wrongTerms_other:
+      'Danach liegen {{count}} Module in Semestern, in denen sie nicht angeboten werden. Die Hinweise zeigen, welche.',
+    save: 'Speichern',
+    changed: 'Studienbeginn geändert: {{term}}',
   },
   forecast: {
     title: 'Voraussichtlicher Abschluss',

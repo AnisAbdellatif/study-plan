@@ -5,7 +5,7 @@ import { toHalves } from '../engine/units.ts'
 import { presetSchema } from '../schema/preset.ts'
 import { dependentModules } from './dependencies.ts'
 import { graduationForecast } from './forecast.ts'
-import { moveModule, PlanError, setModuleResult, setSemesterKind } from './operations.ts'
+import { moveModule, PlanError, setModuleResult, setSemesterKind, setStartTerm } from './operations.ts'
 import { createPlanFromPreset, type Plan, planSchema } from './plan.ts'
 import { applyPresetUpdate } from './preset-update.ts'
 import { setRecognition } from './recognition.ts'
@@ -40,6 +40,21 @@ const passSemester = (plan: Plan, index: number): Plan =>
       module.grading === 'graded' ? { kind: 'graded', grade: 2.0 } : { kind: 'passed' },
     )
   }, plan)
+
+describe('start term', () => {
+  it('moves every semester to new terms and keeps the modules where they are', () => {
+    const plan = planFor()
+    const moved = setStartTerm(plan, { season: 'summer', year: 2027 })
+    expect(moved.startTerm).toEqual({ season: 'summer', year: 2027 })
+    expect(moved.semesters).toEqual(plan.semesters)
+    expect(summarizePlan(moved).semesters[0]?.term).toEqual({ season: 'summer', year: 2027 })
+    expect(planSchema.safeParse(moved).success).toBe(true)
+    // Winter-only modules of semester 1 are now in a summer term.
+    expect(kinds(moved)).toContain('wrong_term')
+    expect(setStartTerm(plan, { season: 'winter', year: 2026 })).toBe(plan)
+    expect(() => setStartTerm(plan, { season: 'winter', year: 1800 })).toThrow(PlanError)
+  })
+})
 
 describe('semester kinds', () => {
   it('marks semesters and notes open modules in a leave semester', () => {

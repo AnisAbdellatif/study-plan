@@ -9,6 +9,7 @@ export const board = {
     sharePlan: 'Share plan…',
     print: 'Print or save as PDF',
     updateProgramme: 'Update programme data…',
+    changeStartTerm: 'Change start of studies…',
     restoreDefault: 'Reset to default plan…',
     restoreDefaultTitle: 'Reset the plan to its default?',
     restoreDefaultDescription:
@@ -415,6 +416,16 @@ export const board = {
     calendarName: '{{name}}: exam dates',
     calendarExam: 'Exam: {{module}}',
     calendarWithdrawal: 'Last day to withdraw: {{module}}',
+  },
+  startTerm: {
+    title: 'Change start of studies',
+    description: 'Every semester moves to the new terms together with its modules and grades.',
+    wrongTerms_one:
+      '{{count}} module will then be in a semester that doesn’t offer it. The hints show which.',
+    wrongTerms_other:
+      '{{count}} modules will then be in semesters that don’t offer them. The hints show which.',
+    save: 'Save',
+    changed: 'Start of studies changed: {{term}}',
   },
   forecast: {
     title: 'Expected graduation',

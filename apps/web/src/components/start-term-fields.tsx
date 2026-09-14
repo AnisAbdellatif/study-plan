@@ -19,7 +19,10 @@ export function StartTermFields({ value, onChange, standardSemesters }: StartTer
   const locale = currentLocale()
   const yearId = useId()
   const currentYear = useMemo(() => termAt(new Date()).year, [])
-  const years = Array.from({ length: 9 }, (_, index) => currentYear - 7 + index)
+  // A plan that started earlier than the usual range keeps its year selectable.
+  const years = [
+    ...new Set([...Array.from({ length: 9 }, (_, index) => currentYear - 7 + index), value.year]),
+  ].sort((a, b) => a - b)
 
   return (
     <fieldset>
