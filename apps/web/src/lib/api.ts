@@ -106,6 +106,32 @@ export const planApi = {
 
 export type PlanApi = typeof planApi
 
+export interface ChatStatus {
+  available: boolean
+  dailyLimit: number
+  remaining: number
+}
+
+export interface ChatReply {
+  reply: string
+  /** Modules the answer is based on. */
+  modules: { code: string; name: string }[]
+  remaining: number
+}
+
+export interface ChatRequest {
+  planId: string
+  locale: 'de' | 'en'
+  messages: { role: 'user' | 'assistant'; content: string }[]
+}
+
+/** The study assistant. The server sends the model the plan's programme data only, never grades. */
+export const chatApi = {
+  status: (): Promise<ChatStatus> => request<ChatStatus>('/api/chat/status'),
+  send: (body: ChatRequest): Promise<ChatReply> =>
+    request<ChatReply>('/api/chat', { method: 'POST', body: JSON.stringify(body) }),
+}
+
 export interface ShareStatus {
   active: boolean
   createdAt: string | null
@@ -133,14 +159,9 @@ export interface SharedPlanResponse {
 export const shareApi = {
   status: (planId: string): Promise<ShareStatus> =>
     request<ShareStatus>(`/api/plans/${encodeURIComponent(planId)}/share`),
-  create: (
-    planId: string,
-    options: { includeGrades: boolean } = { includeGrades: false },
-  ): Promise<CreatedShare> =>
-    request<CreatedShare>(`/api/plans/${encodeURIComponent(planId)}/share`, {
-      method: 'POST',
-      body: JSON.stringify(options),
-    }),
+  /** A link never shows results or grades; the server has no readable grades anyway. */
+  create: (planId: string): Promise<CreatedShare> =>
+    request<CreatedShare>(`/api/plans/${encodeURIComponent(planId)}/share`, { method: 'POST' }),
   revoke: (planId: string): Promise<void> =>
     request<void>(`/api/plans/${encodeURIComponent(planId)}/share`, { method: 'DELETE' }),
   get: (token: string): Promise<SharedPlanResponse> =>
@@ -244,6 +265,7 @@ export interface AdminAuditEntry {
     | PresetAction
     | 'update_settings'
     | 'set_plan_limit'
+    | 'update_chat_settings'
   targetUserId: string
   createdAt: string
 }
@@ -272,6 +294,65 @@ export interface AdminSettings {
 /** Bounds the API accepts for plan limits, see apps/api/src/plan-limits.ts. */
 export const PLAN_LIMIT_MIN = 1
 export const PLAN_LIMIT_MAX = 50
+
+export interface AdminChatSettings {
+  enabled: boolean
+  dailyLimit: number
+  /** Whether the server has an API key; the key itself never reaches the browser. */
+  configured: boolean
+  /** The model the assistant uses now. */
+  model: string | null
+  /** Chosen on the dashboard; null uses the server's OPENROUTER_MODEL. */
+  customModel: string | null
+  defaultModel: string | null
+}
+
+/** What OpenRouter reports about a model id. */
+export interface ChatModelInfo {
+  id: string
+  name: string
+  providers: number
+  supportsTools: boolean
+  /** Every provider serves it at no charge. */
+  free: boolean
+  /** The cheapest provider with tool support, in US dollars per million tokens. */
+  pricing: { prompt: number; completion: number } | null
+  contextLength: number | null
+}
+
+/** Bounds of the daily message limit, see apps/api/src/chat/settings.ts. */
+export const CHAT_LIMIT_MIN = 1
+export const CHAT_LIMIT_MAX = 500
+
+export interface ChatUsageTotals {
+  questions: number
+  /** Questions the model could not answer; their tokens still count. */
+  failed: number
+  /** Model requests; one question takes several when the model looks things up. */
+  calls: number
+  promptTokens: number
+  completionTokens: number
+  /** US dollars, as OpenRouter bills them. */
+  cost: number
+}
+
+/** Study assistant totals per Berlin day and per model; nothing tied to accounts or content. */
+export interface AdminChatUsage {
+  /** The last 30 days, oldest first, including days without questions. */
+  days: (ChatUsageTotals & { day: string })[]
+  models: (ChatUsageTotals & { model: string })[]
+  totals: { today: ChatUsageTotals; last7Days: ChatUsageTotals; last30Days: ChatUsageTotals }
+  /** The API key's spending as OpenRouter reports it, in US dollars. */
+  credits: {
+    used: number
+    usedToday: number | null
+    usedThisWeek: number | null
+    usedThisMonth: number | null
+    limit: number | null
+    remaining: number | null
+  } | null
+  creditsStatus: 'ok' | 'unsupported' | 'error'
+}
 
 export interface NewAdmin {
   email: string
@@ -310,6 +391,24 @@ export const adminApi = {
       method: 'PUT',
       body: JSON.stringify({ planLimit }),
     }),
+  chatSettings: (): Promise<AdminChatSettings> => request<AdminChatSettings>('/api/admin/chat'),
+  /** A model that is not free is only saved with `acceptPaid`; otherwise the API answers 409 model_not_free. */
+  updateChatSettings: (settings: {
+    enabled: boolean
+    dailyLimit: number
+    model: string | null
+    acceptPaid?: boolean
+  }): Promise<AdminChatSettings> =>
+    request<AdminChatSettings>('/api/admin/chat', { method: 'PUT', body: JSON.stringify(settings) }),
+  /** Fails with unknown_model, model_unavailable, model_without_tools or model_check_failed. */
+  checkChatModel: async (model: string): Promise<ChatModelInfo> =>
+    (
+      await request<{ model: ChatModelInfo }>('/api/admin/chat/model-check', {
+        method: 'POST',
+        body: JSON.stringify({ model }),
+      })
+    ).model,
+  chatUsage: (): Promise<AdminChatUsage> => request<AdminChatUsage>('/api/admin/chat/usage'),
   audit: async (): Promise<AdminAuditEntry[]> =>
     (await request<{ entries: AdminAuditEntry[] }>('/api/admin/audit')).entries,
   sendVerificationEmail: (id: string): Promise<void> =>

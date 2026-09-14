@@ -49,6 +49,8 @@ export const auth = {
     sent: 'Falls es ein Konto mit dieser Adresse gibt, haben wir dir einen Link zum Zurücksetzen geschickt. Er ist eine Stunde gültig.',
     submit: 'Link anfordern',
     back: 'Zurück zur Anmeldung',
+    gradesWarning:
+      'Deine Noten sind mit deinem Passwort verschlüsselt. Nach dem Zurücksetzen lassen sich die bisher gespeicherten Noten nur mit dem früheren Passwort wiederherstellen. Bist du auf einem Gerät noch angemeldet, exportiere dort vorher deinen Plan.',
   },
   resetPassword: {
     invalidTitle: 'Link ungültig',
@@ -59,6 +61,8 @@ export const auth = {
     newPassword: 'Neues Passwort',
     repeatPassword: 'Passwort wiederholen',
     submit: 'Passwort speichern',
+    gradesWarning:
+      'Noten, die mit deinem bisherigen Passwort verschlüsselt sind, lassen sich danach nur mit dem bisherigen Passwort wiederherstellen.',
   },
   reminders: {
     title: 'E-Mail-Erinnerungen',
@@ -153,6 +157,26 @@ export const auth = {
     saving: 'Wird gespeichert…',
     synced: 'Im Konto gespeichert, {{time}}',
     failed: 'Speichern im Konto fehlgeschlagen',
+    locked: 'Noten gesperrt, Passwort nötig',
+    gradesUnreadable: 'Gespeicherte Noten nicht lesbar',
+    grades: {
+      lockedTitle: 'Noten auf diesem Gerät entsperren',
+      lockedText:
+        'Deine Noten sind verschlüsselt gespeichert, nur du kannst sie lesen. Gib dein Passwort ein, um sie auf diesem Gerät zu entschlüsseln.',
+      unlock: 'Entsperren',
+      signOut: 'Abmelden',
+      wrongPassword: 'Das Passwort stimmt nicht.',
+      unreadableTitle: 'Gespeicherte Noten nicht lesbar',
+      unreadableText:
+        'Die Noten in deinem Konto wurden mit einem früheren Passwort verschlüsselt, zum Beispiel vor dem Zurücksetzen. Mit dem früheren Passwort lassen sie sich wiederherstellen, sonst nicht mehr.',
+      previousPassword: 'Früheres Passwort',
+      stillUnreadable: 'Mit diesem Passwort lassen sich die Noten nicht entschlüsseln.',
+      discard: 'Ohne diese Noten weiter…',
+      discardTitle: 'Ohne die gespeicherten Noten weitermachen?',
+      discardText:
+        'Dein Plan wird ohne Noten und Zielschnitt geladen und so im Konto gespeichert. Die verschlüsselten Noten sind danach endgültig verloren.',
+      discardConfirm: 'Ohne Noten weiter',
+    },
     choosePlan: {
       title: 'Welchen Plan möchtest du behalten?',
       description:

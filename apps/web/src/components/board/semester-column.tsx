@@ -1,4 +1,4 @@
-import type { ChoiceArea, Plan, PlanModule, SemesterLoad } from '@study-plan/shared'
+import type { ChoiceArea, Plan, PlanModule, PlanSemester, SemesterLoad } from '@study-plan/shared'
 import {
   ArrowLeft,
   ArrowLeftToLine,
@@ -21,24 +21,43 @@ import { formatCredits } from '../../lib/format.ts'
 import type { IssueText } from '../../lib/issues.ts'
 import { moduleMatchesQuery } from '../../lib/module-search.ts'
 import { Button } from '../ui/button.tsx'
-import { MenuContent, MenuItem, MenuRoot, MenuSeparator, MenuTrigger } from '../ui/menu.tsx'
+import {
+  MenuContent,
+  MenuGroup,
+  MenuGroupLabel,
+  MenuItem,
+  MenuRadioGroup,
+  MenuRadioItem,
+  MenuRoot,
+  MenuSeparator,
+  MenuTrigger,
+} from '../ui/menu.tsx'
 import type { BoardActions } from './board-actions.ts'
 import { ChoiceAreaTiles } from './choice-area-tiles.tsx'
 import { type Destination, ModuleCard } from './module-card.tsx'
 import { PlaceholderCard } from './placeholder-card.tsx'
 
-/** Insert, move and delete for one semester; menu items keep all of it usable without dragging. */
+const SEMESTER_KINDS = [
+  'regular',
+  'part_time',
+  'leave',
+  'abroad',
+] as const satisfies readonly PlanSemester['kind'][]
+
+/** Insert, move, kind and delete for one semester; menu items keep all of it usable without dragging. */
 function SemesterMenu({
   semesterId,
   index,
   count,
   title,
+  kind,
   actions,
 }: {
   semesterId: string
   index: number
   count: number
   title: string
+  kind: PlanSemester['kind']
   actions: BoardActions
 }) {
   const { t } = useTranslation('board')
@@ -74,6 +93,23 @@ function SemesterMenu({
           <ArrowRight aria-hidden className="size-4" />
           {t('semesterMenu.moveRight')}
         </MenuItem>
+        <MenuSeparator />
+        <MenuGroup>
+          <MenuGroupLabel>{t('semesterMenu.kind')}</MenuGroupLabel>
+          <MenuRadioGroup
+            value={kind}
+            onValueChange={(value: unknown) => {
+              const next = SEMESTER_KINDS.find((candidate) => candidate === value)
+              if (next) actions.onSetSemesterKind(semesterId, next)
+            }}
+          >
+            {SEMESTER_KINDS.map((option) => (
+              <MenuRadioItem key={option} value={option}>
+                {t(`semesterMenu.kinds.${option}`)}
+              </MenuRadioItem>
+            ))}
+          </MenuRadioGroup>
+        </MenuGroup>
         <MenuSeparator />
         <MenuItem
           disabled={count <= 1}
@@ -119,6 +155,8 @@ export interface ColumnModel {
   /** Estimated credits of the placeholders in this column. */
   estimate: number
   load: SemesterLoad | null
+  /** Null for the backlog. */
+  kind: PlanSemester['kind'] | null
   isCurrent: boolean
   entries: ColumnEntry[]
 }
@@ -249,6 +287,11 @@ export const SemesterColumn = memo(function SemesterColumn({
             {column.title}
           </h2>
           <div className="flex items-center gap-1">
+            {column.kind !== null && column.kind !== 'regular' ? (
+              <span className="rounded-full bg-white/80 px-2 py-0.5 text-[11px] font-medium text-zinc-700 ring-1 ring-zinc-300 dark:bg-zinc-950/60 dark:text-zinc-300 dark:ring-zinc-700">
+                {t(`columns.kinds.${column.kind}`)}
+              </span>
+            ) : null}
             {column.isCurrent ? (
               <span className="rounded-full bg-indigo-600 px-2 py-0.5 text-[11px] font-medium text-white shadow-sm">
                 {t('columns.current')}
@@ -260,6 +303,7 @@ export const SemesterColumn = memo(function SemesterColumn({
                 index={column.index}
                 count={semesterCount}
                 title={column.title}
+                kind={column.kind ?? 'regular'}
                 actions={actions}
               />
             ) : null}

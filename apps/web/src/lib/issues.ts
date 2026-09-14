@@ -142,6 +142,40 @@ export function describeIssues(plan: Plan, issues: readonly PlanIssue[]): Descri
         }
         break
       }
+      // Pending and rejected recognitions show as a badge on the card, so they only get a sentence in the list.
+      case 'recognition_pending':
+        add(
+          issue.severity,
+          t(issue.status === 'planned' ? 'issues:recognitionPlanned' : 'issues:recognitionRequested', {
+            name: nameOf(issue.code),
+          }),
+        )
+        break
+      case 'recognition_rejected':
+        add(issue.severity, t('issues:recognitionRejected', { name: nameOf(issue.code) }))
+        break
+      case 'recognition_without_result':
+        add(
+          issue.severity,
+          t('issues:recognitionWithoutResult', { name: nameOf(issue.code) }),
+          issue.code,
+          t('issues:recognitionWithoutResultCard'),
+        )
+        break
+      case 'leave_semester_modules': {
+        const index = Math.max(
+          0,
+          plan.semesters.findIndex((semester) => semester.id === issue.semesterId),
+        )
+        add(
+          issue.severity,
+          t('issues:leaveSemesterModules', {
+            term: formatTerm(addTerms(plan.startTerm, index), currentLocale()),
+            names: issue.codes.map(nameOf).join(', '),
+          }),
+        )
+        break
+      }
       case 'area_below_minimum':
         add(
           issue.severity,

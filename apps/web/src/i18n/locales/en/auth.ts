@@ -48,6 +48,8 @@ export const auth = {
     sent: 'If there is an account with this address, we’ve sent you a link to reset your password. It is valid for one hour.',
     submit: 'Request link',
     back: 'Back to sign in',
+    gradesWarning:
+      'Your grades are encrypted with your password. After a reset, the grades saved so far can only be restored with the earlier password. If you’re still signed in on a device, export your plan there first.',
   },
   resetPassword: {
     invalidTitle: 'Invalid link',
@@ -58,6 +60,8 @@ export const auth = {
     newPassword: 'New password',
     repeatPassword: 'Repeat password',
     submit: 'Save password',
+    gradesWarning:
+      'Grades encrypted with your previous password can afterwards only be restored with that password.',
   },
   reminders: {
     title: 'Email reminders',
@@ -152,6 +156,26 @@ export const auth = {
     saving: 'Saving…',
     synced: 'Saved to your account, {{time}}',
     failed: 'Saving to your account failed',
+    locked: 'Grades locked, password needed',
+    gradesUnreadable: 'Saved grades can’t be read',
+    grades: {
+      lockedTitle: 'Unlock your grades on this device',
+      lockedText:
+        'Your grades are stored encrypted, so only you can read them. Enter your password to decrypt them on this device.',
+      unlock: 'Unlock',
+      signOut: 'Sign out',
+      wrongPassword: 'That password isn’t correct.',
+      unreadableTitle: 'Saved grades can’t be read',
+      unreadableText:
+        'The grades in your account were encrypted with an earlier password, for example before you reset it. The earlier password restores them; nothing else can.',
+      previousPassword: 'Earlier password',
+      stillUnreadable: 'The grades can’t be decrypted with this password.',
+      discard: 'Continue without these grades…',
+      discardTitle: 'Continue without the saved grades?',
+      discardText:
+        'Your plan loads without grades and target average and is saved to your account that way. The encrypted grades are then lost for good.',
+      discardConfirm: 'Continue without grades',
+    },
     choosePlan: {
       title: 'Which plan do you want to keep?',
       description:

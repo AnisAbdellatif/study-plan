@@ -1,5 +1,5 @@
 import type { Attempt } from '../engine/compute.ts'
-import { isPlaceholderId, type Plan, type PlanModule } from './plan.ts'
+import { isPlaceholderId, type Plan, type PlanModule, type PlanSemester } from './plan.ts'
 
 /** Thrown when an operation refers to a module or semester the plan does not have. */
 export class PlanError extends Error {
@@ -140,6 +140,19 @@ export function insertSemester(plan: Plan, index: number): Plan {
   const semesters = [...plan.semesters]
   semesters.splice(index, 0, { id: nextSemesterId(plan), kind: 'regular', moduleCodes: [] })
   return { ...plan, semesters }
+}
+
+/** Marks a semester as regular, part-time, on leave (Urlaubssemester) or abroad. */
+export function setSemesterKind(plan: Plan, semesterId: string, kind: PlanSemester['kind']): Plan {
+  if (!plan.semesters.some((semester) => semester.id === semesterId)) {
+    throw new PlanError(`Unknown semester "${semesterId}"`)
+  }
+  return {
+    ...plan,
+    semesters: plan.semesters.map((semester) =>
+      semester.id === semesterId ? { ...semester, kind } : semester,
+    ),
+  }
 }
 
 /** Moves a semester with everything in it to `toIndex`; the other semesters close the gap. */

@@ -2,7 +2,7 @@ import { computeOverall, type OverallResult } from '../engine/compute.ts'
 import { isModulePassed } from '../engine/progress.ts'
 import { toHalves } from '../engine/units.ts'
 import { placeholderCredits } from './placeholders.ts'
-import { type Plan, planGradeRules } from './plan.ts'
+import { type Plan, type PlanSemester, planGradeRules } from './plan.ts'
 import { addTerms, formatTerm, type Term } from './terms.ts'
 
 /** Default per-semester load warning bounds in credits. Presets will be able to override them. */
@@ -15,6 +15,7 @@ export interface SemesterSummary {
   number: number
   term: Term
   label: string
+  kind: PlanSemester['kind']
   credits: number
   /** Estimated credits of the placeholders in this semester. */
   placeholderCredits: number
@@ -40,10 +41,12 @@ export interface PlanSummary {
   areas: AreaSummary[]
 }
 
-const loadFor = (credits: number): SemesterLoad => {
+const loadFor = (credits: number, kind: PlanSemester['kind']): SemesterLoad => {
   if (credits === 0) return 'empty'
-  if (credits < LOAD_THRESHOLDS.low) return 'low'
-  if (credits > LOAD_THRESHOLDS.high) return 'high'
+  // A part-time semester carries about half the workload.
+  const factor = kind === 'part_time' ? 0.5 : 1
+  if (credits < LOAD_THRESHOLDS.low * factor) return 'low'
+  if (credits > LOAD_THRESHOLDS.high * factor) return 'high'
   return 'ok'
 }
 
@@ -72,10 +75,11 @@ export function summarizePlan(plan: Plan): PlanSummary {
         number: index + 1,
         term,
         label: formatTerm(term),
+        kind: semester.kind,
         credits,
         placeholderCredits: estimated,
         placeholders: placeholderIds.length,
-        load: loadFor(credits + estimated),
+        load: loadFor(credits + estimated, semester.kind),
       }
     }),
     areas: plan.areas.map((area) => ({

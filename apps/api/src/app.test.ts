@@ -2,7 +2,9 @@ import { readFileSync } from 'node:fs'
 import {
   createGuestDocument,
   createPlanFromPreset,
+  extractGrades,
   moveModule,
+  type Plan,
   presetSchema,
   setExamDate,
   setModuleResult,
@@ -12,6 +14,8 @@ import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { createApp } from './app.ts'
 import { createAuth } from './auth.ts'
+import { chatSettings, updateChatSettings } from './chat/settings.ts'
+import { chatUsageReport } from './chat/usage.ts'
 import { loadConfig } from './config.ts'
 import { type DatabaseConnection, openDatabase } from './db/connection.ts'
 import {
@@ -22,6 +26,8 @@ import {
   reminderDelivery,
   user as userTable,
 } from './db/schema.ts'
+import { createScriptedLlm } from './llm/scripted.ts'
+import type { LlmModelInfo } from './llm/types.ts'
 import { createMemoryMailer, type Mailer } from './mail.ts'
 import { berlinDate, runReminders, UNSUBSCRIBE_PATH, verifyUnsubscribeToken } from './reminders.ts'
 import { ensureSuperadmin } from './roles.ts'
@@ -52,6 +58,13 @@ const planDocument = (name = 'Informatik B.Sc.') =>
       name,
     }),
   )
+
+/** A plan as the browser sends it: grades taken out and encrypted. The ciphertext is a stand-in. */
+const SEALED_DATA = 'c2VhbGVkLWdyYWRlcw=='
+const sealedDocument = (plan: Plan) => ({
+  ...createGuestDocument(extractGrades(plan).plan),
+  encryptedGrades: { v: 1, iv: 'AAAAAAAAAAAAAAAA', data: SEALED_DATA },
+})
 
 const PASSWORD = 'richtig-langes-passwort'
 const mailer = createMemoryMailer()
@@ -243,9 +256,21 @@ describe('plans', () => {
     const loaded = await json<Summary & { document: unknown }>(await call(`/api/plans/${id}`, { cookie }))
     expect(loaded.document).toEqual(planDocument())
 
-    const changed = createGuestDocument(
-      setModuleResult(planDocument().plan, 'INF-101', { kind: 'graded', grade: 1.3 }),
-    )
+    const graded = setModuleResult(planDocument().plan, 'INF-101', { kind: 'graded', grade: 1.3 })
+    // A readable grade or target grade is never stored; the browser sends grades encrypted.
+    const plaintext = await call(`/api/plans/${id}`, {
+      method: 'PUT',
+      cookie,
+      body: { document: createGuestDocument(graded), revision: 1 },
+    })
+    expect(plaintext.status).toBe(422)
+    expect(await json(plaintext)).toEqual({ error: 'grades_not_encrypted' })
+    const withTarget = createGuestDocument(setTargetGrade(planDocument().plan, 1.7))
+    expect(
+      (await call('/api/plans', { method: 'POST', cookie, body: { document: withTarget } })).status,
+    ).toBe(422)
+
+    const changed = sealedDocument(graded)
     const updated = await call(`/api/plans/${id}`, {
       method: 'PUT',
       cookie,
@@ -384,6 +409,198 @@ describe('plans', () => {
   })
 })
 
+describe('chat', () => {
+  it('answers from programme data only, keeps a daily limit and needs one of the account’s plans', async () => {
+    const llm = createScriptedLlm([
+      {
+        toolCalls: [{ id: 'c1', name: 'get_module', arguments: JSON.stringify({ code: 'INF-101' }) }],
+        usage: { promptTokens: 100, completionTokens: 5, cost: 0.002 },
+      },
+      {
+        content: 'INF-101 wird im Wintersemester angeboten.',
+        usage: { promptTokens: 200, completionTokens: 20, cost: 0.003 },
+      },
+    ])
+    const chatApp = createApp({ config, db: connection.db, auth, mailer, llm })
+    const ask = (options: CallOptions) => {
+      const headers = new Headers({ origin: config.publicOrigin, 'content-type': 'application/json' })
+      if (options.cookie) headers.set('cookie', options.cookie)
+      return chatApp.request(options.body === undefined ? '/api/chat/status' : '/api/chat', {
+        method: options.body === undefined ? 'GET' : 'POST',
+        headers,
+        body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      })
+    }
+
+    const cookie = await registerVerifiedUser('chat@example.org')
+    let secretPlan = setModuleResult(planDocument('Mein Plan').plan, 'INF-101', {
+      kind: 'graded',
+      grade: 2.3,
+    })
+    secretPlan = setExamDate(secretPlan, 'INF-101', '2027-02-15')
+    secretPlan = setTargetGrade(secretPlan, 1.7)
+    const created = await json<{ id: string }>(
+      await call('/api/plans', { method: 'POST', cookie, body: { document: sealedDocument(secretPlan) } }),
+    )
+    const question = {
+      planId: created.id,
+      locale: 'de',
+      messages: [{ role: 'user', content: 'Wann wird INF-101 angeboten?' }],
+    }
+
+    expect((await ask({ body: question })).status).toBe(401)
+    expect(await json(await ask({ cookie }))).toEqual({ available: true, dailyLimit: 20, remaining: 20 })
+
+    const answered = await ask({ cookie, body: question })
+    expect(answered.status).toBe(200)
+    expect(await json(answered)).toEqual({
+      reply: 'INF-101 wird im Wintersemester angeboten.',
+      modules: [{ code: 'INF-101', name: expect.any(String) }],
+      remaining: 19,
+    })
+    // Nothing of the student's own data went to the model.
+    const sent = JSON.stringify(llm.requests)
+    for (const secret of ['attempts', '2027-02-15', 'targetGrade', '"grade"', SEALED_DATA])
+      expect(sent, secret).not.toContain(secret)
+
+    // The admin dashboard gets totals per day and model, nothing tied to the account.
+    const usage = await chatUsageReport(connection.db)
+    expect(usage.totals.today).toMatchObject({
+      questions: 1,
+      failed: 0,
+      calls: 2,
+      promptTokens: 300,
+      completionTokens: 25,
+    })
+    expect(usage.totals.today.cost).toBeCloseTo(0.005)
+    expect(usage.models).toMatchObject([{ model: 'test/scripted', questions: 1, calls: 2 }])
+    expect(usage.days).toHaveLength(30)
+    expect(usage.days.at(-1)).toMatchObject({ day: berlinDate(new Date()), questions: 1 })
+
+    const foreign = await ask({ cookie, body: { ...question, planId: crypto.randomUUID() } })
+    expect(foreign.status).toBe(404)
+    expect((await ask({ cookie, body: { ...question, messages: [] } })).status).toBe(400)
+
+    await updateChatSettings(connection.db, { enabled: true, dailyLimit: 2, model: null })
+    expect((await ask({ cookie, body: question })).status).toBe(200)
+    const limited = await ask({ cookie, body: question })
+    expect(limited.status).toBe(429)
+    expect(await json(limited)).toEqual({ error: 'chat_quota_exceeded', dailyLimit: 2 })
+
+    await updateChatSettings(connection.db, { enabled: false, dailyLimit: 20, model: null })
+    expect((await ask({ cookie, body: question })).status).toBe(503)
+    await updateChatSettings(connection.db, { enabled: true, dailyLimit: 20, model: null })
+    expect(await chatSettings(connection.db)).toEqual({ enabled: true, dailyLimit: 20, model: null })
+
+    // A blank answer still held by an older browser tab doesn't break the conversation.
+    const afterBlank = await ask({
+      cookie,
+      body: {
+        ...question,
+        messages: [
+          { role: 'user', content: 'Erste Frage' },
+          { role: 'assistant', content: '' },
+          { role: 'user', content: 'Zweite Frage' },
+        ],
+      },
+    })
+    expect(afterBlank.status).toBe(200)
+    expect(llm.requests.at(-1)?.messages.filter((message) => message.role === 'assistant')).toEqual([])
+
+    // The app without a model reports the chat as unavailable.
+    expect(await json(await call('/api/chat/status', { cookie }))).toMatchObject({ available: false })
+  })
+
+  it('lets admins switch the model once it exists and supports tools, and asks to confirm a paid one', async () => {
+    const info = (id: string, overrides: Partial<LlmModelInfo> = {}): LlmModelInfo => ({
+      id,
+      name: id,
+      providers: 2,
+      supportsTools: true,
+      free: false,
+      pricing: { prompt: 0.1, completion: 0.4 },
+      contextLength: 131072,
+      ...overrides,
+    })
+    const llm = createScriptedLlm([{ content: 'Antwort' }], 'default/model', {
+      'paid/model': info('paid/model'),
+      'free/model:free': info('free/model:free', { free: true, pricing: { prompt: 0, completion: 0 } }),
+      'plain/model': info('plain/model', { supportsTools: false }),
+    })
+    const chatApp = createApp({ config, db: connection.db, auth, mailer, llm })
+    const request = (path: string, { method = 'GET', body, cookie }: CallOptions = {}) => {
+      const headers = new Headers({ origin: config.publicOrigin, 'content-type': 'application/json' })
+      if (cookie) headers.set('cookie', cookie)
+      return chatApp.request(path, {
+        method,
+        headers,
+        body: body === undefined ? undefined : JSON.stringify(body),
+      })
+    }
+    const adminEmail = 'model-admin@example.org'
+    const admin = await registerVerifiedUser(adminEmail)
+    await connection.db.update(userTable).set({ role: 'admin' }).where(eq(userTable.email, adminEmail))
+    const save = (model: string | null, acceptPaid?: boolean) =>
+      request('/api/admin/chat', {
+        method: 'PUT',
+        cookie: admin,
+        body: { enabled: true, dailyLimit: 20, model, ...(acceptPaid === undefined ? {} : { acceptPaid }) },
+      })
+
+    expect(await json(await request('/api/admin/chat', { cookie: admin }))).toEqual({
+      enabled: true,
+      dailyLimit: 20,
+      configured: true,
+      model: 'default/model',
+      customModel: null,
+      defaultModel: 'default/model',
+    })
+
+    const unknown = await save('nobody/model')
+    expect(unknown.status).toBe(400)
+    expect(await json(unknown)).toEqual({ error: 'unknown_model' })
+    expect(await json(await save('plain/model'))).toMatchObject({ error: 'model_without_tools' })
+    expect((await save('../../key')).status).toBe(400)
+
+    const check = await request('/api/admin/chat/model-check', {
+      method: 'POST',
+      cookie: admin,
+      body: { model: 'paid/model' },
+    })
+    expect(await json(check)).toEqual({ model: info('paid/model') })
+
+    const unconfirmed = await save('paid/model')
+    expect(unconfirmed.status).toBe(409)
+    expect(await json(unconfirmed)).toMatchObject({ error: 'model_not_free', model: { id: 'paid/model' } })
+    expect((await chatSettings(connection.db)).model).toBeNull()
+
+    expect(await json(await save('paid/model', true))).toMatchObject({
+      model: 'paid/model',
+      customModel: 'paid/model',
+    })
+    // Saving the other settings again keeps the confirmed model without asking once more.
+    expect((await save('paid/model')).status).toBe(200)
+
+    // The chat now asks the chosen model.
+    const created = await json<{ id: string }>(
+      await call('/api/plans', { method: 'POST', cookie: admin, body: { document: planDocument() } }),
+    )
+    const asked = await request('/api/chat', {
+      method: 'POST',
+      cookie: admin,
+      body: { planId: created.id, locale: 'de', messages: [{ role: 'user', content: 'Hallo' }] },
+    })
+    expect(asked.status).toBe(200)
+    expect(llm.requests.at(-1)?.model).toBe('paid/model')
+
+    expect((await save('free/model:free')).status).toBe(200)
+    expect(await json(await save(null))).toMatchObject({ model: 'default/model', customModel: null })
+
+    // Leave no extra admin behind for the admin tests further down.
+    await connection.db.update(userTable).set({ role: 'user' }).where(eq(userTable.email, adminEmail))
+  })
+})
+
 describe('account data', () => {
   it('exports the profile, plans and sessions as a download', async () => {
     const email = 'export@example.org'
@@ -453,7 +670,7 @@ describe('sharing', () => {
   const privateDocument = () => {
     let plan = setModuleResult(planDocument('Geteilter Plan').plan, 'INF-101', { kind: 'graded', grade: 1.3 })
     plan = setExamDate(plan, 'INF-102', '2027-07-20')
-    return createGuestDocument(setTargetGrade(plan, 1.7))
+    return sealedDocument(setTargetGrade(plan, 1.7))
   }
 
   beforeAll(async () => {
@@ -528,7 +745,7 @@ describe('sharing', () => {
     })
   })
 
-  it('shares results only when the owner chooses grades, and never exam dates or the target grade', async () => {
+  it('never shares results or grades, even when an older client asks for them', async () => {
     const created = await call(`/api/plans/${planId}/share`, {
       method: 'POST',
       cookie,
@@ -538,24 +755,17 @@ describe('sharing', () => {
     const { token } = await json<Created & { includeGrades: boolean }>(created)
     expect(await json(await call(`/api/plans/${planId}/share`, { cookie }))).toMatchObject({
       active: true,
-      includeGrades: true,
+      includeGrades: false,
     })
 
     const text = await (await call(`/api/share/${token}`)).text()
     expect(text).not.toContain('2027-07-20')
+    expect(text).not.toContain(SEALED_DATA)
     const body = JSON.parse(text) as SharedResponse & { includeGrades: boolean }
-    expect(body.includeGrades).toBe(true)
-    expect(body.plan.modules.some((module) => module.attempts.length > 0)).toBe(true)
+    expect(body.includeGrades).toBe(false)
+    expect(body.plan.modules.every((module) => module.attempts.length === 0)).toBe(true)
     expect(body.plan.modules.every((module) => module.examDate === undefined)).toBe(true)
     expect(body.plan.targetGrade).toBeUndefined()
-
-    // A new link without the option goes back to no grades.
-    const plain = await json<Created>(await call(`/api/plans/${planId}/share`, { method: 'POST', cookie }))
-    const plainBody = await json<SharedResponse & { includeGrades: boolean }>(
-      await call(`/api/share/${plain.token}`),
-    )
-    expect(plainBody.includeGrades).toBe(false)
-    expect(plainBody.plan.modules.every((module) => module.attempts.length === 0)).toBe(true)
 
     const invalid = await call(`/api/plans/${planId}/share`, {
       method: 'POST',

@@ -42,18 +42,20 @@ export const legal = {
       heading: '2. Summary',
       guest: 'Without an account, your plan stays in your browser only and is not transmitted to us.',
       account:
-        'With an account, we store your email address, an encrypted password hash, your plans including grades, and information about your sign-ins.',
+        'With an account, we store your email address, an encrypted password hash, your plans and information about your sign-ins. Your browser encrypts your grades before saving them; we can’t read them.',
       noTracking:
         'There is no advertising, no tracking, no analytics tools and no embedded third-party content such as fonts or scripts.',
       cookie: 'We only set one technically necessary cookie, and only once you sign in.',
       sharing:
-        'If you share a plan via a link, the link shows semesters and modules. It only shows your grades if you explicitly choose “With grades” when creating the link.',
+        'If you share a plan via a link, the link shows semesters and modules, but never your results or grades.',
+      assistant:
+        'Using the study assistant is voluntary. The language model only gets your plan’s programme data and your questions, never your grades.',
       selfService: 'You can download your data and delete your account yourself at any time.',
     },
     website: {
       heading: '3. Visiting the website',
       serverLogs:
-        'When you visit the site, the server processes technically necessary connection data such as your IP address, the time and the requested address, so that the site can be delivered (Art. 6(1)(f) GDPR). This data is only processed for the duration of the connection. We do not keep access logs with IP addresses: neither the web server nor the application stores IP addresses in logs. The only exceptions are the sign-ins and misuse counters described in sections 5 and 8.',
+        'When you visit the site, the server processes technically necessary connection data such as your IP address, the time and the requested address, so that the site can be delivered (Art. 6(1)(f) GDPR). This data is only processed for the duration of the connection. We do not keep access logs with IP addresses: neither the web server nor the application stores IP addresses in logs. The only exceptions are the sign-ins and misuse counters described in sections 5 and 9.',
       appLogs:
         'The application logs requests only with method, path, status code and duration, without IP addresses and without content. These technical logs have a fixed maximum size; older entries are overwritten automatically.',
       hosting:
@@ -71,7 +73,7 @@ export const legal = {
         'your email address, a display name (automatically the part of your email address before the @), whether the address is confirmed, and when the account was created and last changed,',
       password: 'your password only as a salted scrypt hash, never in plain text,',
       plans:
-        'your plans: programme, modules, semesters, results and grades with all exam attempts, exam dates and target average,',
+        'your plans: programme, modules, semesters, results with all exam attempts, exam dates and recognitions; grades and target average only encrypted,',
       reminders: 'whether you have turned on email reminders,',
       language: 'which language you chose for the website, so that we send you emails in that language,',
       sessions:
@@ -81,11 +83,11 @@ export const legal = {
       adminView:
         'To support the service, we can see in an admin view your email address, whether it is confirmed, when you created the account and last used it, how many plans and shared links you have and whether reminders are turned on, but no grades and no plan contents. On request or in case of misuse, we can use it to send confirmation emails, deactivate links, end sign-ins and delete accounts. We log every such action with the account ID, without the email address, and delete the log after one year. The legal basis is our legitimate interest in a secure and working service (Art. 6(1)(f) GDPR).',
       grades:
-        'Grades are not among the special categories of personal data under Art. 9 GDPR. We still treat them confidentially: they can only be accessed through your account and only become visible to others if you share a plan with grades yourself.',
+        'Grades are not among the special categories of personal data under Art. 9 GDPR. We still protect them specially: your browser encrypts grades and target average (AES-256-GCM) with a key it derives from your password and keeps only on your devices. We store them only encrypted and can neither read nor pass them on. If you reset your password, grades saved until then can only be restored with the earlier password. Whether a module is passed stays visible to us, so that no reminders go out for passed exams.',
     },
     sharing: {
       heading: '6. Shared plans',
-      body: "When you share a plan, we create a random link. Of that link, we only store a check value (hash), when it was created, whether it should show grades and whether you have deactivated it. Anyone who knows the link can see the plan's name, programme, semesters and modules, and can take over the plan as their own copy without grades. Results, grades and the resulting grade average are only visible if you chose “With grades” when creating the link; exam dates and the target average are never visible. You can deactivate the link at any time; it is deleted together with the plan or your account. The legal basis is Art. 6(1)(b) GDPR.",
+      body: "When you share a plan, we create a random link. Of that link, we only store a check value (hash), when it was created and whether you have deactivated it. Anyone who knows the link can see the plan's name, programme, semesters and modules, and can take over the plan as their own copy. Results, grades, exam dates, recognitions and the target average are never visible. You can deactivate the link at any time; it is deleted together with the plan or your account. The legal basis is Art. 6(1)(b) GDPR.",
     },
     emails: {
       heading: '7. Emails',
@@ -95,16 +97,26 @@ export const legal = {
         'If you turn on email reminders on the account page, we remind you of withdrawal deadlines and exam dates that you have entered in the plans saved in your account. The emails only contain module names and dates. So that no reminder is sent twice, for every reminder sent we store the plan, the module number, the type and date of the deadline or exam, and the time it was sent, and delete these entries 30 days after that date. You can turn reminders off at any time on the account page or via the link in every reminder. The legal basis is Art. 6(1)(b) GDPR.',
       provider: 'All emails are sent via <mail/>, which processes the data on our behalf (Art. 28 GDPR).',
     },
+    assistant: {
+      heading: '8. Study assistant',
+      what: 'Signed-in users can ask a study assistant questions about their programme. For this we send your question, the conversation so far and the programme data of your plan (module names, credits, module catalogue information, areas and examination rules) to OpenRouter, Inc. (USA), which passes the request on to the provider of a language model. We only let requests be routed to providers that neither store them nor use them for training.',
+      never:
+        'Your grades, results and exam attempts, exam dates, target average, modules you added yourself, your semester planning, your email address and your name are never sent.',
+      storage:
+        'We don’t store conversations: the history only lives in your browser until you start a new conversation or reload the page. On the server we only count how many messages your account sends per day to enforce a daily limit, and delete these counters after seven days. Your browser remembers that you confirmed the notice before first use.',
+      basis:
+        'Using it is voluntary; please don’t put personal information in your questions. The legal basis is your consent (Art. 6(1)(a) GDPR), which you give by confirming the notice. As OpenRouter is based in the USA, data is transferred to a third country. The answers are not binding.',
+    },
     abuse: {
-      heading: '8. Protection against misuse',
+      heading: '9. Protection against misuse',
       body: 'To limit repeated sign-in attempts and other automated attacks on accounts, we briefly store a counter per IP address and sign-in function used. We limit requests for shared plans in the same way; the counters for this are only kept in memory and are not stored permanently. The legal basis is our legitimate interest in keeping accounts secure (Art. 6(1)(f) GDPR).',
     },
     cookies: {
-      heading: '9. Cookies',
+      heading: '10. Cookies',
       body: 'After you sign in, we set a cookie with your session key so that you stay signed in. It is strictly necessary for signing in (Section 25(2) no. 2 TDDDG) and is removed when you sign out. We do not use any other cookies.',
     },
     rights: {
-      heading: '10. Your rights',
+      heading: '11. Your rights',
       list: 'You have the right of access (Art. 15 GDPR), rectification (Art. 16), erasure (Art. 17), restriction of processing (Art. 18) and data portability (Art. 20). You can object to processing based on legitimate interests (Art. 21).',
       selfService:
         'You can exercise your rights of access and data portability yourself at any time via “Download data”, and you can delete your account yourself, both on the <account>account page</account>. For anything else, write to the email address given above.',
@@ -112,7 +124,7 @@ export const legal = {
         'You can also lodge a complaint with a data protection supervisory authority (Art. 77 GDPR), for example the one responsible for where you live.',
     },
     misc: {
-      heading: '11. Other information',
+      heading: '12. Other information',
       body: 'Using the app is voluntary. You only need an account if you want your plan to be available on several devices. There is no automated decision-making and no profiling.',
     },
     updated: 'Last updated: September 2026',

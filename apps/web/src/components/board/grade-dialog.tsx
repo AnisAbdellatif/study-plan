@@ -6,6 +6,8 @@ import {
   type GradeRules,
   type Plan,
   type PlanModule,
+  type Recognition,
+  type RecognitionInput,
   setModuleAttempts,
 } from '@study-plan/shared'
 import { Plus, X } from 'lucide-react'
@@ -123,10 +125,20 @@ function AttemptSummary({
   )
 }
 
+const RECOGNITION_STATUSES = [
+  'planned',
+  'requested',
+  'approved',
+  'rejected',
+] as const satisfies readonly Recognition['status'][]
+
+const textareaClass =
+  'min-h-16 w-full rounded-lg bg-white px-3 py-2 text-sm ring-1 ring-zinc-300 ring-inset focus-visible:outline-2 focus-visible:outline-indigo-500 dark:bg-zinc-950 dark:ring-zinc-700'
+
 interface GradeFormProps {
   module: PlanModule
   plan: Plan
-  onSave: (entries: AttemptEntry[], examDate: string | null) => void
+  onSave: (entries: AttemptEntry[], examDate: string | null, recognition: RecognitionInput | null) => void
   onCancel: () => void
 }
 
@@ -141,6 +153,24 @@ function GradeForm({ module, plan, onSave, onCancel }: GradeFormProps) {
       : [{ key: 0, value: 'open' }]
   })
   const [examDate, setExamDate] = useState(module.examDate ?? '')
+  const recognitionIds = {
+    status: useId(),
+    institution: useId(),
+    title: useId(),
+    credits: useId(),
+    note: useId(),
+  }
+  const [recognizing, setRecognizing] = useState(module.recognition !== undefined)
+  const [recognition, setRecognition] = useState({
+    status: module.recognition?.status ?? 'requested',
+    institution: module.recognition?.institution ?? '',
+    originalTitle: module.recognition?.originalTitle ?? '',
+    originalCredits:
+      module.recognition?.originalCredits === undefined ? '' : String(module.recognition.originalCredits),
+    note: module.recognition?.note ?? '',
+  })
+  const changeRecognition = (field: keyof typeof recognition, value: string) =>
+    setRecognition((current) => ({ ...current, [field]: value }))
   const entries = useMemo(() => rows.flatMap((row) => decode(row.value, row.date) ?? []), [rows])
   const graded = module.grading === 'graded'
   const base = graded ? t('grade.grade') : t('grade.result')
@@ -149,7 +179,20 @@ function GradeForm({ module, plan, onSave, onCancel }: GradeFormProps) {
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
-    onSave(entries, examDate === '' ? null : examDate)
+    onSave(
+      entries,
+      examDate === '' ? null : examDate,
+      recognizing
+        ? {
+            status: recognition.status,
+            institution: recognition.institution,
+            originalTitle: recognition.originalTitle,
+            originalCredits:
+              recognition.originalCredits === '' ? undefined : Number(recognition.originalCredits),
+            note: recognition.note,
+          }
+        : null,
+    )
   }
 
   const update = (key: number, value: string) =>
@@ -237,6 +280,102 @@ function GradeForm({ module, plan, onSave, onCancel }: GradeFormProps) {
         onChange={(event) => setExamDate(event.target.value)}
         className={inputClass}
       />
+      <fieldset className="mt-4 space-y-3 rounded-lg p-3 ring-1 ring-zinc-200 dark:ring-zinc-800">
+        <legend className="px-1 text-sm font-medium">{t('grade.recognition')}</legend>
+        <label className="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={recognizing}
+            onChange={(event) => setRecognizing(event.target.checked)}
+            className="mt-0.5 size-4 accent-indigo-600"
+          />
+          <span>{t('grade.recognitionToggle')}</span>
+        </label>
+        {recognizing ? (
+          <>
+            <div>
+              <label htmlFor={recognitionIds.status} className="block text-sm font-medium">
+                {t('grade.recognitionStatus')}
+              </label>
+              <select
+                id={recognitionIds.status}
+                value={recognition.status}
+                onChange={(event) => changeRecognition('status', event.target.value)}
+                className={`${inputClass} mt-1`}
+              >
+                {RECOGNITION_STATUSES.map((status) => (
+                  <option key={status} value={status}>
+                    {t(`grade.recognitionStatuses.${status}`)}
+                  </option>
+                ))}
+              </select>
+              {recognition.status === 'approved' ? (
+                <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
+                  {t('grade.recognitionApprovedHint')}
+                </p>
+              ) : null}
+            </div>
+            <div>
+              <label htmlFor={recognitionIds.institution} className="block text-sm font-medium">
+                {t('grade.recognitionInstitution')}{' '}
+                <span className="font-normal text-zinc-500 dark:text-zinc-400">{t('grade.optional')}</span>
+              </label>
+              <input
+                id={recognitionIds.institution}
+                value={recognition.institution}
+                maxLength={200}
+                onChange={(event) => changeRecognition('institution', event.target.value)}
+                className={`${inputClass} mt-1`}
+              />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_9rem]">
+              <div>
+                <label htmlFor={recognitionIds.title} className="block text-sm font-medium">
+                  {t('grade.recognitionOriginalTitle')}{' '}
+                  <span className="font-normal text-zinc-500 dark:text-zinc-400">{t('grade.optional')}</span>
+                </label>
+                <input
+                  id={recognitionIds.title}
+                  value={recognition.originalTitle}
+                  maxLength={200}
+                  onChange={(event) => changeRecognition('originalTitle', event.target.value)}
+                  className={`${inputClass} mt-1`}
+                />
+              </div>
+              <div>
+                <label htmlFor={recognitionIds.credits} className="block text-sm font-medium">
+                  {t('grade.recognitionOriginalCredits')}
+                </label>
+                <input
+                  id={recognitionIds.credits}
+                  type="number"
+                  inputMode="decimal"
+                  min={0.5}
+                  max={60}
+                  step={0.5}
+                  value={recognition.originalCredits}
+                  onChange={(event) => changeRecognition('originalCredits', event.target.value)}
+                  className={`${inputClass} mt-1 tabular-nums`}
+                />
+              </div>
+            </div>
+            <div>
+              <label htmlFor={recognitionIds.note} className="block text-sm font-medium">
+                {t('grade.recognitionNote')}{' '}
+                <span className="font-normal text-zinc-500 dark:text-zinc-400">{t('grade.optional')}</span>
+              </label>
+              <textarea
+                id={recognitionIds.note}
+                rows={2}
+                maxLength={1000}
+                value={recognition.note}
+                onChange={(event) => changeRecognition('note', event.target.value)}
+                className={`${textareaClass} mt-1`}
+              />
+            </div>
+          </>
+        ) : null}
+      </fieldset>
       <div className="mt-5 flex justify-end gap-2">
         <Button variant="secondary" onClick={onCancel}>
           {t('common:actions.cancel')}
@@ -252,7 +391,12 @@ function GradeForm({ module, plan, onSave, onCancel }: GradeFormProps) {
 export interface GradeDialogProps {
   module: PlanModule | null
   plan: Plan
-  onSave: (code: string, entries: AttemptEntry[], examDate: string | null) => void
+  onSave: (
+    code: string,
+    entries: AttemptEntry[],
+    examDate: string | null,
+    recognition: RecognitionInput | null,
+  ) => void
   onClose: () => void
 }
 
@@ -271,7 +415,7 @@ export function GradeDialog({ module, plan, onSave, onClose }: GradeDialogProps)
           module={module}
           plan={plan}
           onCancel={onClose}
-          onSave={(entries, examDate) => onSave(module.code, entries, examDate)}
+          onSave={(entries, examDate, recognition) => onSave(module.code, entries, examDate, recognition)}
         />
       ) : null}
     </Dialog>

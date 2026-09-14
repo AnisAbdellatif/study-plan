@@ -64,6 +64,20 @@
       "when": 1789331641432,
       "tag": "0008_plan_limits",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1789346448770,
+      "tag": "0009_chat_usage",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1789379606317,
+      "tag": "0010_chat_model_usage",
+      "breakpoints": true
     }
   ]
 }

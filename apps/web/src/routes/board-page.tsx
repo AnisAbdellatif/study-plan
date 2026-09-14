@@ -7,6 +7,7 @@ import {
   choosePlaceholder,
   createIcs,
   creditRequirements,
+  graduationForecast,
   insertSemester,
   isPlaceholderId,
   localIsoDate,
@@ -16,12 +17,15 @@ import {
   type Plan,
   PlanError,
   planDeadlines,
+  type RecognitionInput,
   removeCustomModule,
   removePlaceholder,
   removeSemester,
   semesterIndexAt,
   setExamDate,
   setModuleAttempts,
+  setRecognition,
+  setSemesterKind,
   setTargetGrade,
   summarizePlan,
   unchooseModule,
@@ -30,7 +34,7 @@ import {
   validatePlan,
 } from '@study-plan/shared'
 import { Navigate } from '@tanstack/react-router'
-import { ChartNoAxesColumn, LayoutGrid, ListChecks } from 'lucide-react'
+import { ChartNoAxesColumn, LayoutGrid, ListChecks, MessageCircle } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { AccountSyncBanner } from '../components/account-sync.tsx'
@@ -46,13 +50,16 @@ import { PlanOverview } from '../components/board/plan-overview.tsx'
 import { columnTitle, placeholderAreaName, SemesterBoard } from '../components/board/semester-board.tsx'
 import { SummaryPanel } from '../components/board/summary-panel.tsx'
 import { StorageNotice } from '../components/storage-notice.tsx'
-import { ConfirmDialog } from '../components/ui/dialog.tsx'
+import { StudyAssistant } from '../components/study-assistant.tsx'
+import { Button } from '../components/ui/button.tsx'
+import { ConfirmDialog, Dialog } from '../components/ui/dialog.tsx'
 import i18n from '../i18n/index.ts'
 import { cn } from '../lib/cn.ts'
 import { useModuleDropMonitor, useSemesterDropMonitor } from '../lib/dnd.ts'
 import { calendarFilename, downloadFile } from '../lib/files.ts'
 import { formatGrade, newId } from '../lib/format.ts'
 import { describeIssues } from '../lib/issues.ts'
+import { useMediaQuery } from '../lib/use-media-query.ts'
 import { usePrinting } from '../lib/use-printing.ts'
 import { useStableHandlers } from '../lib/use-stable-handlers.ts'
 import { useGuestState, useGuestStore } from '../store/guest-store.ts'
@@ -85,6 +92,7 @@ const MOBILE_TABS = [
   { id: 'plan', icon: LayoutGrid },
   { id: 'status', icon: ChartNoAxesColumn },
   { id: 'hints', icon: ListChecks },
+  { id: 'assistant', icon: MessageCircle },
 ] as const
 type MobileTab = (typeof MOBILE_TABS)[number]['id']
 
@@ -128,6 +136,9 @@ function Board({ plan }: { plan: Plan }) {
   const [view, setView] = useState<BoardView>(readBoardView)
   // Phones show one part of the page at a time, chosen in the bottom bar; wider screens show everything.
   const [mobileTab, setMobileTab] = useState<MobileTab>('plan')
+  // One assistant at a time: inline in its tab on phones, in a dialog on wider screens.
+  const wide = useMediaQuery('(min-width: 40rem)')
+  const [assistantOpen, setAssistantOpen] = useState(false)
   const changeView = (next: BoardView) => {
     setView(next)
     storeBoardView(next)
@@ -144,6 +155,10 @@ function Board({ plan }: { plan: Plan }) {
   )
   const whatIf = useMemo(() => analyzeWhatIf(plan, plan.targetGrade), [plan])
   const requirements = useMemo(() => creditRequirements(plan).filter((item) => !item.passed), [plan])
+  const forecast = useMemo(
+    () => graduationForecast(plan, { currentSemesterIndex: currentIndex }),
+    [plan, currentIndex],
+  )
   const allDeadlines = useMemo(() => planDeadlines(plan), [plan])
   const upcoming = useMemo(() => upcomingDeadlines(plan, today, DEADLINE_HORIZON_DAYS), [plan, today])
 
@@ -255,6 +270,16 @@ function Board({ plan }: { plan: Plan }) {
       if (semester.moduleCodes.length > 0) setDeleteSemesterId(semesterId)
       else deleteSemester(semesterId)
     },
+    onSetSemesterKind: (semesterId, kind) => {
+      if (apply((current) => setSemesterKind(current, semesterId, kind))) {
+        announce(
+          t('semesterMenu.kindChanged', {
+            column: columnTitle(plan, semesterId),
+            kind: t(`semesterMenu.kinds.${kind}`),
+          }),
+        )
+      }
+    },
   })
   useModuleDropMonitor(actions.onMove, actions.onPlaceArea)
   useSemesterDropMonitor(actions.onMoveSemester)
@@ -288,8 +313,20 @@ function Board({ plan }: { plan: Plan }) {
     if (apply((current) => removeCustomModule(current, code))) announce(t('announce.customDeleted', { name }))
   }
 
-  const saveResult = (code: string, entries: AttemptEntry[], examDate: string | null) => {
-    store.updatePlan((current) => setExamDate(setModuleAttempts(current, code, entries), code, examDate))
+  const saveResult = (
+    code: string,
+    entries: AttemptEntry[],
+    examDate: string | null,
+    recognition: RecognitionInput | null,
+  ) => {
+    const saved = apply((current) =>
+      setRecognition(
+        setExamDate(setModuleAttempts(current, code, entries), code, examDate),
+        code,
+        recognition,
+      ),
+    )
+    if (!saved) return
     setGradingCode(null)
     announce(`${moduleName(code)}: ${describeAttempts(entries)}`)
   }
@@ -325,6 +362,7 @@ function Board({ plan }: { plan: Plan }) {
         <PlanInsights
           plan={plan}
           hints={issues.list}
+          forecast={forecast}
           whatIf={whatIf}
           requirements={requirements}
           today={today}
@@ -379,12 +417,17 @@ function Board({ plan }: { plan: Plan }) {
           </div>
         ) : null}
       </div>
+      {!wide && mobileTab === 'assistant' ? (
+        <section aria-label={t('assistant.title')}>
+          <StudyAssistant onOpenModule={setDetailsCode} layout="page" />
+        </section>
+      ) : null}
       <nav
         aria-label={t('mobileNav.label')}
         // Sticky inside main: it stays at the bottom of the screen and never covers the footer.
         className="sticky bottom-0 z-30 -mx-4 mt-auto border-t border-zinc-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur sm:hidden print:hidden dark:border-zinc-800 dark:bg-zinc-900/95"
       >
-        <div className="grid grid-cols-3">
+        <div className="grid grid-cols-4">
           {MOBILE_TABS.map(({ id, icon: Icon }) => {
             const active = mobileTab === id
             const warnings =
@@ -447,6 +490,25 @@ function Board({ plan }: { plan: Plan }) {
         onSave={saveResult}
         onClose={() => setGradingCode(null)}
       />
+      {wide ? (
+        <Button
+          variant="primary"
+          className="fixed right-6 bottom-6 z-30 rounded-full shadow-lg print:hidden"
+          onClick={() => setAssistantOpen(true)}
+        >
+          <MessageCircle aria-hidden className="size-4" />
+          {t('assistant.title')}
+        </Button>
+      ) : null}
+      <Dialog
+        open={wide && assistantOpen}
+        onOpenChange={setAssistantOpen}
+        title={t('assistant.title')}
+        size="lg"
+        fill
+      >
+        <StudyAssistant onOpenModule={setDetailsCode} className="min-h-0 flex-1" showTitle={false} />
+      </Dialog>
       <ModuleDetailsDialog
         module={plan.modules.find((m) => m.code === detailsCode) ?? null}
         plan={plan}

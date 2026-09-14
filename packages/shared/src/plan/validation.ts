@@ -70,6 +70,12 @@ export type PlanIssue =
       /** Planned or passed modules of the same alternative group; only one of them may be taken. */
       codes: string[]
     }
+  | { kind: 'recognition_pending'; severity: 'info'; code: string; status: 'planned' | 'requested' }
+  | { kind: 'recognition_rejected'; severity: 'warning'; code: string }
+  /** Recognition approved, but the recognised result is not entered yet, so the credits don't count. */
+  | { kind: 'recognition_without_result'; severity: 'warning'; code: string }
+  /** Open modules in an Urlaubssemester, where many universities allow no or only some exams. */
+  | { kind: 'leave_semester_modules'; severity: 'info'; semesterId: string; codes: string[] }
   | { kind: 'area_below_minimum'; severity: 'info'; areaId: string; planned: number; minCredits: number }
   | { kind: 'area_above_maximum'; severity: 'warning'; areaId: string; planned: number; maxCredits: number }
 
@@ -103,6 +109,18 @@ export function validatePlan(plan: Plan, options: ValidationOptions = {}): PlanI
     const term = addTerms(plan.startTerm, index)
     const doneBefore = (code: string) =>
       passed.has(code) || (semesterOf.get(code) ?? Number.POSITIVE_INFINITY) < index
+
+    if (semester.kind === 'leave') {
+      const open = semester.moduleCodes.filter((code) => modules.has(code) && !passed.has(code))
+      if (open.length > 0) {
+        issues.push({
+          kind: 'leave_semester_modules',
+          severity: 'info',
+          semesterId: semester.id,
+          codes: open,
+        })
+      }
+    }
 
     for (const code of semester.moduleCodes) {
       const module = modules.get(code)
@@ -197,6 +215,15 @@ export function validatePlan(plan: Plan, options: ValidationOptions = {}): PlanI
       })
     }
     if (status.retakenAfterPass) issues.push({ kind: 'retaken_after_pass', severity: 'warning', code })
+
+    const recognition = module.recognition
+    if (recognition?.status === 'planned' || recognition?.status === 'requested') {
+      issues.push({ kind: 'recognition_pending', severity: 'info', code, status: recognition.status })
+    } else if (recognition?.status === 'rejected' && !passed.has(code)) {
+      issues.push({ kind: 'recognition_rejected', severity: 'warning', code })
+    } else if (recognition?.status === 'approved' && !passed.has(code)) {
+      issues.push({ kind: 'recognition_without_result', severity: 'warning', code })
+    }
   }
 
   const counted = new Set([...plan.semesters.flatMap((semester) => semester.moduleCodes), ...passed])

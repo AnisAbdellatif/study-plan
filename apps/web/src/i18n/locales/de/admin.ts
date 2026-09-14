@@ -230,6 +230,79 @@ export const admin = {
     own: 'Eigenes Limit:',
     ownLabel: 'Anzahl Pläne',
   },
+  chat: {
+    heading: 'Studienassistent',
+    intro:
+      'Der Assistent beantwortet Fragen zum Studiengang eines Plans über OpenRouter. Das Sprachmodell bekommt nur die Studiengangsdaten und die Fragen, nie Noten oder Kontodaten. Gespräche werden nicht gespeichert.',
+    notConfigured:
+      'Es ist kein API-Schlüssel eingerichtet. Setze OPENROUTER_API_KEY in der Serverkonfiguration, um den Assistenten anzubieten.',
+    model: 'Modell: {{model}}',
+    enabled: 'Assistenten anbieten',
+    dailyLimit: 'Nachrichten pro Konto und Tag',
+    hint: 'Zwischen {{min}} und {{max}} Nachrichten.',
+    save: 'Speichern',
+    saved: 'Gespeichert.',
+    loadError: 'Die Einstellungen ließen sich nicht laden.',
+    modelLabel: 'Modell (OpenRouter-ID)',
+    modelHint:
+      'Leer lassen für das Standardmodell aus der Serverkonfiguration ({{model}}). Beim Speichern prüft der Server bei OpenRouter, ob es das Modell gibt, ob es Tool-Aufrufe unterstützt und was es kostet.',
+    modelsLink: 'Modelle auf openrouter.ai',
+    paidTitle: '„{{name}}“ ist nicht kostenlos',
+    paidPricing:
+      'Günstigster Anbieter mit Tool-Aufrufen: {{prompt}} pro Million Eingabe-Tokens und {{completion}} pro Million Ausgabe-Tokens.',
+    paidNoPricing: 'OpenRouter nennt für dieses Modell keinen Preis.',
+    paidNote:
+      'Die Kosten gehen vom OpenRouter-Guthaben ab. Eine Frage braucht meist mehrere Anfragen mit jeweils einigen Tausend Tokens.',
+    usePaid: 'Trotzdem verwenden',
+    savedFreeModel:
+      'Gespeichert. Kostenlose Modelle haben bei OpenRouter enge Tageslimits, und ihre Anbieter dürfen Eingaben oft speichern. Weil der Assistent nur Anbieter ohne Datenspeicherung nutzt, kann es sein, dass das Modell dann nicht antwortet.',
+    modelErrors: {
+      unknown_model:
+        'Bei OpenRouter gibt es kein Modell „{{model}}“. Prüfe die ID, zum Beispiel google/gemma-4-31b-it.',
+      model_unavailable: '„{{model}}“ hat bei OpenRouter gerade keinen Anbieter.',
+      model_without_tools:
+        '„{{model}}“ unterstützt keine Tool-Aufrufe. Der Assistent braucht sie, um im Studiengang nachzuschlagen.',
+      model_check_failed:
+        'OpenRouter war nicht erreichbar, daher ließ sich das Modell nicht prüfen. Versuche es später noch einmal.',
+      invalid_request: '„{{model}}“ ist keine gültige Modell-ID. Sie hat die Form anbieter/modell.',
+    },
+  },
+  chatUsage: {
+    heading: 'Nutzung des Assistenten',
+    intro:
+      'Summen je Tag (Berliner Zeit) und Modell. Gespeichert werden keine Konten, Fragen oder Antworten. Kosten in US-Dollar, wie OpenRouter sie abrechnet; auch fehlgeschlagene Fragen können Tokens verbrauchen.',
+    refresh: 'Aktualisieren',
+    loadError: 'Die Nutzung ließ sich nicht laden.',
+    periods: { today: 'Heute', last7Days: 'Letzte 7 Tage', last30Days: 'Letzte 30 Tage' },
+    questions_one: '{{formatted}} Frage',
+    questions_other: '{{formatted}} Fragen',
+    failed_one: '{{formatted}} fehlgeschlagen',
+    failed_other: '{{formatted}} fehlgeschlagen',
+    tokens: '{{input}} Eingabe- · {{output}} Ausgabe-Tokens',
+    chartHeading: 'Tokens pro Tag',
+    chartLabel: 'Tokens pro Tag in den letzten 30 Tagen, insgesamt {{tokens}}',
+    barTitle: '{{day}}: {{tokens}} Tokens, {{questions}} Fragen',
+    empty: 'In den letzten 30 Tagen wurden keine Fragen gestellt.',
+    modelsHeading: 'Nach Modell (30 Tage)',
+    columns: {
+      model: 'Modell',
+      questions: 'Fragen',
+      calls: 'Anfragen',
+      input: 'Eingabe-Tokens',
+      output: 'Ausgabe-Tokens',
+      cost: 'Kosten',
+    },
+    credits: {
+      heading: 'OpenRouter-Schlüssel',
+      used: 'Insgesamt ausgegeben',
+      month: 'Diesen Monat',
+      today: 'Heute (UTC)',
+      remaining: 'Übrig',
+      ofLimit: '{{remaining}} von {{limit}}',
+      noLimit: 'Kein Limit gesetzt',
+      error: 'Die Ausgaben des Schlüssels ließen sich gerade nicht abrufen.',
+    },
+  },
   audit: {
     settings: 'alle Konten',
     heading: 'Protokoll',
@@ -238,6 +311,7 @@ export const admin = {
     preset: 'Vorlage {{id}}',
     footnote: 'Die letzten 50 Aktionen. Einträge werden nach einem Jahr gelöscht.',
     actions: {
+      update_chat_settings: 'Einstellungen des Assistenten geändert',
       update_settings: 'Standard-Planlimit geändert',
       set_plan_limit: 'Planlimit eines Kontos geändert',
       send_verification_email: 'Bestätigungs-E-Mail gesendet',

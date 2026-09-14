@@ -1,13 +1,15 @@
-import type { ReactNode } from 'react'
-import { createContext, useContext, useEffect, useState, useSyncExternalStore } from 'react'
+import type { FormEvent, ReactNode } from 'react'
+import { createContext, useContext, useEffect, useId, useState, useSyncExternalStore } from 'react'
 import { useTranslation } from 'react-i18next'
 import i18n, { currentIntlLocale } from '../i18n/index.ts'
 import { planApi } from '../lib/api.ts'
+import { appGradeKeyring } from '../lib/app-grade-keyring.ts'
 import { authClient } from '../lib/auth-client.ts'
+import { createGradeSealer } from '../lib/grade-sealer.ts'
 import { PlanSync, type SyncState } from '../lib/plan-sync.ts'
 import { type StorageLike, useGuestState, useGuestStore } from '../store/guest-store.ts'
 import { Button } from './ui/button.tsx'
-import { Dialog } from './ui/dialog.tsx'
+import { ConfirmDialog, Dialog } from './ui/dialog.tsx'
 
 export interface AccountUser {
   id: string
@@ -71,10 +73,120 @@ function ChoosePlanDialog({ sync, state }: { sync: PlanSync; state: SyncState })
         >
           {t('sync.choosePlan.keepBrowser')}
         </Button>
-        <Button variant="primary" disabled={busy} onClick={() => sync.loadAccountPlan()}>
+        <Button
+          variant="primary"
+          disabled={busy}
+          onClick={async () => {
+            setBusy(true)
+            await sync.loadAccountPlan()
+            setBusy(false)
+          }}
+        >
           {t('sync.choosePlan.loadAccount')}
         </Button>
       </div>
+    </Dialog>
+  )
+}
+
+/**
+ * Asks for the password when this device can't read the account's grades: after signing in without a password
+ * (e.g. the link in the verification e-mail), or when they were encrypted with an earlier password.
+ */
+function GradesDialog({ sync, state, user }: { sync: PlanSync; state: SyncState; user: AccountUser | null }) {
+  const { t } = useTranslation('auth')
+  const store = useGuestStore()
+  const passwordId = useId()
+  const [password, setPassword] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [confirmDiscard, setConfirmDiscard] = useState(false)
+  if (!user || (state.kind !== 'locked' && state.kind !== 'grades_unreadable')) return null
+  const unreadable = state.kind === 'grades_unreadable'
+
+  const unlock = async (event: FormEvent) => {
+    event.preventDefault()
+    setBusy(true)
+    setError(null)
+    try {
+      if (unreadable) {
+        // An earlier password can't be checked with the account; decrypting shows whether it was the right one.
+        await appGradeKeyring.rememberPrevious(password, user.id)
+      } else {
+        const result = await authClient.signIn.email({ email: user.email, password })
+        if (result.error) {
+          setError(t('sync.grades.wrongPassword'))
+          return
+        }
+        await appGradeKeyring.remember(password, user.id)
+      }
+      setPassword('')
+      await sync.resume()
+      if (sync.getState().kind === 'grades_unreadable') setError(t('sync.grades.stillUnreadable'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const signOut = async () => {
+    setBusy(true)
+    await authClient.signOut()
+    sync.stop()
+    store.replacePlan(null)
+    setBusy(false)
+  }
+
+  return (
+    <Dialog
+      open
+      onOpenChange={() => {}}
+      title={unreadable ? t('sync.grades.unreadableTitle') : t('sync.grades.lockedTitle')}
+      description={unreadable ? t('sync.grades.unreadableText') : t('sync.grades.lockedText')}
+    >
+      <form onSubmit={(event) => void unlock(event)} className="space-y-3">
+        {error ? (
+          <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+            {error}
+          </p>
+        ) : null}
+        <div>
+          <label htmlFor={passwordId} className="block text-sm font-medium">
+            {unreadable ? t('sync.grades.previousPassword') : t('fields.password')}
+          </label>
+          <input
+            id={passwordId}
+            type="password"
+            autoComplete={unreadable ? 'off' : 'current-password'}
+            required
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            className="mt-1 h-10 w-full rounded-lg bg-white px-3 text-sm ring-1 ring-zinc-300 ring-inset focus-visible:outline-2 focus-visible:outline-indigo-500 dark:bg-zinc-950 dark:ring-zinc-700"
+          />
+        </div>
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          {unreadable ? (
+            <Button variant="ghost" disabled={busy} onClick={() => setConfirmDiscard(true)}>
+              {t('sync.grades.discard')}
+            </Button>
+          ) : (
+            <Button variant="ghost" disabled={busy} onClick={() => void signOut()}>
+              {t('sync.grades.signOut')}
+            </Button>
+          )}
+          <Button type="submit" variant="primary" loading={busy}>
+            {t('sync.grades.unlock')}
+          </Button>
+        </div>
+      </form>
+      <ConfirmDialog
+        open={confirmDiscard}
+        onOpenChange={setConfirmDiscard}
+        title={t('sync.grades.discardTitle')}
+        description={t('sync.grades.discardText')}
+        confirmLabel={t('sync.grades.discardConfirm')}
+        destructive
+        onConfirm={() => void sync.discardUnreadableGrades()}
+      />
     </Dialog>
   )
 }
@@ -83,7 +195,14 @@ export function AccountSyncProvider({ children }: { children: ReactNode }) {
   const store = useGuestStore()
   const session = authClient.useSession()
   const [sync] = useState(
-    () => new PlanSync({ store, api: planApi, storage: browserStorage(), debounceMs: 1000 }),
+    () =>
+      new PlanSync({
+        store,
+        api: planApi,
+        grades: createGradeSealer(appGradeKeyring),
+        storage: browserStorage(),
+        debounceMs: 1000,
+      }),
   )
   const state = useSyncExternalStore(sync.subscribe, sync.getState, sync.getState)
   const sessionUser = session.data?.user
@@ -103,6 +222,7 @@ export function AccountSyncProvider({ children }: { children: ReactNode }) {
     <AccountSyncContext.Provider value={{ sync, state, user, sessionPending: session.isPending }}>
       {children}
       <ChoosePlanDialog sync={sync} state={state} />
+      <GradesDialog sync={sync} state={state} user={user} />
     </AccountSyncContext.Provider>
   )
 }
@@ -130,6 +250,10 @@ export function describeSyncState(state: SyncState, signedIn: boolean): string {
       return i18n.t('auth:sync.synced', { time: formatDateTime(state.savedAt) })
     case 'error':
       return i18n.t('auth:sync.failed')
+    case 'locked':
+      return i18n.t('auth:sync.locked')
+    case 'grades_unreadable':
+      return i18n.t('auth:sync.gradesUnreadable')
   }
 }
 

@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
-import { addDays, dueReminders, parseGuestDocument } from '@study-plan/shared'
+import { addDays, dueReminders, type PlanModule, parseGuestDocument } from '@study-plan/shared'
 import { and, eq, inArray, lt } from 'drizzle-orm'
 import type { Config } from './config.ts'
 import type { Database } from './db/connection.ts'
@@ -89,7 +89,9 @@ export async function runReminders(
     for (const row of plans) {
       const parsed = parseGuestDocument(row.document)
       if (!parsed.success) continue
-      for (const event of dueReminders(parsed.document.plan, today)) {
+      // Grades are encrypted, so a graded module counts as passed by its recorded result.
+      const passed = (module: PlanModule) => module.attempts.some((attempt) => attempt.result === 'passed')
+      for (const event of dueReminders(parsed.document.plan, today, undefined, passed)) {
         const [claim] = await db
           .insert(reminderDelivery)
           .values({ planId: row.planId, moduleCode: event.code, kind: event.kind, eventDate: event.date })

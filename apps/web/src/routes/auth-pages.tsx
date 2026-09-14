@@ -10,6 +10,7 @@ import { LoadingText, Spinner } from '../components/ui/spinner.tsx'
 import { useSignOut } from '../components/use-sign-out.ts'
 import i18n, { currentLocale } from '../i18n/index.ts'
 import { adminApi, notificationApi, type PlanOverview, type PlanSummary, planApi } from '../lib/api.ts'
+import { appGradeKeyring } from '../lib/app-grade-keyring.ts'
 import { authClient } from '../lib/auth-client.ts'
 import { downloadFile } from '../lib/files.ts'
 import { useGuestState } from '../store/guest-store.ts'
@@ -128,6 +129,9 @@ export function SignInPage() {
     setPending(true)
     setError(null)
     const result = await authClient.signIn.email({ email, password })
+    // Started right away, so syncing, which starts with the new session, waits for the key instead of asking.
+    const accountId = result.data?.user?.id
+    if (accountId) void appGradeKeyring.remember(password, accountId)
     setPending(false)
     if (result.error) setError(result.error)
     else void navigate({ to: '/' })
@@ -214,6 +218,9 @@ export function SignUpPage() {
       callbackURL: VERIFIED_CALLBACK,
       locale: currentLocale(),
     })
+    // The verification link signs in without a password; a key made now saves asking for it on this device.
+    const accountId = result.data?.user?.id
+    if (accountId) void appGradeKeyring.remember(password, accountId)
     setPending(false)
     if (result.error) setError(result.error)
     else setSentTo(email)
@@ -330,7 +337,7 @@ export function ForgotPasswordPage() {
   }
 
   return (
-    <AuthLayout title={t('forgotPassword.title')}>
+    <AuthLayout title={t('forgotPassword.title')} intro={t('forgotPassword.gradesWarning')}>
       <form onSubmit={submit} className={cardClass}>
         {done ? (
           <Alert tone="success">{t('forgotPassword.sent')}</Alert>
@@ -398,7 +405,7 @@ export function ResetPasswordPage() {
   }
 
   return (
-    <AuthLayout title={t('resetPassword.title')}>
+    <AuthLayout title={t('resetPassword.title')} intro={t('resetPassword.gradesWarning')}>
       {done ? (
         <div className={cardClass}>
           <Alert tone="success">{t('resetPassword.done')}</Alert>
@@ -789,6 +796,7 @@ export function AccountPage() {
       return
     }
     sync.stop()
+    void appGradeKeyring.forget(user.id)
     void navigate({ to: '/' })
   }
 

@@ -35,6 +35,9 @@ services:
       REMINDER_INTERVAL_MINUTES: ${REMINDER_INTERVAL_MINUTES:-60}
       # Caddy replaces this header with the real client address, so rate limiting can trust it.
       IP_ADDRESS_HEADER: x-forwarded-for
+      # Optional study assistant through OpenRouter. Without a key it stays off.
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-}
     # Only on the loopback interface: the host's Caddy is the single way in from outside. Docker's published
     # ports bypass host firewalls such as ufw, so never publish on 0.0.0.0 here.
     ports:

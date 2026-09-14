@@ -38,4 +38,13 @@ export const issues = {
   alternativesConflictCard: 'Only one of the alternatives is possible',
   areaBelowMinimum: '{{area}}: {{planned}} planned out of at least {{min}}.',
   areaAboveMaximum: '{{area}}: {{planned}} planned, but at most {{max}} are allowed.',
+  recognitionPlanned: 'You plan to have {{name}} recognised. Apply to the examination office in good time.',
+  recognitionRequested:
+    'Recognition of {{name}} has been requested. Its credits don’t count until it’s decided.',
+  recognitionRejected: 'Recognition of {{name}} was rejected. Plan the module to take it yourself.',
+  recognitionWithoutResult:
+    '{{name}} is recognised but has no result yet. Enter the recognised grade or “passed” so its credits count.',
+  recognitionWithoutResultCard: 'Recognised, result missing',
+  leaveSemesterModules:
+    '{{term}} is a leave semester, but {{names}} is planned in it. Your examination regulations say whether exams are allowed during a leave semester.',
 } satisfies Messages<typeof de>

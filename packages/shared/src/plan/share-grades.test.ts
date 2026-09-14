@@ -20,23 +20,17 @@ function privatePlan() {
   return setTargetGrade(plan, 1.7)
 }
 
-describe('sharing with grades', () => {
-  it('keeps results only when asked, and never exam dates or the target grade', () => {
-    const withGrades = toSharedPlan(privatePlan(), { includeGrades: true })
-    expect(withGrades.modules.find((module) => module.code === 'INF-101')?.attempts.length).toBeGreaterThan(0)
-    expect(withGrades.modules.every((module) => module.examDate === undefined)).toBe(true)
-    expect(withGrades.targetGrade).toBeUndefined()
-
-    const withoutGrades = toSharedPlan(privatePlan())
-    expect(withoutGrades.modules.every((module) => module.attempts.length === 0)).toBe(true)
+describe('sharing a plan', () => {
+  it('never reveals results, grades, exam dates or the target grade', () => {
+    const shared = toSharedPlan(privatePlan())
+    expect(shared.modules.every((module) => module.attempts.length === 0)).toBe(true)
+    expect(shared.modules.every((module) => module.examDate === undefined)).toBe(true)
+    expect(shared.targetGrade).toBeUndefined()
   })
 
-  it('never copies someone else’s grades into an adopted plan', () => {
-    const fork = forkPlan(toSharedPlan(privatePlan(), { includeGrades: true }), {
-      id: 'copy',
-      now: new Date('2026-10-01T08:00:00Z'),
-    })
+  it('adopts a shared plan as an independent copy', () => {
+    const fork = forkPlan(toSharedPlan(privatePlan()), { id: 'copy', now: new Date('2026-10-01T08:00:00Z') })
     expect(fork.modules.every((module) => module.attempts.length === 0)).toBe(true)
-    expect(fork.id).toBe('copy')
+    expect(fork).toMatchObject({ id: 'copy', createdAt: '2026-10-01T08:00:00.000Z' })
   })
 })

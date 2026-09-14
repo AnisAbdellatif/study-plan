@@ -33,6 +33,9 @@ services:
       SUPERADMIN_NAME: ${SUPERADMIN_NAME:-Superadmin}
       REMINDER_INTERVAL_MINUTES: ${REMINDER_INTERVAL_MINUTES:-0}
       IP_ADDRESS_HEADER: x-forwarded-for
+      # Optional study assistant through OpenRouter. Without a key it stays off.
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-}
     # Loopback only, as in compose.yaml, and a different port so both stacks run side by side.
     ports:
       - "127.0.0.1:${APP_PORT:-3001}:3000"

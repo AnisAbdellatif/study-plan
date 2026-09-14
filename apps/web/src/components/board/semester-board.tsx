@@ -60,6 +60,7 @@ const sameColumn = (a: ColumnModel, b: ColumnModel): boolean =>
   a.credits === b.credits &&
   a.estimate === b.estimate &&
   a.load === b.load &&
+  a.kind === b.kind &&
   a.isCurrent === b.isCurrent &&
   a.entries.length === b.entries.length &&
   a.entries.every((entry, i) => sameEntry(entry, b.entries[i]))
@@ -152,6 +153,7 @@ export function SemesterBoard({ plan, summary, currentIndex, actions, notesByCod
           credits: info?.credits ?? 0,
           estimate: info?.placeholderCredits ?? 0,
           load: info?.load ?? null,
+          kind: semester.kind,
           isCurrent: index === currentIndex,
           entries: resolve(semester.moduleCodes),
         }
@@ -164,6 +166,7 @@ export function SemesterBoard({ plan, summary, currentIndex, actions, notesByCod
         credits,
         estimate: 0,
         load: null,
+        kind: null,
         isCurrent: false,
         entries: backlog,
       },

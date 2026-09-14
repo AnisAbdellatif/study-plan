@@ -147,6 +147,20 @@ export const ModuleCard = memo(function ModuleCard({
               </span>
             </span>
             {module.internship ? <span>· {t('card.internship')}</span> : null}
+            {module.recognition ? (
+              <span
+                className={cn(
+                  'rounded px-1.5 py-0.5 font-medium',
+                  module.recognition.status === 'approved'
+                    ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-500/20 dark:text-emerald-200'
+                    : module.recognition.status === 'rejected'
+                      ? 'bg-red-100 text-red-900 dark:bg-red-500/20 dark:text-red-200'
+                      : 'bg-white/80 text-zinc-700 dark:bg-zinc-950/50 dark:text-zinc-300',
+                )}
+              >
+                {t(`card.recognition.${module.recognition.status}`)}
+              </span>
+            ) : null}
             {examKindLabels(module).length > 0 ? (
               // The verbatim forms ("Klausur (90 Min.)") are in the details; the card only names the kind.
               <span

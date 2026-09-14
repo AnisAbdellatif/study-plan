@@ -17,6 +17,8 @@ import {
   adminApi,
   type UserRole,
 } from '../lib/api.ts'
+import { ChatSettingsSection } from './admin-chat-section.tsx'
+import { ChatUsageSection } from './admin-chat-usage.tsx'
 import { MailSection } from './admin-mail-section.tsx'
 import { PlanLimitDialog, PlanLimitSection } from './admin-plan-limits.tsx'
 
@@ -697,7 +699,7 @@ function AuditLog({ entries }: { entries: AdminAuditEntry[] }) {
                   {t(`audit.actions.${entry.action}`)}{' '}
                   <span className="text-zinc-600 dark:text-zinc-400">
                     ·{' '}
-                    {entry.action === 'update_settings'
+                    {entry.targetUserId === 'settings'
                       ? t('audit.settings')
                       : PRESET_ACTIONS.has(entry.action)
                         ? t('audit.preset', { id: entry.targetUserId })
@@ -805,6 +807,8 @@ export function AdminPage() {
       <MailSection onChanged={changed} />
       <AdminPresetsSection onChanged={changed} />
       <PlanLimitSection onChanged={changed} />
+      <ChatSettingsSection onChanged={changed} />
+      <ChatUsageSection />
       {viewer === 'superadmin' ? <AdminTeam {...sectionProps} /> : null}
       <Accounts {...sectionProps} />
       <AuditLog entries={audit} />

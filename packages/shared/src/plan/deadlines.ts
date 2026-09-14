@@ -1,5 +1,5 @@
 import { isModulePassed } from '../engine/progress.ts'
-import type { Plan } from './plan.ts'
+import type { Plan, PlanModule } from './plan.ts'
 
 export type DeadlineKind = 'withdrawal' | 'exam'
 
@@ -32,15 +32,21 @@ export const localIsoDate = (date: Date): string =>
 
 const KIND_ORDER: Record<DeadlineKind, number> = { withdrawal: 0, exam: 1 }
 
+/** Whether a module is passed. The server, which has no grades, decides by the recorded result instead. */
+export type PassedCheck = (module: PlanModule) => boolean
+
 /**
  * Exam dates the student entered, plus the last day to withdraw when the preset defines a withdrawal period.
  * Passed modules have no deadlines left.
  */
-export function planDeadlines(plan: Plan): DeadlineEvent[] {
+export function planDeadlines(
+  plan: Plan,
+  isPassed: PassedCheck = (module) => isModulePassed(module, plan.rules),
+): DeadlineEvent[] {
   const withdrawalDays = plan.preset.withdrawalDaysBeforeExam
   const events: DeadlineEvent[] = []
   for (const module of plan.modules) {
-    if (!module.examDate || isModulePassed(module, plan.rules)) continue
+    if (!module.examDate || isPassed(module)) continue
     const base = { code: module.code, moduleName: module.name }
     if (withdrawalDays !== undefined) {
       events.push({ ...base, kind: 'withdrawal', date: addDays(module.examDate, -withdrawalDays) })
@@ -69,8 +75,9 @@ export function dueReminders(
   plan: Plan,
   today: string,
   leadDays: Readonly<Record<DeadlineKind, number>> = REMINDER_LEAD_DAYS,
+  isPassed?: PassedCheck,
 ): DeadlineEvent[] {
-  return planDeadlines(plan).filter(
+  return planDeadlines(plan, isPassed).filter(
     (event) => event.date >= today && daysBetween(today, event.date) <= leadDays[event.kind],
   )
 }

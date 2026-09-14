@@ -230,6 +230,78 @@ export const admin = {
     own: 'Own limit:',
     ownLabel: 'Number of plans',
   },
+  chat: {
+    heading: 'Study assistant',
+    intro:
+      'The assistant answers questions about a plan’s programme through OpenRouter. The language model only gets the programme data and the questions, never grades or account details. Conversations are not stored.',
+    notConfigured:
+      'No API key is set up. Set OPENROUTER_API_KEY in the server configuration to offer the assistant.',
+    model: 'Model: {{model}}',
+    enabled: 'Offer the assistant',
+    dailyLimit: 'Messages per account per day',
+    hint: 'Between {{min}} and {{max}} messages.',
+    save: 'Save',
+    saved: 'Saved.',
+    loadError: "The settings couldn't be loaded.",
+    modelLabel: 'Model (OpenRouter id)',
+    modelHint:
+      'Leave empty for the default model from the server configuration ({{model}}). When you save, the server checks with OpenRouter that the model exists, supports tool calls and what it costs.',
+    modelsLink: 'Models on openrouter.ai',
+    paidTitle: '“{{name}}” is not free',
+    paidPricing:
+      'Cheapest provider with tool calls: {{prompt}} per million input tokens and {{completion}} per million output tokens.',
+    paidNoPricing: "OpenRouter doesn't list a price for this model.",
+    paidNote:
+      'The costs come out of the OpenRouter credit. One question usually takes several requests of a few thousand tokens each.',
+    usePaid: 'Use it anyway',
+    savedFreeModel:
+      'Saved. Free models have tight daily limits on OpenRouter, and their providers are often allowed to store inputs. Because the assistant only uses providers that store nothing, the model may not answer then.',
+    modelErrors: {
+      unknown_model: 'OpenRouter has no model “{{model}}”. Check the id, for example google/gemma-4-31b-it.',
+      model_unavailable: '“{{model}}” has no provider on OpenRouter right now.',
+      model_without_tools:
+        '“{{model}}” doesn’t support tool calls. The assistant needs them to look things up in the programme.',
+      model_check_failed:
+        "OpenRouter couldn't be reached, so the model couldn't be checked. Try again later.",
+      invalid_request: '“{{model}}” is not a valid model id. It has the form provider/model.',
+    },
+  },
+  chatUsage: {
+    heading: 'Assistant usage',
+    intro:
+      'Totals per day (Berlin time) and model. No accounts, questions or answers are stored. Costs in US dollars as OpenRouter bills them; failed questions can use tokens too.',
+    refresh: 'Refresh',
+    loadError: "The usage couldn't be loaded.",
+    periods: { today: 'Today', last7Days: 'Last 7 days', last30Days: 'Last 30 days' },
+    questions_one: '{{formatted}} question',
+    questions_other: '{{formatted}} questions',
+    failed_one: '{{formatted}} failed',
+    failed_other: '{{formatted}} failed',
+    tokens: '{{input}} input · {{output}} output tokens',
+    chartHeading: 'Tokens per day',
+    chartLabel: 'Tokens per day over the last 30 days, {{tokens}} in total',
+    barTitle: '{{day}}: {{tokens}} tokens, {{questions}} questions',
+    empty: 'No questions were asked in the last 30 days.',
+    modelsHeading: 'By model (30 days)',
+    columns: {
+      model: 'Model',
+      questions: 'Questions',
+      calls: 'Requests',
+      input: 'Input tokens',
+      output: 'Output tokens',
+      cost: 'Cost',
+    },
+    credits: {
+      heading: 'OpenRouter key',
+      used: 'Spent in total',
+      month: 'This month',
+      today: 'Today (UTC)',
+      remaining: 'Left',
+      ofLimit: '{{remaining}} of {{limit}}',
+      noLimit: 'No limit set',
+      error: "The key's spending couldn't be fetched right now.",
+    },
+  },
   audit: {
     settings: 'all accounts',
     heading: 'Audit log',
@@ -238,6 +310,7 @@ export const admin = {
     preset: 'preset {{id}}',
     footnote: 'The last 50 actions. Entries are deleted after one year.',
     actions: {
+      update_chat_settings: 'Assistant settings changed',
       update_settings: 'Default plan limit changed',
       set_plan_limit: 'Plan limit of an account changed',
       send_verification_email: 'Confirmation email resent',

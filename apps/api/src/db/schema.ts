@@ -8,10 +8,12 @@ import {
   bigint,
   boolean,
   date,
+  doublePrecision,
   index,
   integer,
   jsonb,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -130,6 +132,38 @@ export const appSetting = pgTable('app_setting', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
+/** Study assistant messages per account per day (Berlin time), for the daily limit. No message content. */
+export const chatUsage = pgTable(
+  'chat_usage',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    day: date('day', { mode: 'string' }).notNull(),
+    count: integer('count').notNull().default(0),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.day] })],
+)
+
+/**
+ * Study assistant totals per day (Berlin time) and model for the admin dashboard. No account, question or answer
+ * is stored with them. `cost` is in the provider's credits (USD for OpenRouter).
+ */
+export const chatModelUsage = pgTable(
+  'chat_model_usage',
+  {
+    day: date('day', { mode: 'string' }).notNull(),
+    model: text('model').notNull(),
+    questions: integer('questions').notNull().default(0),
+    failed: integer('failed').notNull().default(0),
+    calls: integer('calls').notNull().default(0),
+    promptTokens: bigint('prompt_tokens', { mode: 'number' }).notNull().default(0),
+    completionTokens: bigint('completion_tokens', { mode: 'number' }).notNull().default(0),
+    cost: doublePrecision('cost').notNull().default(0),
+  },
+  (table) => [primaryKey({ columns: [table.day, table.model] })],
+)
+
 /** Unlisted share links. Only a SHA-256 hash of the token is stored; the owner sees the token once. */
 export const planShare = pgTable(
   'plan_share',
@@ -203,6 +237,7 @@ export const adminAuditLog = pgTable(
         'delete_preset',
         'update_settings',
         'set_plan_limit',
+        'update_chat_settings',
       ],
     }).notNull(),
     targetUserId: text('target_user_id').notNull(),

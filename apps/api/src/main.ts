@@ -7,6 +7,7 @@ import { createApp } from './app.ts'
 import { createAuth } from './auth.ts'
 import { loadConfig } from './config.ts'
 import { openDatabase } from './db/connection.ts'
+import { createOpenRouterClient } from './llm/openrouter.ts'
 import { createConsoleMailer, createSmtpMailer } from './mail.ts'
 import { startReminderScheduler } from './reminders.ts'
 import { ensureSuperadmin } from './roles.ts'
@@ -24,11 +25,22 @@ if (config.superadmin) {
   const outcome = await ensureSuperadmin(database.db, auth, config.superadmin)
   if (outcome !== 'exists') console.info(`[api] superadmin ${config.superadmin.email} ${outcome}`)
 }
+const llm = config.chat
+  ? createOpenRouterClient({
+      apiKey: config.chat.apiKey,
+      model: config.chat.model,
+      baseUrl: config.chat.baseUrl,
+      appUrl: config.publicUrl,
+      appName: 'Study Plan',
+    })
+  : undefined
+
 const app = createApp({
   config,
   db: database.db,
   auth,
   mailer,
+  llm,
   staticFiles: config.webDist
     ? {
         // Vite puts a content hash in every file name under assets/, so those never change and can be cached
