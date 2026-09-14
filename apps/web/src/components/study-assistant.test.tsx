@@ -84,6 +84,46 @@ describe('study assistant', () => {
     expect(onOpenModule).toHaveBeenCalledWith('INF-101')
   })
 
+  it('renders answers as Markdown without raw HTML, images or unsafe links', async () => {
+    window.localStorage.setItem(ASSISTANT_CONSENT_KEY, '1')
+    mockApi(() =>
+      respond({
+        reply: [
+          '### Wahlmodule',
+          '',
+          '**Wichtig:** zwei Module im Sommer.',
+          '',
+          '- Robotik (INF-310)',
+          '- Bildverarbeitung (INF-320)',
+          '',
+          '| Modul | LP |',
+          '| --- | --- |',
+          '| Robotik | 6 |',
+          '',
+          '[Handbuch](https://example.org/handbuch) [Trick](javascript:alert(1)) <b>roh</b> ![Bild](https://example.org/x.png)',
+        ].join('\n'),
+        modules: [],
+        remaining: 19,
+      }),
+    )
+    const { user } = renderAssistant()
+
+    await user.type(await screen.findByLabelText('Deine Frage'), 'Welche Wahlmodule gibt es?')
+    await user.click(screen.getByRole('button', { name: 'Senden' }))
+
+    const log = await screen.findByRole('log')
+    expect((await screen.findByText('Wichtig:')).tagName).toBe('STRONG')
+    expect(screen.getByText('Wahlmodule').tagName).toBe('P')
+    expect(screen.getByText('Bildverarbeitung (INF-320)').tagName).toBe('LI')
+    expect(screen.getByRole('cell', { name: '6' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Handbuch' })).toHaveAttribute(
+      'href',
+      'https://example.org/handbuch',
+    )
+    expect(screen.queryByRole('link', { name: 'Trick' })).not.toBeInTheDocument()
+    expect(log.querySelector('b, img')).toBeNull()
+  })
+
   it('explains a used-up daily limit and keeps the question', async () => {
     window.localStorage.setItem(ASSISTANT_CONSENT_KEY, '1')
     mockApi(() => respond({ error: 'chat_quota_exceeded', dailyLimit: 20 }, 429))

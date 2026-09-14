@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { MessageCircle, RotateCcw, Send } from 'lucide-react'
-import { type FormEvent, type KeyboardEvent, useEffect, useId, useRef, useState } from 'react'
+import { type FormEvent, type KeyboardEvent, lazy, Suspense, useEffect, useId, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { currentLocale } from '../i18n/index.ts'
 import { ApiError, type ChatReply, type ChatStatus, chatApi } from '../lib/api.ts'
@@ -8,6 +8,13 @@ import { cn } from '../lib/cn.ts'
 import { useAccountSync } from './account-sync.tsx'
 import { Button } from './ui/button.tsx'
 import { LoadingText } from './ui/spinner.tsx'
+
+function PlainAnswer({ children }: { children: string }) {
+  return <p className="break-words whitespace-pre-line">{children}</p>
+}
+
+// If the chunk cannot load (offline, or a deploy replaced it), answers stay readable as plain text.
+const ChatMarkdown = lazy(() => import('./chat-markdown.tsx').catch(() => ({ default: PlainAnswer })))
 
 /** Set once the student confirmed what the assistant sends where. */
 export const ASSISTANT_CONSENT_KEY = 'study-plan:assistant-consent'
@@ -40,10 +47,19 @@ function readConsent(): boolean {
 export function StudyAssistant({
   onOpenModule,
   className,
+  layout = 'panel',
+  showTitle = true,
 }: {
   /** Opens a module named in an answer, e.g. in the board's details dialog. */
   onOpenModule: (code: string) => void
   className?: string
+  /**
+   * `panel`: fills a box of fixed height and the conversation scrolls inside it (dialog). `page`: the conversation is
+   * part of the page, so only the page scrolls, and the question box sticks above the phone's bottom bar.
+   */
+  layout?: 'panel' | 'page'
+  /** Off where the surrounding dialog already names the assistant. */
+  showTitle?: boolean
 }) {
   const { t } = useTranslation(['board', 'common'])
   const { user, sync, sessionPending } = useAccountSync()
@@ -51,6 +67,7 @@ export function StudyAssistant({
   const planId = userId ? sync.linkedPlanId() : null
   const inputId = useId()
   const logRef = useRef<HTMLDivElement>(null)
+  const endRef = useRef<HTMLDivElement>(null)
   const [status, setStatus] = useState<ChatStatus | 'loading' | 'error'>('loading')
   const [consented, setConsented] = useState(readConsent)
   const [entries, setEntries] = useState<Entry[]>([])
@@ -84,16 +101,27 @@ export function StudyAssistant({
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: scroll whenever a message or the progress line appears
   useEffect(() => {
+    if (entries.length === 0) return
+    if (layout === 'page') {
+      // The end marker's scroll margin keeps the newest message clear of the sticky question box.
+      const end = endRef.current
+      if (end && typeof end.scrollIntoView === 'function') end.scrollIntoView({ block: 'nearest' })
+      return
+    }
     const log = logRef.current
     if (log && typeof log.scrollTo === 'function') log.scrollTo({ top: log.scrollHeight })
-  }, [entries, sending])
+  }, [entries, sending, layout])
+
+  const title = showTitle ? (
+    <p className="flex items-center gap-2 font-semibold">
+      <MessageCircle aria-hidden className="size-4 text-indigo-600 dark:text-indigo-400" />
+      {t('assistant.title')}
+    </p>
+  ) : null
 
   const shell = (children: React.ReactNode) => (
     <div className={cn('space-y-3 text-sm', className)}>
-      <p className="flex items-center gap-2 font-semibold">
-        <MessageCircle aria-hidden className="size-4 text-indigo-600 dark:text-indigo-400" />
-        {t('assistant.title')}
-      </p>
+      {title}
       {children}
     </div>
   )
@@ -195,12 +223,9 @@ export function StudyAssistant({
   const exhausted = status.remaining <= 0
 
   return (
-    <div className={cn('flex min-h-0 flex-col gap-3 text-sm', className)}>
-      <div className="flex items-center justify-between gap-2">
-        <p className="flex items-center gap-2 font-semibold">
-          <MessageCircle aria-hidden className="size-4 text-indigo-600 dark:text-indigo-400" />
-          {t('assistant.title')}
-        </p>
+    <div className={cn('flex flex-col gap-3 text-sm', layout === 'panel' && 'min-h-0', className)}>
+      <div className={cn('flex min-h-8 items-center gap-2', showTitle ? 'justify-between' : 'justify-end')}>
+        {title}
         <div className="flex items-center gap-2">
           <span className="text-xs text-zinc-600 tabular-nums dark:text-zinc-400">
             {t('assistant.remaining', { count: status.remaining })}
@@ -219,7 +244,10 @@ export function StudyAssistant({
         role="log"
         aria-live="polite"
         aria-label={t('assistant.title')}
-        className="min-h-0 flex-1 space-y-3 overflow-y-auto rounded-lg bg-zinc-50 p-3 ring-1 ring-zinc-200 dark:bg-zinc-950/60 dark:ring-zinc-800"
+        className={cn(
+          'space-y-3 rounded-lg bg-zinc-50 p-3 ring-1 ring-zinc-200 dark:bg-zinc-950/60 dark:ring-zinc-800',
+          layout === 'panel' && 'min-h-0 flex-1 overflow-y-auto',
+        )}
       >
         {entries.length === 0 ? (
           <div className="space-y-3">
@@ -248,16 +276,17 @@ export function StudyAssistant({
               <span className="sr-only">
                 {entry.role === 'user' ? t('assistant.you') : t('assistant.assistantName')}:
               </span>
-              <p
-                className={cn(
-                  'max-w-[90%] rounded-2xl px-3 py-2 break-words whitespace-pre-line',
-                  entry.role === 'user'
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-white ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800',
-                )}
-              >
-                {entry.content}
-              </p>
+              {entry.role === 'user' ? (
+                <p className="max-w-[90%] rounded-2xl bg-indigo-600 px-3 py-2 break-words whitespace-pre-line text-white">
+                  {entry.content}
+                </p>
+              ) : (
+                <div className="max-w-[90%] min-w-0 rounded-2xl bg-white px-3 py-2 ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800">
+                  <Suspense fallback={<p className="break-words whitespace-pre-line">{entry.content}</p>}>
+                    <ChatMarkdown>{entry.content}</ChatMarkdown>
+                  </Suspense>
+                </div>
+              )}
               {entry.modules && entry.modules.length > 0 ? (
                 <ul className="flex max-w-[90%] flex-wrap gap-1.5" aria-label={t('assistant.modules')}>
                   {entry.modules.map((module) => (
@@ -273,35 +302,50 @@ export function StudyAssistant({
           ))
         )}
         {sending ? <LoadingText>{t('assistant.thinking')}</LoadingText> : null}
+        <div ref={endRef} aria-hidden className="scroll-mb-48" />
       </div>
 
-      {error ? (
-        <p role="alert" className="text-red-700 dark:text-red-400">
-          {error}
-        </p>
-      ) : null}
+      <div
+        className={cn(
+          'flex flex-col gap-3',
+          // Sticks to the top edge of the bottom bar (3.5rem buttons, 1px border, safe area).
+          layout === 'page' &&
+            'sticky bottom-[calc(3.5rem+1px+env(safe-area-inset-bottom))] z-20 -mx-4 border-t border-zinc-200 bg-white/95 px-4 py-3 backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/95',
+        )}
+      >
+        {error ? (
+          <p role="alert" className="text-red-700 dark:text-red-400">
+            {error}
+          </p>
+        ) : null}
 
-      <form onSubmit={submit} className="flex items-end gap-2">
-        <label htmlFor={inputId} className="sr-only">
-          {t('assistant.inputLabel')}
-        </label>
-        <textarea
-          id={inputId}
-          rows={2}
-          maxLength={MAX_LENGTH}
-          value={draft}
-          disabled={exhausted}
-          placeholder={t('assistant.placeholder')}
-          onChange={(event) => setDraft(event.target.value)}
-          onKeyDown={onKeyDown}
-          className="min-h-11 flex-1 resize-none rounded-lg bg-white px-3 py-2 text-base ring-1 ring-zinc-300 ring-inset focus-visible:outline-2 focus-visible:outline-indigo-500 disabled:opacity-50 sm:text-sm dark:bg-zinc-950 dark:ring-zinc-700"
-        />
-        <Button type="submit" variant="primary" loading={sending} disabled={exhausted || draft.trim() === ''}>
-          <Send aria-hidden className="size-4" />
-          {t('assistant.send')}
-        </Button>
-      </form>
-      <p className="text-xs text-zinc-600 dark:text-zinc-400">{t('assistant.disclaimer')}</p>
+        <form onSubmit={submit} className="flex items-end gap-2">
+          <label htmlFor={inputId} className="sr-only">
+            {t('assistant.inputLabel')}
+          </label>
+          <textarea
+            id={inputId}
+            rows={2}
+            maxLength={MAX_LENGTH}
+            value={draft}
+            disabled={exhausted}
+            placeholder={t('assistant.placeholder')}
+            onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={onKeyDown}
+            className="min-h-11 flex-1 resize-none rounded-lg bg-white px-3 py-2 text-base ring-1 ring-zinc-300 ring-inset focus-visible:outline-2 focus-visible:outline-indigo-500 disabled:opacity-50 sm:text-sm dark:bg-zinc-950 dark:ring-zinc-700"
+          />
+          <Button
+            type="submit"
+            variant="primary"
+            loading={sending}
+            disabled={exhausted || draft.trim() === ''}
+          >
+            <Send aria-hidden className="size-4" />
+            {t('assistant.send')}
+          </Button>
+        </form>
+        <p className="text-xs text-zinc-600 dark:text-zinc-400">{t('assistant.disclaimer')}</p>
+      </div>
     </div>
   )
 }

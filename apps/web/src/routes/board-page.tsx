@@ -387,8 +387,8 @@ function Board({ plan }: { plan: Plan }) {
         ) : null}
       </div>
       {!wide && mobileTab === 'assistant' ? (
-        <section aria-label={t('assistant.title')} className="flex h-[calc(100dvh-13rem)] min-h-96 flex-col">
-          <StudyAssistant onOpenModule={setDetailsCode} className="h-full" />
+        <section aria-label={t('assistant.title')}>
+          <StudyAssistant onOpenModule={setDetailsCode} layout="page" />
         </section>
       ) : null}
       <nav
@@ -475,7 +475,7 @@ function Board({ plan }: { plan: Plan }) {
         title={t('assistant.title')}
         size="lg"
       >
-        <StudyAssistant onOpenModule={setDetailsCode} className="h-[65dvh]" />
+        <StudyAssistant onOpenModule={setDetailsCode} className="h-[65dvh]" showTitle={false} />
       </Dialog>
       <ModuleDetailsDialog
         module={plan.modules.find((m) => m.code === detailsCode) ?? null}
