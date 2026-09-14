@@ -106,6 +106,32 @@ export const planApi = {
 
 export type PlanApi = typeof planApi
 
+export interface ChatStatus {
+  available: boolean
+  dailyLimit: number
+  remaining: number
+}
+
+export interface ChatReply {
+  reply: string
+  /** Modules the answer is based on. */
+  modules: { code: string; name: string }[]
+  remaining: number
+}
+
+export interface ChatRequest {
+  planId: string
+  locale: 'de' | 'en'
+  messages: { role: 'user' | 'assistant'; content: string }[]
+}
+
+/** The study assistant. The server sends the model the plan's programme data only, never grades. */
+export const chatApi = {
+  status: (): Promise<ChatStatus> => request<ChatStatus>('/api/chat/status'),
+  send: (body: ChatRequest): Promise<ChatReply> =>
+    request<ChatReply>('/api/chat', { method: 'POST', body: JSON.stringify(body) }),
+}
+
 export interface ShareStatus {
   active: boolean
   createdAt: string | null
@@ -244,6 +270,7 @@ export interface AdminAuditEntry {
     | PresetAction
     | 'update_settings'
     | 'set_plan_limit'
+    | 'update_chat_settings'
   targetUserId: string
   createdAt: string
 }
@@ -272,6 +299,18 @@ export interface AdminSettings {
 /** Bounds the API accepts for plan limits, see apps/api/src/plan-limits.ts. */
 export const PLAN_LIMIT_MIN = 1
 export const PLAN_LIMIT_MAX = 50
+
+export interface AdminChatSettings {
+  enabled: boolean
+  dailyLimit: number
+  /** Whether the server has an API key; the key itself never reaches the browser. */
+  configured: boolean
+  model: string | null
+}
+
+/** Bounds of the daily message limit, see apps/api/src/chat/settings.ts. */
+export const CHAT_LIMIT_MIN = 1
+export const CHAT_LIMIT_MAX = 500
 
 export interface NewAdmin {
   email: string
@@ -310,6 +349,9 @@ export const adminApi = {
       method: 'PUT',
       body: JSON.stringify({ planLimit }),
     }),
+  chatSettings: (): Promise<AdminChatSettings> => request<AdminChatSettings>('/api/admin/chat'),
+  updateChatSettings: (settings: { enabled: boolean; dailyLimit: number }): Promise<AdminChatSettings> =>
+    request<AdminChatSettings>('/api/admin/chat', { method: 'PUT', body: JSON.stringify(settings) }),
   audit: async (): Promise<AdminAuditEntry[]> =>
     (await request<{ entries: AdminAuditEntry[] }>('/api/admin/audit')).entries,
   sendVerificationEmail: (id: string): Promise<void> =>

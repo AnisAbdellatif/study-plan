@@ -39,6 +39,8 @@ function mockApi(role: 'admin' | 'superadmin', email: string) {
     if (url === '/api/admin/stats') return respond(stats)
     if (url === '/api/admin/audit') return respond({ entries: [] })
     if (url === '/api/admin/settings') return respond({ maxPlansPerUser: 4 })
+    if (url === '/api/admin/chat')
+      return respond({ enabled: true, dailyLimit: 20, configured: false, model: null })
     if (url.startsWith('/api/admin/users?') && url.includes('role=admin'))
       return respond({ users: [superadmin, admin] })
     if (url.startsWith('/api/admin/users?')) return respond({ users: [superadmin, admin, student] })

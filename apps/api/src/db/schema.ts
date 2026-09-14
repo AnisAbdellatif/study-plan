@@ -12,6 +12,7 @@ import {
   integer,
   jsonb,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -130,6 +131,19 @@ export const appSetting = pgTable('app_setting', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
+/** Study assistant messages per account per day (Berlin time), for the daily limit. No message content. */
+export const chatUsage = pgTable(
+  'chat_usage',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    day: date('day', { mode: 'string' }).notNull(),
+    count: integer('count').notNull().default(0),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.day] })],
+)
+
 /** Unlisted share links. Only a SHA-256 hash of the token is stored; the owner sees the token once. */
 export const planShare = pgTable(
   'plan_share',
@@ -203,6 +217,7 @@ export const adminAuditLog = pgTable(
         'delete_preset',
         'update_settings',
         'set_plan_limit',
+        'update_chat_settings',
       ],
     }).notNull(),
     targetUserId: text('target_user_id').notNull(),

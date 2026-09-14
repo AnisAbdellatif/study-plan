@@ -6,10 +6,12 @@ import { secureHeaders } from 'hono/secure-headers'
 import type { Auth } from './auth.ts'
 import type { Config } from './config.ts'
 import type { Database } from './db/connection.ts'
+import type { LlmClient } from './llm/types.ts'
 import type { MonitoredMailer } from './mail.ts'
 import { UNSUBSCRIBE_PATH } from './reminders.ts'
 import { accountRoutes } from './routes/account.ts'
 import { adminRoutes, requireAdmin } from './routes/admin.ts'
+import { chatRoutes } from './routes/chat.ts'
 import { notificationSettingsRoutes, unsubscribeRoutes } from './routes/notifications.ts'
 import { planRoutes } from './routes/plans.ts'
 import { presetRoutes } from './routes/presets.ts'
@@ -25,11 +27,13 @@ export interface AppDependencies {
   auth: Auth
   /** The mailer Better Auth and reminders use; the admin dashboard shows its status. */
   mailer: MonitoredMailer
+  /** The study assistant's language model; without one the chat reports itself unavailable. */
+  llm?: LlmClient
   /** Runtime-specific static file handlers for the built web app, see main.ts. */
   staticFiles?: { assets: MiddlewareHandler; index: MiddlewareHandler }
 }
 
-export function createApp({ config, db, auth, mailer, staticFiles }: AppDependencies) {
+export function createApp({ config, db, auth, mailer, llm, staticFiles }: AppDependencies) {
   const app = new Hono<AppEnv>()
 
   if (config.env !== 'test') {
@@ -97,10 +101,19 @@ export function createApp({ config, db, auth, mailer, staticFiles }: AppDependen
   app.route('/api/account/notifications', notificationSettingsRoutes(db))
   app.route('/api/account', accountRoutes(db))
   app.route('/api/notifications', unsubscribeRoutes(db, config))
+  app.use('/api/chat', requireUser)
+  app.use('/api/chat/*', requireUser)
+  app.route('/api/chat', chatRoutes(db, llm))
   // Public: students without an account pick presets on the start page.
   app.route('/api/presets', presetRoutes(db))
   app.use('/api/admin/*', requireAdmin(auth, db))
-  app.route('/api/admin', adminRoutes(db, auth, mailer, config.publicUrl))
+  app.route(
+    '/api/admin',
+    adminRoutes(db, auth, mailer, config.publicUrl, {
+      configured: llm !== undefined,
+      model: llm?.model ?? null,
+    }),
+  )
   app.all('/api/*', (c) => c.json({ error: 'not_found' }, 404))
 
   if (staticFiles) {

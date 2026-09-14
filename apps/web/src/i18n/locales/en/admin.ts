@@ -230,6 +230,20 @@ export const admin = {
     own: 'Own limit:',
     ownLabel: 'Number of plans',
   },
+  chat: {
+    heading: 'Study assistant',
+    intro:
+      'The assistant answers questions about a plan’s programme through OpenRouter. The language model only gets the programme data and the questions, never grades or account details. Conversations are not stored.',
+    notConfigured:
+      'No API key is set up. Set OPENROUTER_API_KEY in the server configuration to offer the assistant.',
+    model: 'Model: {{model}}',
+    enabled: 'Offer the assistant',
+    dailyLimit: 'Messages per account per day',
+    hint: 'Between {{min}} and {{max}} messages.',
+    save: 'Save',
+    saved: 'Saved.',
+    loadError: "The settings couldn't be loaded.",
+  },
   audit: {
     settings: 'all accounts',
     heading: 'Audit log',
@@ -238,6 +252,7 @@ export const admin = {
     preset: 'preset {{id}}',
     footnote: 'The last 50 actions. Entries are deleted after one year.',
     actions: {
+      update_chat_settings: 'Assistant settings changed',
       update_settings: 'Default plan limit changed',
       set_plan_limit: 'Plan limit of an account changed',
       send_verification_email: 'Confirmation email resent',

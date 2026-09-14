@@ -4,6 +4,7 @@ import { type Context, Hono } from 'hono'
 import { createMiddleware } from 'hono/factory'
 import { z } from 'zod'
 import type { Auth } from '../auth.ts'
+import { chatDailyLimitSchema, chatSettings, updateChatSettings } from '../chat/settings.ts'
 import type { Database } from '../db/connection.ts'
 import {
   adminAuditLog,
@@ -62,6 +63,7 @@ const superadminOnly = createMiddleware<AppEnv>(async (c, next) => {
 
 const roleChangeSchema = z.object({ role: z.enum(['admin', 'user']) })
 const settingsSchema = z.object({ maxPlansPerUser: planLimitSchema })
+const chatSettingsSchema = z.object({ enabled: z.boolean(), dailyLimit: chatDailyLimitSchema })
 /** Null returns the account to the global limit. */
 const userPlanLimitSchema = z.object({ planLimit: planLimitSchema.nullable() })
 /** Audit target for changes that concern every account rather than one. */
@@ -92,7 +94,14 @@ const presetField = (field: 'id' | 'programmeName' | 'universityName' | 'poVersi
   sql<string>`${plan.document}->'plan'->'preset'->>${sql.raw(`'${field}'`)}`
 
 /** Operator tools. Shows account metadata and counts, never grades or plan contents. */
-export function adminRoutes(db: Database, auth: Auth, mailer: MonitoredMailer, publicUrl: string) {
+export function adminRoutes(
+  db: Database,
+  auth: Auth,
+  mailer: MonitoredMailer,
+  publicUrl: string,
+  /** Whether an API key is configured and which model it uses; the key itself never leaves the server. */
+  chat: { configured: boolean; model: string | null },
+) {
   const routes = new Hono<AppEnv>()
 
   const audit = async (c: Context<AppEnv>, action: AdminAction, targetUserId: string) => {
@@ -245,6 +254,19 @@ export function adminRoutes(db: Database, auth: Auth, mailer: MonitoredMailer, p
     await setGlobalPlanLimit(db, body.data.maxPlansPerUser)
     await audit(c, 'update_settings', SETTINGS_TARGET)
     return c.json({ maxPlansPerUser: body.data.maxPlansPerUser })
+  })
+
+  routes.get('/chat', async (c) => {
+    c.header('Cache-Control', 'no-store')
+    return c.json({ ...(await chatSettings(db)), ...chat })
+  })
+
+  routes.put('/chat', async (c) => {
+    const body = chatSettingsSchema.safeParse(await readJson(c))
+    if (!body.success) return c.json({ error: 'invalid_request' }, 400)
+    await updateChatSettings(db, body.data)
+    await audit(c, 'update_chat_settings', SETTINGS_TARGET)
+    return c.json({ ...body.data, ...chat })
   })
 
   /** The account's own plan limit. Existing plans above a lowered limit stay; the account can't add more. */

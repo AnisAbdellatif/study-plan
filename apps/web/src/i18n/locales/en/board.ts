@@ -28,6 +28,7 @@ export const board = {
     plan: 'Plan',
     status: 'Progress',
     hints: 'Hints',
+    assistant: 'Assistant',
     warnings_one: '{{count}} warning',
     warnings_other: '{{count}} warnings',
   },
@@ -55,6 +56,42 @@ export const board = {
     new: 'New plan',
     limitReached: 'All {{limit}} plans are in use. Delete one on the account page to create a new one.',
     switched: '{{name}} opened',
+  },
+  assistant: {
+    title: 'Study assistant',
+    intro:
+      'Ask me about modules, exam formats, elective areas or how the final grade is calculated in your programme.',
+    suggestions: {
+      summer: 'Which elective modules can I take in the summer semester?',
+      grade: 'How is the final grade calculated?',
+      thesis: 'What do I need before I can start my thesis?',
+    },
+    signedOut: 'The study assistant is available when you are signed in.',
+    signIn: 'Sign in',
+    signUp: 'Create account',
+    saveFirst:
+      'Save your plan to your account, then the assistant can answer questions about your programme.',
+    statusError: "The assistant couldn't be loaded just now.",
+    unavailable: 'The study assistant is not available right now.',
+    consentTitle: 'Before you start',
+    consentText:
+      'Your questions and the programme data of your plan (modules, module catalogue descriptions, examination rules) go to a language model through OpenRouter. Your grades, results, exam dates, target average and account details are never sent. Please don’t put personal information in your questions.',
+    privacyLink: 'More in the privacy policy',
+    consentAccept: 'Got it, use the assistant',
+    inputLabel: 'Your question',
+    placeholder: 'Ask something about your programme…',
+    send: 'Send',
+    thinking: 'Thinking…',
+    newConversation: 'New conversation',
+    remaining_one: '{{count}} message left today',
+    remaining_other: '{{count}} messages left today',
+    quota: "You've used all {{limit}} messages for today. You can continue tomorrow.",
+    failed: "That didn't work. Please try again in a moment.",
+    modules: 'Modules mentioned',
+    you: 'You',
+    assistantName: 'Assistant',
+    disclaimer:
+      'Answers are not binding and may contain mistakes. The examination regulations and module handbook are authoritative.',
   },
   storage: {
     limitReached:

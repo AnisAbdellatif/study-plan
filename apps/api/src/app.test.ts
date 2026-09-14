@@ -12,6 +12,7 @@ import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { createApp } from './app.ts'
 import { createAuth } from './auth.ts'
+import { chatSettings, updateChatSettings } from './chat/settings.ts'
 import { loadConfig } from './config.ts'
 import { type DatabaseConnection, openDatabase } from './db/connection.ts'
 import {
@@ -22,6 +23,7 @@ import {
   reminderDelivery,
   user as userTable,
 } from './db/schema.ts'
+import { createScriptedLlm } from './llm/scripted.ts'
 import { createMemoryMailer, type Mailer } from './mail.ts'
 import { berlinDate, runReminders, UNSUBSCRIBE_PATH, verifyUnsubscribeToken } from './reminders.ts'
 import { ensureSuperadmin } from './roles.ts'
@@ -381,6 +383,73 @@ describe('plans', () => {
     await call('/api/admin/settings', { method: 'PUT', cookie: admin, body: { maxPlansPerUser: 4 } })
     // Leave no extra admin behind for the admin tests further down.
     await connection.db.update(userTable).set({ role: 'user' }).where(eq(userTable.email, adminEmail))
+  })
+})
+
+describe('chat', () => {
+  it('answers from programme data only, keeps a daily limit and needs one of the account’s plans', async () => {
+    const llm = createScriptedLlm([
+      { toolCalls: [{ id: 'c1', name: 'get_module', arguments: JSON.stringify({ code: 'INF-101' }) }] },
+      { content: 'INF-101 wird im Wintersemester angeboten.' },
+    ])
+    const chatApp = createApp({ config, db: connection.db, auth, mailer, llm })
+    const ask = (options: CallOptions) => {
+      const headers = new Headers({ origin: config.publicOrigin, 'content-type': 'application/json' })
+      if (options.cookie) headers.set('cookie', options.cookie)
+      return chatApp.request(options.body === undefined ? '/api/chat/status' : '/api/chat', {
+        method: options.body === undefined ? 'GET' : 'POST',
+        headers,
+        body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      })
+    }
+
+    const cookie = await registerVerifiedUser('chat@example.org')
+    let document = planDocument('Mein Plan')
+    let secretPlan = setModuleResult(document.plan, 'INF-101', { kind: 'graded', grade: 2.3 })
+    secretPlan = setExamDate(secretPlan, 'INF-101', '2027-02-15')
+    secretPlan = setTargetGrade(secretPlan, 1.7)
+    document = createGuestDocument(secretPlan)
+    const created = await json<{ id: string }>(
+      await call('/api/plans', { method: 'POST', cookie, body: { document } }),
+    )
+    const question = {
+      planId: created.id,
+      locale: 'de',
+      messages: [{ role: 'user', content: 'Wann wird INF-101 angeboten?' }],
+    }
+
+    expect((await ask({ body: question })).status).toBe(401)
+    expect(await json(await ask({ cookie }))).toEqual({ available: true, dailyLimit: 20, remaining: 20 })
+
+    const answered = await ask({ cookie, body: question })
+    expect(answered.status).toBe(200)
+    expect(await json(answered)).toEqual({
+      reply: 'INF-101 wird im Wintersemester angeboten.',
+      modules: [{ code: 'INF-101', name: expect.any(String) }],
+      remaining: 19,
+    })
+    // Nothing of the student's own data went to the model.
+    const sent = JSON.stringify(llm.requests)
+    for (const secret of ['attempts', '2027-02-15', 'targetGrade', '"grade"'])
+      expect(sent, secret).not.toContain(secret)
+
+    const foreign = await ask({ cookie, body: { ...question, planId: crypto.randomUUID() } })
+    expect(foreign.status).toBe(404)
+    expect((await ask({ cookie, body: { ...question, messages: [] } })).status).toBe(400)
+
+    await updateChatSettings(connection.db, { enabled: true, dailyLimit: 2 })
+    expect((await ask({ cookie, body: question })).status).toBe(200)
+    const limited = await ask({ cookie, body: question })
+    expect(limited.status).toBe(429)
+    expect(await json(limited)).toEqual({ error: 'chat_quota_exceeded', dailyLimit: 2 })
+
+    await updateChatSettings(connection.db, { enabled: false, dailyLimit: 20 })
+    expect((await ask({ cookie, body: question })).status).toBe(503)
+    await updateChatSettings(connection.db, { enabled: true, dailyLimit: 20 })
+    expect(await chatSettings(connection.db)).toEqual({ enabled: true, dailyLimit: 20 })
+
+    // The app without a model reports the chat as unavailable.
+    expect(await json(await call('/api/chat/status', { cookie }))).toMatchObject({ available: false })
   })
 })
 

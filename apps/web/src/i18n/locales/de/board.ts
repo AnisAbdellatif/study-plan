@@ -25,6 +25,7 @@ export const board = {
     plan: 'Plan',
     status: 'Stand',
     hints: 'Hinweise',
+    assistant: 'Assistent',
     warnings_one: '{{count}} Warnung',
     warnings_other: '{{count}} Warnungen',
   },
@@ -53,6 +54,41 @@ export const board = {
     limitReached:
       'Alle {{limit}} Pläne sind belegt. Lösche einen auf der Kontoseite, um einen neuen anzulegen.',
     switched: '{{name}} geöffnet',
+  },
+  assistant: {
+    title: 'Studienassistent',
+    intro:
+      'Frag mich zu Modulen, Prüfungsformen, Wahlbereichen oder zur Berechnung der Gesamtnote in deinem Studiengang.',
+    suggestions: {
+      summer: 'Welche Wahlpflichtmodule kann ich im Sommersemester belegen?',
+      grade: 'Wie wird die Gesamtnote berechnet?',
+      thesis: 'Was brauche ich, um mit der Abschlussarbeit anzufangen?',
+    },
+    signedOut: 'Der Studienassistent steht angemeldeten Nutzerinnen und Nutzern zur Verfügung.',
+    signIn: 'Anmelden',
+    signUp: 'Konto erstellen',
+    saveFirst: 'Sichere deinen Plan im Konto, dann beantwortet der Assistent Fragen zu deinem Studiengang.',
+    statusError: 'Der Assistent ließ sich gerade nicht laden.',
+    unavailable: 'Der Studienassistent ist gerade nicht verfügbar.',
+    consentTitle: 'Bevor du startest',
+    consentText:
+      'Deine Fragen und die Studiengangsdaten deines Plans (Module, Beschreibungen aus dem Modulkatalog, Regeln der Prüfungsordnung) gehen über OpenRouter an ein Sprachmodell. Deine Noten, Ergebnisse, Prüfungstermine, dein Zielschnitt und deine Kontodaten werden nie übermittelt. Schreib keine persönlichen Daten in deine Fragen.',
+    privacyLink: 'Mehr dazu in der Datenschutzerklärung',
+    consentAccept: 'Verstanden, Assistent nutzen',
+    inputLabel: 'Deine Frage',
+    placeholder: 'Frag etwas zu deinem Studiengang…',
+    send: 'Senden',
+    thinking: 'Denkt nach…',
+    newConversation: 'Neues Gespräch',
+    remaining_one: 'Heute noch {{count}} Nachricht',
+    remaining_other: 'Heute noch {{count}} Nachrichten',
+    quota: 'Du hast heute alle {{limit}} Nachrichten genutzt. Morgen geht es weiter.',
+    failed: 'Das hat nicht geklappt. Bitte versuch es gleich noch einmal.',
+    modules: 'Genannte Module',
+    you: 'Du',
+    assistantName: 'Assistent',
+    disclaimer:
+      'Antworten sind unverbindlich und können Fehler enthalten. Maßgeblich sind Prüfungsordnung und Modulhandbuch.',
   },
   storage: {
     limitReached:

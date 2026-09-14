@@ -230,6 +230,20 @@ export const admin = {
     own: 'Eigenes Limit:',
     ownLabel: 'Anzahl Pläne',
   },
+  chat: {
+    heading: 'Studienassistent',
+    intro:
+      'Der Assistent beantwortet Fragen zum Studiengang eines Plans über OpenRouter. Das Sprachmodell bekommt nur die Studiengangsdaten und die Fragen, nie Noten oder Kontodaten. Gespräche werden nicht gespeichert.',
+    notConfigured:
+      'Es ist kein API-Schlüssel eingerichtet. Setze OPENROUTER_API_KEY in der Serverkonfiguration, um den Assistenten anzubieten.',
+    model: 'Modell: {{model}}',
+    enabled: 'Assistenten anbieten',
+    dailyLimit: 'Nachrichten pro Konto und Tag',
+    hint: 'Zwischen {{min}} und {{max}} Nachrichten.',
+    save: 'Speichern',
+    saved: 'Gespeichert.',
+    loadError: 'Die Einstellungen ließen sich nicht laden.',
+  },
   audit: {
     settings: 'alle Konten',
     heading: 'Protokoll',
@@ -238,6 +252,7 @@ export const admin = {
     preset: 'Vorlage {{id}}',
     footnote: 'Die letzten 50 Aktionen. Einträge werden nach einem Jahr gelöscht.',
     actions: {
+      update_chat_settings: 'Einstellungen des Assistenten geändert',
       update_settings: 'Standard-Planlimit geändert',
       set_plan_limit: 'Planlimit eines Kontos geändert',
       send_verification_email: 'Bestätigungs-E-Mail gesendet',

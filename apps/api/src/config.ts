@@ -2,6 +2,13 @@ import { z } from 'zod'
 
 const DEVELOPMENT_SECRET = 'development-only-secret-never-use-in-production'
 
+/** A capable, inexpensive model on OpenRouter; override with OPENROUTER_MODEL. */
+export const DEFAULT_CHAT_MODEL = 'anthropic/claude-haiku-4.5'
+
+/** Compose passes unset variables as empty strings; those mean "not set". */
+const optionalText = z.preprocess((value) => (value === '' ? undefined : value), z.string().min(1).optional())
+const optionalUrl = z.preprocess((value) => (value === '' ? undefined : value), z.url().optional())
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
@@ -29,6 +36,11 @@ const envSchema = z.object({
   SUPERADMIN_EMAIL: z.email().optional(),
   SUPERADMIN_PASSWORD: z.string().min(10).max(128).optional(),
   SUPERADMIN_NAME: z.string().trim().min(1).max(100).default('Superadmin'),
+  /** OpenRouter API key for the study assistant. Without it the assistant is off. */
+  OPENROUTER_API_KEY: optionalText,
+  OPENROUTER_MODEL: optionalText,
+  /** Only for tests or a compatible proxy; defaults to OpenRouter itself. */
+  OPENROUTER_BASE_URL: optionalUrl,
 })
 
 /** Local development only, so a fresh checkout has a working admin account. */
@@ -50,6 +62,8 @@ export interface Config {
   reminderIntervalMinutes: number
   /** Seed for the superadmin account; undefined in tests, which create it themselves. */
   superadmin: { email: string; password: string; name: string } | undefined
+  /** The study assistant's model access; undefined without an API key. */
+  chat: { apiKey: string; model: string; baseUrl: string | undefined } | undefined
 }
 
 export function loadConfig(source: Record<string, string | undefined> = process.env): Config {
@@ -88,5 +102,12 @@ export function loadConfig(source: Record<string, string | undefined> = process.
       superadminEmail && superadminPassword
         ? { email: superadminEmail.toLowerCase(), password: superadminPassword, name: env.SUPERADMIN_NAME }
         : undefined,
+    chat: env.OPENROUTER_API_KEY
+      ? {
+          apiKey: env.OPENROUTER_API_KEY,
+          model: env.OPENROUTER_MODEL ?? DEFAULT_CHAT_MODEL,
+          baseUrl: env.OPENROUTER_BASE_URL,
+        }
+      : undefined,
   }
 }

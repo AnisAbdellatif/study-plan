@@ -11,12 +11,21 @@ const SECTIONS = [
   'account',
   'sharing',
   'emails',
+  'assistant',
   'abuse',
   'cookies',
   'rights',
   'misc',
 ] as const
-const SUMMARY_ITEMS = ['guest', 'account', 'noTracking', 'cookie', 'sharing', 'selfService'] as const
+const SUMMARY_ITEMS = [
+  'guest',
+  'account',
+  'noTracking',
+  'cookie',
+  'sharing',
+  'assistant',
+  'selfService',
+] as const
 const ACCOUNT_ITEMS = ['identity', 'password', 'plans', 'reminders', 'language', 'sessions'] as const
 
 /**
@@ -98,6 +107,13 @@ export function DatenschutzPage() {
             components={{ mail: <OperatorField field="mailProvider" /> }}
           />
         </p>
+      </LegalSection>
+
+      <LegalSection id="assistant" heading={heading('assistant')}>
+        <p>{t('privacy.assistant.what')}</p>
+        <p>{t('privacy.assistant.never')}</p>
+        <p>{t('privacy.assistant.storage')}</p>
+        <p>{t('privacy.assistant.basis')}</p>
       </LegalSection>
 
       <LegalSection id="abuse" heading={heading('abuse')}>
