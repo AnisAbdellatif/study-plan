@@ -1,6 +1,8 @@
 import { createGuestDocument, type Plan } from '@study-plan/shared'
 import type { GuestStore, StorageLike } from '../store/guest-store.ts'
 import { ApiError, type PlanApi, type StoredPlan } from './api.ts'
+import { GradesLockedError, GradesUnreadableError } from './grade-crypto.ts'
+import type { GradeSealer } from './grade-sealer.ts'
 
 /** Which account plan the plan in this browser belongs to. */
 export const LINK_KEY = 'study-plan:account-link'
@@ -28,14 +30,26 @@ export type SyncState =
   | { kind: 'synced'; savedAt: string; notice?: 'remote_newer' }
   /** Saving or loading failed, e.g. offline. The next change or retry() tries again. */
   | { kind: 'error' }
+  /** The grades are encrypted and this device has no key yet. The password unlocks them, then resume(). */
+  | { kind: 'locked' }
+  /**
+   * The account plan's grades were encrypted with a key this device doesn't have, usually from before a password
+   * reset. The earlier password reads them (then resume()), or discardUnreadableGrades() goes on without them.
+   */
+  | { kind: 'grades_unreadable'; remote: StoredPlan }
 
 export interface PlanSyncOptions {
   store: GuestStore
   api: Pick<PlanApi, 'list' | 'get' | 'create' | 'update'>
+  /** Encrypts grades before they go to the account and decrypts them when a plan comes back. */
+  grades: GradeSealer
   storage: StorageLike | null
   /** Pause after the last edit before saving. */
   debounceMs: number
 }
+
+/** Thrown after the state already says what happened, so callers only stop. */
+class SyncPaused extends Error {}
 
 function isLink(value: unknown): value is AccountLink {
   if (typeof value !== 'object' || value === null) return false
@@ -50,8 +64,9 @@ function isLink(value: unknown): value is AccountLink {
 
 /**
  * Keeps the browser plan and the account plan in step. The browser store stays the source the UI reads;
- * this class mirrors it to the server. When another device saved in between, the server version wins
- * and the student is told, because silently overwriting another device's edits would lose data.
+ * this class mirrors it to the server, with the grades encrypted. When another device saved in between, the
+ * server version wins and the student is told, because silently overwriting another device's edits would lose
+ * data.
  */
 export class PlanSync {
   readonly #options: PlanSyncOptions
@@ -119,9 +134,17 @@ export class PlanSync {
         const remote = await this.#options.api.get(latest.id)
         if (this.#userId === userId) this.#set({ kind: 'choose', remote })
       }
-    } catch {
-      if (this.#userId === userId) this.#set({ kind: 'error' })
+    } catch (error) {
+      this.#handle(error, userId)
     }
+  }
+
+  /** Starts over after a key became available, e.g. the student entered the password on this device. */
+  async resume(): Promise<void> {
+    const userId = this.#userId
+    if (!userId) return
+    this.#detach()
+    await this.start(userId)
   }
 
   /** Stops syncing, e.g. after signing out. The plan stays in this browser, unlinked from the account. */
@@ -139,7 +162,8 @@ export class PlanSync {
     if (!userId || !plan) return
     this.#set({ kind: 'saving' })
     try {
-      const created = await this.#options.api.create(createGuestDocument(plan))
+      const document = await this.#options.grades.seal(userId, createGuestDocument(plan))
+      const created = await this.#options.api.create(document)
       if (this.#userId !== userId) return
       this.#writeLink({
         userId,
@@ -153,7 +177,7 @@ export class PlanSync {
       if (error instanceof ApiError && error.code === 'too_many_plans') {
         this.#set({ kind: 'no_account_plan', limitReached: true })
       } else {
-        this.#set({ kind: 'error' })
+        this.#handle(error, userId)
       }
     }
   }
@@ -167,8 +191,8 @@ export class PlanSync {
     this.#set({ kind: 'loading' })
     try {
       await this.#loadRemote(planId, userId)
-    } catch {
-      if (this.#userId === userId) this.#set({ kind: 'error' })
+    } catch (error) {
+      this.#handle(error, userId)
     }
   }
 
@@ -185,8 +209,14 @@ export class PlanSync {
   }
 
   /** Resolves `choose` by replacing the browser plan with the account plan. */
-  loadAccountPlan(): void {
-    if (this.#state.kind === 'choose' && this.#userId) this.#applyRemote(this.#state.remote, this.#userId)
+  async loadAccountPlan(): Promise<void> {
+    const userId = this.#userId
+    if (this.#state.kind !== 'choose' || !userId) return
+    try {
+      await this.#applyRemote(this.#state.remote, userId)
+    } catch (error) {
+      this.#handle(error, userId)
+    }
   }
 
   /** Resolves `choose` by overwriting the account plan with the browser plan. */
@@ -203,6 +233,20 @@ export class PlanSync {
     await this.#push()
   }
 
+  /**
+   * Resolves `grades_unreadable` without the old grades: the account plan loads without them, and the next save
+   * replaces the unreadable ones for good.
+   */
+  async discardUnreadableGrades(): Promise<void> {
+    const userId = this.#userId
+    if (this.#state.kind !== 'grades_unreadable' || !userId) return
+    const { remote } = this.#state
+    this.#writeLink({ userId, planId: remote.id, revision: remote.revision, syncedUpdatedAt: '' })
+    this.#options.store.replacePlan(remote.document.plan)
+    this.#set({ kind: 'synced', savedAt: remote.updatedAt })
+    await this.#push()
+  }
+
   /** The account plan this browser plan is saved to, or null when signed out or not saved yet. */
   linkedPlanId(): string | null {
     const link = this.#readLink()
@@ -216,6 +260,12 @@ export class PlanSync {
   #set(state: SyncState): void {
     this.#state = state
     for (const listener of this.#listeners) listener()
+  }
+
+  /** A missing key needs the password; anything else unexpected is a failed request. */
+  #handle(error: unknown, userId: string): void {
+    if (this.#userId !== userId || error instanceof SyncPaused) return
+    this.#set(error instanceof GradesLockedError ? { kind: 'locked' } : { kind: 'error' })
   }
 
   #detach(): void {
@@ -247,23 +297,36 @@ export class PlanSync {
 
   async #loadRemote(id: string, userId: string): Promise<void> {
     const remote = await this.#options.api.get(id)
-    if (this.#userId === userId) this.#applyRemote(remote, userId)
+    if (this.#userId === userId) await this.#applyRemote(remote, userId)
   }
 
-  #applyRemote(remote: StoredPlan, userId: string, notice?: 'remote_newer'): void {
+  async #applyRemote(remote: StoredPlan, userId: string, notice?: 'remote_newer'): Promise<void> {
+    let opened: Awaited<ReturnType<GradeSealer['open']>>
+    try {
+      opened = await this.#options.grades.open(userId, remote.document)
+    } catch (error) {
+      if (this.#userId === userId && error instanceof GradesUnreadableError) {
+        this.#set({ kind: 'grades_unreadable', remote })
+        throw new SyncPaused()
+      }
+      throw error
+    }
+    if (this.#userId !== userId) return
     // Write the link first, so the store change below is recognised as already synced and not pushed back.
+    // A copy that has to be encrypted again is marked unsaved instead.
     this.#writeLink({
       userId,
       planId: remote.id,
       revision: remote.revision,
-      syncedUpdatedAt: remote.document.plan.updatedAt,
+      syncedUpdatedAt: opened.needsReseal ? '' : opened.plan.updatedAt,
     })
-    this.#options.store.replacePlan(remote.document.plan)
+    this.#options.store.replacePlan(opened.plan)
     this.#set(
       notice
         ? { kind: 'synced', savedAt: remote.updatedAt, notice }
         : { kind: 'synced', savedAt: remote.updatedAt },
     )
+    if (opened.needsReseal) void this.#push()
   }
 
   #hasUnsavedChanges(plan: Plan | null, link: AccountLink | null): boolean {
@@ -281,7 +344,9 @@ export class PlanSync {
   }
 
   #onStoreChange(): void {
-    if (!this.#userId || this.#state.kind === 'choose' || this.#state.kind === 'loading') return
+    const kind = this.#state.kind
+    // While locked or unreadable, saving would replace grades this device can't read.
+    if (!this.#userId || ['choose', 'loading', 'locked', 'grades_unreadable'].includes(kind)) return
     if (this.#uploadNext && !this.#readLink() && this.#options.store.getState().plan) {
       this.#uploadNext = false
       void this.uploadLocal()
@@ -316,16 +381,17 @@ export class PlanSync {
 
       this.#set({ kind: 'saving' })
       try {
-        const result = await this.#options.api.update(link.planId, createGuestDocument(plan), link.revision)
+        const document = await this.#options.grades.seal(userId, createGuestDocument(plan))
+        const result = await this.#options.api.update(link.planId, document, link.revision)
         if (this.#userId !== userId) return
         if (result.status === 'conflict') {
-          this.#applyRemote(result.current, userId, 'remote_newer')
+          await this.#applyRemote(result.current, userId, 'remote_newer')
           return
         }
         this.#writeLink({ ...link, revision: result.plan.revision, syncedUpdatedAt: plan.updatedAt })
         this.#set({ kind: 'synced', savedAt: result.plan.updatedAt })
-      } catch {
-        if (this.#userId === userId) this.#set({ kind: 'error' })
+      } catch (error) {
+        this.#handle(error, userId)
         return
       }
     } while (this.#pushAgain)

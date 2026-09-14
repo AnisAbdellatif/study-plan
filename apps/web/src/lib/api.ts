@@ -159,14 +159,9 @@ export interface SharedPlanResponse {
 export const shareApi = {
   status: (planId: string): Promise<ShareStatus> =>
     request<ShareStatus>(`/api/plans/${encodeURIComponent(planId)}/share`),
-  create: (
-    planId: string,
-    options: { includeGrades: boolean } = { includeGrades: false },
-  ): Promise<CreatedShare> =>
-    request<CreatedShare>(`/api/plans/${encodeURIComponent(planId)}/share`, {
-      method: 'POST',
-      body: JSON.stringify(options),
-    }),
+  /** A link never shows results or grades; the server has no readable grades anyway. */
+  create: (planId: string): Promise<CreatedShare> =>
+    request<CreatedShare>(`/api/plans/${encodeURIComponent(planId)}/share`, { method: 'POST' }),
   revoke: (planId: string): Promise<void> =>
     request<void>(`/api/plans/${encodeURIComponent(planId)}/share`, { method: 'DELETE' }),
   get: (token: string): Promise<SharedPlanResponse> =>

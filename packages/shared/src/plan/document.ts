@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { type Plan, planSchema } from './plan.ts'
+import { sealedGradesSchema } from './sealed-grades.ts'
 
 export const GUEST_DOCUMENT_FORMAT = 'study-plan.guest'
 export const GUEST_DOCUMENT_VERSION = 1
@@ -9,6 +10,11 @@ export const guestDocumentSchema = z.object({
   format: z.literal(GUEST_DOCUMENT_FORMAT),
   schemaVersion: z.literal(GUEST_DOCUMENT_VERSION),
   plan: planSchema,
+  /**
+   * Only in account copies: the plan's grades, encrypted in the browser. The `plan` next to it then holds no grade
+   * values and no target grade.
+   */
+  encryptedGrades: sealedGradesSchema.optional(),
 })
 export type GuestDocument = z.infer<typeof guestDocumentSchema>
 

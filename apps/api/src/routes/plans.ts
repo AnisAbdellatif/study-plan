@@ -1,4 +1,4 @@
-import { type ParseFailure, parseGuestDocument } from '@study-plan/shared'
+import { type ParseFailure, parseGuestDocument, planHasGrades } from '@study-plan/shared'
 import { and, desc, eq, sql } from 'drizzle-orm'
 import { type Context, Hono } from 'hono'
 import { z } from 'zod'
@@ -22,8 +22,13 @@ async function readJson(c: Context<AppEnv>): Promise<unknown> {
 const notFound = (c: Context<AppEnv>) => c.json({ error: 'not_found' }, 404)
 const invalidPlan = (c: Context<AppEnv>, failure: ParseFailure) =>
   c.json({ error: 'invalid_plan', reason: failure.reason, details: failure.details }, 422)
+/** Grades arrive encrypted in `encryptedGrades`; a readable grade is never stored. */
+const gradesNotEncrypted = (c: Context<AppEnv>) => c.json({ error: 'grades_not_encrypted' }, 422)
 
-/** Plans are stored whole as validated guest documents. The revision detects edits from another device. */
+/**
+ * Plans are stored whole as validated guest documents, with the grades encrypted by the browser. The revision
+ * detects edits from another device.
+ */
 export function planRoutes(db: Database) {
   const routes = new Hono<AppEnv>()
   const summaryColumns = { id: plan.id, name: plan.name, revision: plan.revision, updatedAt: plan.updatedAt }
@@ -44,6 +49,7 @@ export function planRoutes(db: Database) {
     if (!body.success) return c.json({ error: 'invalid_request' }, 400)
     const parsed = parseGuestDocument(body.data.document)
     if (!parsed.success) return invalidPlan(c, parsed)
+    if (planHasGrades(parsed.document.plan)) return gradesNotEncrypted(c)
 
     const userId = c.get('user').id
     // Lowering a limit keeps existing plans; it only stops new ones.
@@ -74,6 +80,7 @@ export function planRoutes(db: Database) {
     if (!body.success) return c.json({ error: 'invalid_request' }, 400)
     const parsed = parseGuestDocument(body.data.document)
     if (!parsed.success) return invalidPlan(c, parsed)
+    if (planHasGrades(parsed.document.plan)) return gradesNotEncrypted(c)
 
     const userId = c.get('user').id
     const [updated] = await db

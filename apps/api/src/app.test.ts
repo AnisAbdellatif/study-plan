@@ -2,7 +2,9 @@ import { readFileSync } from 'node:fs'
 import {
   createGuestDocument,
   createPlanFromPreset,
+  extractGrades,
   moveModule,
+  type Plan,
   presetSchema,
   setExamDate,
   setModuleResult,
@@ -56,6 +58,13 @@ const planDocument = (name = 'Informatik B.Sc.') =>
       name,
     }),
   )
+
+/** A plan as the browser sends it: grades taken out and encrypted. The ciphertext is a stand-in. */
+const SEALED_DATA = 'c2VhbGVkLWdyYWRlcw=='
+const sealedDocument = (plan: Plan) => ({
+  ...createGuestDocument(extractGrades(plan).plan),
+  encryptedGrades: { v: 1, iv: 'AAAAAAAAAAAAAAAA', data: SEALED_DATA },
+})
 
 const PASSWORD = 'richtig-langes-passwort'
 const mailer = createMemoryMailer()
@@ -247,9 +256,21 @@ describe('plans', () => {
     const loaded = await json<Summary & { document: unknown }>(await call(`/api/plans/${id}`, { cookie }))
     expect(loaded.document).toEqual(planDocument())
 
-    const changed = createGuestDocument(
-      setModuleResult(planDocument().plan, 'INF-101', { kind: 'graded', grade: 1.3 }),
-    )
+    const graded = setModuleResult(planDocument().plan, 'INF-101', { kind: 'graded', grade: 1.3 })
+    // A readable grade or target grade is never stored; the browser sends grades encrypted.
+    const plaintext = await call(`/api/plans/${id}`, {
+      method: 'PUT',
+      cookie,
+      body: { document: createGuestDocument(graded), revision: 1 },
+    })
+    expect(plaintext.status).toBe(422)
+    expect(await json(plaintext)).toEqual({ error: 'grades_not_encrypted' })
+    const withTarget = createGuestDocument(setTargetGrade(planDocument().plan, 1.7))
+    expect(
+      (await call('/api/plans', { method: 'POST', cookie, body: { document: withTarget } })).status,
+    ).toBe(422)
+
+    const changed = sealedDocument(graded)
     const updated = await call(`/api/plans/${id}`, {
       method: 'PUT',
       cookie,
@@ -412,13 +433,14 @@ describe('chat', () => {
     }
 
     const cookie = await registerVerifiedUser('chat@example.org')
-    let document = planDocument('Mein Plan')
-    let secretPlan = setModuleResult(document.plan, 'INF-101', { kind: 'graded', grade: 2.3 })
+    let secretPlan = setModuleResult(planDocument('Mein Plan').plan, 'INF-101', {
+      kind: 'graded',
+      grade: 2.3,
+    })
     secretPlan = setExamDate(secretPlan, 'INF-101', '2027-02-15')
     secretPlan = setTargetGrade(secretPlan, 1.7)
-    document = createGuestDocument(secretPlan)
     const created = await json<{ id: string }>(
-      await call('/api/plans', { method: 'POST', cookie, body: { document } }),
+      await call('/api/plans', { method: 'POST', cookie, body: { document: sealedDocument(secretPlan) } }),
     )
     const question = {
       planId: created.id,
@@ -438,7 +460,7 @@ describe('chat', () => {
     })
     // Nothing of the student's own data went to the model.
     const sent = JSON.stringify(llm.requests)
-    for (const secret of ['attempts', '2027-02-15', 'targetGrade', '"grade"'])
+    for (const secret of ['attempts', '2027-02-15', 'targetGrade', '"grade"', SEALED_DATA])
       expect(sent, secret).not.toContain(secret)
 
     // The admin dashboard gets totals per day and model, nothing tied to the account.
@@ -648,7 +670,7 @@ describe('sharing', () => {
   const privateDocument = () => {
     let plan = setModuleResult(planDocument('Geteilter Plan').plan, 'INF-101', { kind: 'graded', grade: 1.3 })
     plan = setExamDate(plan, 'INF-102', '2027-07-20')
-    return createGuestDocument(setTargetGrade(plan, 1.7))
+    return sealedDocument(setTargetGrade(plan, 1.7))
   }
 
   beforeAll(async () => {
@@ -723,7 +745,7 @@ describe('sharing', () => {
     })
   })
 
-  it('shares results only when the owner chooses grades, and never exam dates or the target grade', async () => {
+  it('never shares results or grades, even when an older client asks for them', async () => {
     const created = await call(`/api/plans/${planId}/share`, {
       method: 'POST',
       cookie,
@@ -733,24 +755,17 @@ describe('sharing', () => {
     const { token } = await json<Created & { includeGrades: boolean }>(created)
     expect(await json(await call(`/api/plans/${planId}/share`, { cookie }))).toMatchObject({
       active: true,
-      includeGrades: true,
+      includeGrades: false,
     })
 
     const text = await (await call(`/api/share/${token}`)).text()
     expect(text).not.toContain('2027-07-20')
+    expect(text).not.toContain(SEALED_DATA)
     const body = JSON.parse(text) as SharedResponse & { includeGrades: boolean }
-    expect(body.includeGrades).toBe(true)
-    expect(body.plan.modules.some((module) => module.attempts.length > 0)).toBe(true)
+    expect(body.includeGrades).toBe(false)
+    expect(body.plan.modules.every((module) => module.attempts.length === 0)).toBe(true)
     expect(body.plan.modules.every((module) => module.examDate === undefined)).toBe(true)
     expect(body.plan.targetGrade).toBeUndefined()
-
-    // A new link without the option goes back to no grades.
-    const plain = await json<Created>(await call(`/api/plans/${planId}/share`, { method: 'POST', cookie }))
-    const plainBody = await json<SharedResponse & { includeGrades: boolean }>(
-      await call(`/api/share/${plain.token}`),
-    )
-    expect(plainBody.includeGrades).toBe(false)
-    expect(plainBody.plan.modules.every((module) => module.attempts.length === 0)).toBe(true)
 
     const invalid = await call(`/api/plans/${planId}/share`, {
       method: 'POST',

@@ -42,12 +42,12 @@ export const legal = {
       heading: '2. Das Wichtigste in Kürze',
       guest: 'Ohne Konto bleibt dein Plan nur in deinem Browser und wird nicht an uns übertragen.',
       account:
-        'Mit Konto speichern wir deine E-Mail-Adresse, einen verschlüsselten Passwort-Hash, deine Pläne mit Noten und Informationen zu deinen Anmeldungen.',
+        'Mit Konto speichern wir deine E-Mail-Adresse, einen verschlüsselten Passwort-Hash, deine Pläne und Informationen zu deinen Anmeldungen. Deine Noten verschlüsselt dein Browser, bevor er sie speichert; wir können sie nicht lesen.',
       noTracking:
         'Es gibt keine Werbung, kein Tracking, keine Analyse-Werkzeuge und keine eingebundenen Inhalte von Drittanbietern wie Schriften oder Skripte.',
       cookie: 'Wir setzen nur ein technisch notwendiges Cookie, und zwar erst, wenn du dich anmeldest.',
       sharing:
-        'Teilst du einen Plan per Link, sieht man darüber Semester und Module. Deine Noten nur, wenn du beim Erstellen des Links ausdrücklich „Mit Noten“ wählst.',
+        'Teilst du einen Plan per Link, sieht man darüber Semester und Module, aber nie deine Ergebnisse oder Noten.',
       assistant:
         'Den Studienassistenten nutzt du freiwillig. Das Sprachmodell bekommt nur die Studiengangsdaten deines Plans und deine Fragen, nie deine Noten.',
       selfService: 'Du kannst deine Daten jederzeit selbst herunterladen und dein Konto selbst löschen.',
@@ -73,7 +73,7 @@ export const legal = {
         'deine E-Mail-Adresse, einen Anzeigenamen (automatisch der Teil deiner E-Mail-Adresse vor dem @), ob die Adresse bestätigt ist, und wann das Konto angelegt und geändert wurde,',
       password: 'dein Passwort nur als gesalzenen scrypt-Hash, niemals im Klartext,',
       plans:
-        'deine Pläne: Studiengang, Module, Semester, Ergebnisse und Noten mit allen Prüfungsversuchen, Prüfungstermine und Zielschnitt,',
+        'deine Pläne: Studiengang, Module, Semester, Ergebnisse mit allen Prüfungsversuchen, Prüfungstermine und Anerkennungen; Noten und Zielschnitt nur verschlüsselt,',
       reminders: 'ob du E-Mail-Erinnerungen eingeschaltet hast,',
       language:
         'welche Sprache du für die Website gewählt hast, damit wir dir E-Mails in dieser Sprache schicken,',
@@ -84,11 +84,11 @@ export const legal = {
       adminView:
         'Zur Betreuung des Dienstes sehen wir in einer Verwaltungsansicht deine E-Mail-Adresse, ob sie bestätigt ist, wann du das Konto angelegt und zuletzt genutzt hast, wie viele Pläne und geteilte Links du hast und ob Erinnerungen eingeschaltet sind, aber keine Noten und keine Planinhalte. Auf Anfrage oder bei Missbrauch können wir dort Bestätigungs-E-Mails senden, Links deaktivieren, Anmeldungen beenden und Konten löschen. Jede solche Aktion protokollieren wir mit der Kontokennung, ohne E-Mail-Adresse, und löschen das Protokoll nach einem Jahr. Rechtsgrundlage ist unser berechtigtes Interesse an einem sicheren und funktionierenden Dienst (Art. 6 Abs. 1 lit. f DSGVO).',
       grades:
-        'Noten gehören nicht zu den besonderen Kategorien personenbezogener Daten nach Art. 9 DSGVO. Wir behandeln sie trotzdem vertraulich: Sie sind nur über dein Konto abrufbar und werden nur sichtbar, wenn du selbst einen Plan mit Noten teilst.',
+        'Noten gehören nicht zu den besonderen Kategorien personenbezogener Daten nach Art. 9 DSGVO. Wir schützen sie trotzdem besonders: Dein Browser verschlüsselt Noten und Zielschnitt (AES-256-GCM) mit einem Schlüssel, den er aus deinem Passwort ableitet und nur auf deinen Geräten aufbewahrt. Wir speichern sie nur verschlüsselt, können sie nicht lesen und nicht weitergeben. Setzt du dein Passwort zurück, lassen sich die bis dahin gespeicherten Noten nur mit dem früheren Passwort wiederherstellen. Ob ein Modul bestanden ist, bleibt für uns sichtbar, damit Erinnerungen für bestandene Prüfungen entfallen.',
     },
     sharing: {
       heading: '6. Geteilte Pläne',
-      body: 'Wenn du einen Plan teilst, erzeugen wir einen zufälligen Link. Wir speichern davon nur einen Prüfwert (Hash), den Zeitpunkt der Erstellung, ob der Link Noten zeigen soll und ob du ihn deaktiviert hast. Wer den Link kennt, sieht den Namen des Plans, Studiengang, Semester und Module und kann den Plan als eigene Kopie ohne Noten übernehmen. Ergebnisse, Noten und den daraus berechneten Schnitt sieht man nur, wenn du beim Erstellen des Links „Mit Noten“ gewählt hast; Prüfungstermine und Zielschnitt sind nie sichtbar. Du kannst den Link jederzeit deaktivieren; er wird zusammen mit dem Plan oder deinem Konto gelöscht. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO.',
+      body: 'Wenn du einen Plan teilst, erzeugen wir einen zufälligen Link. Wir speichern davon nur einen Prüfwert (Hash), den Zeitpunkt der Erstellung und ob du ihn deaktiviert hast. Wer den Link kennt, sieht den Namen des Plans, Studiengang, Semester und Module und kann den Plan als eigene Kopie übernehmen. Ergebnisse, Noten, Prüfungstermine, Anerkennungen und Zielschnitt sind nie sichtbar. Du kannst den Link jederzeit deaktivieren; er wird zusammen mit dem Plan oder deinem Konto gelöscht. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO.',
     },
     emails: {
       heading: '7. E-Mails',

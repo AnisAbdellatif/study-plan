@@ -1,9 +1,23 @@
-import { createGuestDocument, createPlanFromPreset, type GuestDocument, moveModule } from '@study-plan/shared'
+import {
+  createGuestDocument,
+  createPlanFromPreset,
+  type GuestDocument,
+  moveModule,
+  planHasGrades,
+  setModuleResult,
+  setTargetGrade,
+} from '@study-plan/shared'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createGuestStore, type StorageLike } from '../store/guest-store.ts'
 import { examplePreset as preset } from '../test/fixtures.ts'
 import { ApiError, type PlanSummary, type SaveResult, type StoredPlan } from './api.ts'
+import { GradeKeyring, memoryKeyStore } from './grade-keys.ts'
+import { createGradeSealer } from './grade-sealer.ts'
 import { LINK_KEY, PlanSync } from './plan-sync.ts'
+
+/** Few iterations keep the tests fast; the algorithm is the same. */
+const testKeyring = () => new GradeKeyring(memoryKeyStore(), { iterations: 1000 })
+const sealer = () => createGradeSealer(testKeyring())
 
 function memoryStorage(): StorageLike & { data: Map<string, string> } {
   const data = new Map<string, string>()
@@ -99,7 +113,7 @@ function setup() {
   const storage = memoryStorage()
   const store = createGuestStore(storage, () => new Date(nextTime()))
   const api = fakeApi()
-  const sync = new PlanSync({ store, api, storage, debounceMs: 0 })
+  const sync = new PlanSync({ store, api, grades: sealer(), storage, debounceMs: 0 })
   return { storage, store, api, sync }
 }
 
@@ -147,7 +161,7 @@ describe('PlanSync', () => {
     first.store.replacePlan(newPlan('Browserplan'))
     await first.sync.start('user-1')
     expect(first.sync.getState()).toMatchObject({ kind: 'choose', remote: { name: 'Kontoplan' } })
-    first.sync.loadAccountPlan()
+    await first.sync.loadAccountPlan()
     expect(first.store.getState().plan?.name).toBe('Kontoplan')
 
     const second = setup()
@@ -184,7 +198,7 @@ describe('PlanSync', () => {
     await sync.uploadLocal()
     sync.stop()
 
-    const restarted = new PlanSync({ store, api, storage: null, debounceMs: 0 })
+    const restarted = new PlanSync({ store, api, grades: sealer(), storage: null, debounceMs: 0 })
     await restarted.start('user-1')
     // Signing out unlinks the plan, so a new session has to ask.
     expect(restarted.getState().kind).toBe('choose')
@@ -202,7 +216,7 @@ describe('PlanSync', () => {
     expect(sync.getState()).toEqual({ kind: 'error' })
 
     api.setOffline(false)
-    const reloaded = new PlanSync({ store, api, storage, debounceMs: 0 })
+    const reloaded = new PlanSync({ store, api, grades: sealer(), storage, debounceMs: 0 })
     await reloaded.start('user-1')
     await settle()
     expect(api.plans.get('plan-1')?.revision).toBe(2)
@@ -219,7 +233,7 @@ describe('PlanSync', () => {
       plan: { ...document.plan, name: 'Vom Handy' },
     }))
 
-    const reloaded = new PlanSync({ store, api, storage, debounceMs: 0 })
+    const reloaded = new PlanSync({ store, api, grades: sealer(), storage, debounceMs: 0 })
     await reloaded.start('user-1')
     expect(store.getState().plan?.name).toBe('Vom Handy')
   })
@@ -236,7 +250,7 @@ describe('PlanSync', () => {
     await sync.retry()
     expect(api.plans.get('plan-1')?.revision).toBe(2)
 
-    const other = new PlanSync({ store, api, storage, debounceMs: 0 })
+    const other = new PlanSync({ store, api, grades: sealer(), storage, debounceMs: 0 })
     await other.start('user-2')
     expect(storage.data.get(LINK_KEY)).toBeUndefined()
   })
@@ -292,5 +306,123 @@ describe('PlanSync with several plans', () => {
     await sync.start('user-1')
     await sync.uploadLocal()
     expect(sync.getState()).toEqual({ kind: 'no_account_plan', limitReached: true })
+  })
+})
+
+describe('PlanSync with encrypted grades', () => {
+  beforeEach(() => {
+    tick = 0
+  })
+
+  const graded = (name = 'Browserplan') =>
+    setTargetGrade(setModuleResult(newPlan(name), 'INF-101', { kind: 'graded', grade: 1.3 }), 2.0)
+
+  /** A browser with its own storage and grade keys, talking to the shared fake account. */
+  function device(api: ReturnType<typeof fakeApi>) {
+    const storage = memoryStorage()
+    const keyring = testKeyring()
+    const store = createGuestStore(storage, () => new Date(nextTime()))
+    const sync = new PlanSync({ store, api, grades: createGradeSealer(keyring), storage, debounceMs: 0 })
+    return { keyring, store, sync }
+  }
+
+  const gradeOf = (store: ReturnType<typeof createGuestStore>) =>
+    store.getState().plan?.modules.find((module) => module.code === 'INF-101')?.attempts[0]?.grade
+
+  it('keeps no readable grade in the account and restores them on another device with the password', async () => {
+    const api = fakeApi()
+    const laptop = device(api)
+    await laptop.keyring.remember('richtig-langes-passwort', 'user-1')
+    laptop.store.replacePlan(graded())
+    await laptop.sync.start('user-1')
+    await laptop.sync.uploadLocal()
+
+    const stored = api.plans.get('plan-1')?.document
+    expect(stored?.encryptedGrades).toMatchObject({ v: 1 })
+    expect(stored ? planHasGrades(stored.plan) : true).toBe(false)
+    expect(stored?.plan.targetGrade).toBeUndefined()
+    expect(stored?.plan.modules.find((module) => module.code === 'INF-101')?.attempts).toEqual([
+      { attemptNo: 1, result: 'passed' },
+    ])
+    // The browser itself keeps its grades.
+    expect(gradeOf(laptop.store)).toBe(1.3)
+
+    const phone = device(api)
+    await phone.sync.start('user-1')
+    expect(phone.sync.getState()).toEqual({ kind: 'locked' })
+    expect(phone.store.getState().plan).toBeNull()
+
+    await phone.keyring.remember('richtig-langes-passwort', 'user-1')
+    await phone.sync.resume()
+    expect(phone.sync.getState().kind).toBe('synced')
+    expect(gradeOf(phone.store)).toBe(1.3)
+    expect(phone.store.getState().plan?.targetGrade).toBe(2.0)
+  })
+
+  it('reads grades from before a password reset with the earlier password and encrypts them again', async () => {
+    const api = fakeApi()
+    const laptop = device(api)
+    await laptop.keyring.remember('altes-passwort-123', 'user-1')
+    laptop.store.replacePlan(graded())
+    await laptop.sync.start('user-1')
+    await laptop.sync.uploadLocal()
+    const before = api.plans.get('plan-1')?.document.encryptedGrades
+
+    const phone = device(api)
+    await phone.keyring.remember('neues-passwort-456', 'user-1')
+    await phone.sync.start('user-1')
+    expect(phone.sync.getState()).toMatchObject({ kind: 'grades_unreadable', remote: { id: 'plan-1' } })
+
+    await phone.keyring.rememberPrevious('falsches-passwort', 'user-1')
+    await phone.sync.resume()
+    expect(phone.sync.getState().kind).toBe('grades_unreadable')
+
+    await phone.keyring.rememberPrevious('altes-passwort-123', 'user-1')
+    await phone.sync.resume()
+    await settle()
+    expect(gradeOf(phone.store)).toBe(1.3)
+    // Saved again with the new password's key.
+    const after = api.plans.get('plan-1')
+    expect(after?.revision).toBe(2)
+    expect(after?.document.encryptedGrades).not.toEqual(before)
+
+    const tablet = device(api)
+    await tablet.keyring.remember('neues-passwort-456', 'user-1')
+    await tablet.sync.start('user-1')
+    expect(gradeOf(tablet.store)).toBe(1.3)
+  })
+
+  it('goes on without grades that no password reads any more', async () => {
+    const api = fakeApi()
+    const laptop = device(api)
+    await laptop.keyring.remember('vergessenes-passwort', 'user-1')
+    laptop.store.replacePlan(graded())
+    await laptop.sync.start('user-1')
+    await laptop.sync.uploadLocal()
+
+    const phone = device(api)
+    await phone.keyring.remember('neues-passwort-456', 'user-1')
+    await phone.sync.start('user-1')
+    await phone.sync.discardUnreadableGrades()
+
+    expect(phone.sync.getState().kind).toBe('synced')
+    expect(phone.store.getState().plan?.name).toBe('Browserplan')
+    expect(gradeOf(phone.store)).toBeUndefined()
+    expect(api.plans.get('plan-1')).toMatchObject({ revision: 2 })
+    expect(api.plans.get('plan-1')?.document.encryptedGrades).toBeUndefined()
+  })
+
+  it('encrypts grades that an older account copy still holds in plain text', async () => {
+    const api = fakeApi()
+    await api.create(createGuestDocument(graded('Altbestand')))
+    const laptop = device(api)
+    await laptop.keyring.remember('richtig-langes-passwort', 'user-1')
+    await laptop.sync.start('user-1')
+    await settle()
+
+    expect(gradeOf(laptop.store)).toBe(1.3)
+    const stored = api.plans.get('plan-1')?.document
+    expect(stored?.encryptedGrades).toBeDefined()
+    expect(stored ? planHasGrades(stored.plan) : true).toBe(false)
   })
 })

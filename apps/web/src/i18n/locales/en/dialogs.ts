@@ -92,16 +92,7 @@ export const dialogs = {
     saveFirst: 'Save your plan to your account first, then you can create a share link.',
     saveToAccount: 'Save to account',
     explanation:
-      'Anyone with the link can see your semesters and modules, and your grades if you choose. Exam dates and your target grade average always stay private. The link always shows your current plan, and you can turn it off at any time.',
-    visibility: 'What the link shows',
-    withoutGrades: 'Without grades',
-    withoutGradesHint: 'Only semesters and modules, for example to show how you plan your studies.',
-    withGrades: 'With grades',
-    withGradesHint:
-      'Also your results and grade average. Only choose this if everyone with the link may see your grades.',
-    activeWithGrades: 'It also shows your grades.',
-    activeWithoutGrades: 'It doesn’t show grades.',
-    changeHint: 'To change this, you create a new link. The current link then stops working.',
+      'Anyone with the link can see your semesters and modules, but never your results, grades, exam dates or target grade average. The link always shows your current plan, and you can turn it off at any time.',
     statusError: 'Couldn’t load the status of the share link.',
     genericError: 'That didn’t work. Please try again.',
     linkLabel: 'Share link',

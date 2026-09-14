@@ -41,13 +41,13 @@ export function planShareRoutes(db: Database, config: Config) {
     const planId = await ownedPlanId(c)
     if (!planId) return c.json({ error: 'not_found' }, 404)
     const [share] = await db
-      .select({ createdAt: planShare.createdAt, includeGrades: planShare.includeGrades })
+      .select({ createdAt: planShare.createdAt })
       .from(planShare)
       .where(and(eq(planShare.planId, planId), isNull(planShare.revokedAt)))
     return c.json({
       active: share !== undefined,
       createdAt: share?.createdAt ?? null,
-      includeGrades: share?.includeGrades ?? false,
+      includeGrades: false,
     })
   })
 
@@ -58,7 +58,8 @@ export function planShareRoutes(db: Database, config: Config) {
     const raw: unknown = await c.req.json().catch(() => ({}))
     const options = createOptionsSchema.safeParse(raw ?? {})
     if (!options.success) return c.json({ error: 'invalid_request' }, 400)
-    const includeGrades = options.data.includeGrades ?? false
+    // Grades are encrypted in the browser, so a link never shows them; the option of older clients is ignored.
+    const includeGrades = false
     await revokeActive(planId)
     const token = createToken()
     const [share] = await db
@@ -88,8 +89,8 @@ export function planShareRoutes(db: Database, config: Config) {
 }
 
 /**
- * Public: the structure of a shared plan, plus results when the owner chose "with grades" for this link. Exam
- * dates and the target grade never leave the server.
+ * Public: the structure of a shared plan. Results, exam dates and recognitions never leave the server, and the
+ * server has no readable grades to begin with.
  */
 export function publicShareRoutes(db: Database, config: Config) {
   const routes = new Hono<AppEnv>()
@@ -109,7 +110,6 @@ export function publicShareRoutes(db: Database, config: Config) {
         name: plan.name,
         updatedAt: plan.updatedAt,
         sharedAt: planShare.createdAt,
-        includeGrades: planShare.includeGrades,
         document: plan.document,
       })
       .from(planShare)
@@ -121,8 +121,8 @@ export function publicShareRoutes(db: Database, config: Config) {
       name: row.name,
       updatedAt: row.updatedAt,
       sharedAt: row.sharedAt,
-      includeGrades: row.includeGrades,
-      plan: toSharedPlan(row.document.plan, { includeGrades: row.includeGrades }),
+      includeGrades: false,
+      plan: toSharedPlan(row.document.plan),
     })
   })
 
