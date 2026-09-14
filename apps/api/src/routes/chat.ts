@@ -85,8 +85,9 @@ export function chatRoutes(db: Database, llm: LlmClient | undefined) {
     } catch (error) {
       await refundChatMessage(db, userId)
       if (!(error instanceof LlmError)) throw error
-      // Kind and status only: questions and answers never go to the logs.
-      console.warn(`[chat] model request failed: ${error.kind}${error.status ? ` (${error.status})` : ''}`)
+      // The error message is built from the status and OpenRouter's own error text (limits, routing, credits);
+      // questions and answers never go to the logs.
+      console.warn(`[chat] model request failed: ${error.kind} – ${error.message.slice(0, 500)}`)
       return c.json({ error: 'chat_failed', reason: error.kind }, 502)
     }
   })
