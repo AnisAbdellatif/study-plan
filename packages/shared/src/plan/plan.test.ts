@@ -183,6 +183,7 @@ describe('summarizePlan', () => {
       number: 1,
       term: { season: 'winter', year: 2026 },
       label: 'WS 2026/27',
+      kind: 'regular',
       credits: 17,
       load: 'low',
       placeholderCredits: 0,

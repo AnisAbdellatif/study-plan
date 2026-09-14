@@ -35,4 +35,14 @@ export const issues = {
   alternativesConflictCard: 'Nur eine der Alternativen möglich',
   areaBelowMinimum: '{{area}}: {{planned}} von mindestens {{min}} eingeplant.',
   areaAboveMaximum: '{{area}}: {{planned}} eingeplant, vorgesehen sind höchstens {{max}}.',
+  recognitionPlanned: '{{name}} soll anerkannt werden. Stell den Antrag rechtzeitig beim Prüfungsamt.',
+  recognitionRequested:
+    'Die Anerkennung von {{name}} ist beantragt. Bis zur Entscheidung zählen die Leistungspunkte noch nicht.',
+  recognitionRejected:
+    'Die Anerkennung von {{name}} wurde abgelehnt. Plane das Modul ein, um es selbst abzulegen.',
+  recognitionWithoutResult:
+    '{{name}} ist anerkannt, aber noch ohne Ergebnis. Trag die anerkannte Note oder „bestanden“ ein, damit die Leistungspunkte zählen.',
+  recognitionWithoutResultCard: 'Anerkannt, Ergebnis fehlt',
+  leaveSemesterModules:
+    '{{term}} ist ein Urlaubssemester, trotzdem ist dort {{names}} eingeplant. Ob Prüfungen im Urlaubssemester erlaubt sind, regelt deine Prüfungsordnung.',
 }

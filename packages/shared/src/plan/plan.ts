@@ -18,9 +18,25 @@ export const attemptSchema = z.object({
   date: z.iso.date().optional(),
 })
 
+/**
+ * Anerkennung: the module is credited, or meant to be, from studies elsewhere, e.g. a semester abroad or a previous
+ * degree. The result itself stays in `attempts`, like for any other module.
+ */
+export const recognitionSchema = z.object({
+  /** `planned`: e.g. part of a Learning Agreement; `requested`: application filed; then approved or rejected. */
+  status: z.enum(['planned', 'requested', 'approved', 'rejected']),
+  /** Where the original course was taken. */
+  institution: z.string().trim().min(1).max(200).optional(),
+  originalTitle: z.string().trim().min(1).max(200).optional(),
+  originalCredits: creditValueSchema.optional(),
+  note: z.string().trim().min(1).max(1000).optional(),
+})
+export type Recognition = z.infer<typeof recognitionSchema>
+
 /** A module snapshotted from the preset when the plan was created, plus the student's attempts. */
 export const planModuleSchema = presetModuleSchema.extend({
   attempts: z.array(attemptSchema),
+  recognition: recognitionSchema.optional(),
   /** Exam date the student entered, YYYY-MM-DD. */
   examDate: z.iso.date().optional(),
   /** Added by the student, not part of the programme data. Kept through resets and programme updates. */

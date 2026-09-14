@@ -1,4 +1,10 @@
-import { type ModuleDetails, type Plan, type PlanModule, prerequisiteCodes } from '@study-plan/shared'
+import {
+  dependentModules,
+  type ModuleDetails,
+  type Plan,
+  type PlanModule,
+  prerequisiteCodes,
+} from '@study-plan/shared'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { formatCredits } from '../../lib/format.ts'
@@ -76,6 +82,8 @@ function FactsSection({ module, plan }: { module: PlanModule; plan: Plan }) {
       .map((code) => names.get(code) ?? code)
       .join(t('details.or')),
   )
+  const requiredFor = dependentModules(plan, module.code).map((other) => other.name)
+  const recognition = module.recognition
   const alternatives = module.alternativeGroup
     ? plan.modules
         .filter((other) => other.alternativeGroup === module.alternativeGroup && other.code !== module.code)
@@ -116,6 +124,11 @@ function FactsSection({ module, plan }: { module: PlanModule; plan: Plan }) {
       label: t('details.prerequisites'),
       value: <TextList items={prerequisites} />,
     },
+    requiredFor.length > 0 && {
+      key: 'requiredFor',
+      label: t('details.requiredFor'),
+      value: <TextList items={requiredFor} />,
+    },
     module.requiresCredits !== undefined && {
       key: 'requiresCredits',
       label: t('details.requiresCredits'),
@@ -133,6 +146,20 @@ function FactsSection({ module, plan }: { module: PlanModule; plan: Plan }) {
       value: <TextList items={alternatives} />,
     },
     module.retired === true && { key: 'retired', label: t('details.status'), value: t('details.retired') },
+    recognition !== undefined && {
+      key: 'recognition',
+      label: t('details.recognition'),
+      value: [
+        t(`card.recognition.${recognition.status}`),
+        recognition.institution,
+        recognition.originalTitle,
+        recognition.originalCredits !== undefined
+          ? `${formatCredits(recognition.originalCredits)} ${label}`
+          : undefined,
+      ]
+        .filter(Boolean)
+        .join(' · '),
+    },
   ].filter(present)
 
   return <Section title={t('details.facts')} rows={rows} />

@@ -3,12 +3,15 @@ import {
   type CreditRequirement,
   type DeadlineEvent,
   daysBetween,
+  type FinishEstimate,
   formatTerm,
+  type GraduationForecast,
   type Plan,
   prerequisiteCodes,
   type WhatIfAnalysis,
 } from '@study-plan/shared'
 import {
+  CalendarCheck,
   CalendarClock,
   CalendarPlus,
   CircleAlert,
@@ -17,6 +20,7 @@ import {
   ListChecks,
   Target,
   TriangleAlert,
+  WandSparkles,
 } from 'lucide-react'
 import { useId } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -324,9 +328,92 @@ function RequirementCard({ plan, requirement }: { plan: Plan; requirement: Credi
   )
 }
 
+function ForecastCard({
+  plan,
+  forecast,
+  onSuggestPlan,
+}: {
+  plan: Plan
+  forecast: GraduationForecast
+  onSuggestPlan: () => void
+}) {
+  const { t } = useTranslation('board')
+  const headingId = useId()
+  const label = plan.preset.creditLabel
+  const credits = (value: number) => `${formatCredits(value)} ${label}`
+  const finish = (estimate: FinishEstimate) =>
+    t('forecast.finish', {
+      term: formatTerm(estimate.term, currentLocale()),
+      number: estimate.subjectSemesters,
+    })
+  const { planned, atPace } = forecast
+
+  return (
+    <section aria-labelledby={headingId} className={cardClass}>
+      <h2 id={headingId} className={headingClass}>
+        <CalendarCheck aria-hidden className={headingIconClass} />
+        {t('forecast.title')}
+      </h2>
+      {forecast.done ? (
+        <p className="mt-1 text-lg font-semibold">
+          {t('forecast.done', { required: credits(forecast.requiredCredits) })}
+        </p>
+      ) : planned === null ? (
+        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">{t('forecast.empty')}</p>
+      ) : (
+        <>
+          <p className="mt-1 text-lg font-semibold tabular-nums" data-testid="forecast-planned">
+            {finish(planned)}
+          </p>
+          <p
+            className={cn(
+              'text-sm',
+              planned.overStandard > 0
+                ? 'text-amber-800 dark:text-amber-300'
+                : 'text-zinc-600 dark:text-zinc-400',
+            )}
+          >
+            {planned.overStandard > 0
+              ? t('forecast.overStandard', {
+                  count: planned.overStandard,
+                  standard: forecast.standardSemesters,
+                })
+              : t('forecast.withinStandard', { count: forecast.standardSemesters })}
+          </p>
+          {planned.partTimeSemesters > 0 ? (
+            <p className="text-xs text-zinc-600 dark:text-zinc-400">
+              {t('forecast.partTime', { count: planned.partTimeSemesters })}
+            </p>
+          ) : null}
+          {forecast.missingCredits > 0 ? (
+            <p className="mt-1 text-sm text-amber-800 dark:text-amber-300">
+              {t('forecast.missing', {
+                credits: credits(forecast.missingCredits),
+                required: credits(forecast.requiredCredits),
+              })}
+            </p>
+          ) : null}
+        </>
+      )}
+      {atPace ? (
+        <p className="mt-2 text-sm" data-testid="forecast-pace">
+          {t('forecast.atPace', { credits: credits(atPace.creditsPerSemester), finish: finish(atPace) })}
+        </p>
+      ) : null}
+      <p className="mt-2 text-xs text-zinc-600 dark:text-zinc-400">{t('forecast.note')}</p>
+      <Button size="sm" variant="ghost" onClick={onSuggestPlan} className="mt-2 -ml-2">
+        <WandSparkles aria-hidden className="size-4" />
+        {t('forecast.suggest')}
+      </Button>
+    </section>
+  )
+}
+
 export interface PlanInsightsProps {
   plan: Plan
   hints: readonly IssueText[]
+  forecast: GraduationForecast
+  onSuggestPlan: () => void
   whatIf: WhatIfAnalysis
   /** Modules with a credit requirement that are not passed yet, usually the thesis. */
   requirements: readonly CreditRequirement[]
@@ -340,6 +427,8 @@ export interface PlanInsightsProps {
 export function PlanInsights({
   plan,
   hints,
+  forecast,
+  onSuggestPlan,
   whatIf,
   requirements,
   today,
@@ -349,13 +438,9 @@ export function PlanInsights({
   onExportCalendar,
 }: PlanInsightsProps) {
   return (
-    <div
-      className={cn(
-        'grid gap-3',
-        requirements.length > 0 ? 'md:grid-cols-2 xl:grid-cols-4' : 'md:grid-cols-3',
-      )}
-    >
+    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
       <HintsCard hints={hints} />
+      <ForecastCard plan={plan} forecast={forecast} onSuggestPlan={onSuggestPlan} />
       <WhatIfCard plan={plan} analysis={whatIf} onTargetChange={onTargetChange} />
       <DeadlinesCard
         plan={plan}

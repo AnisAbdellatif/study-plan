@@ -152,6 +152,7 @@ export function applyPresetUpdate(plan: Plan, preset: Preset): Plan {
       ...snapshot,
       attempts: kept ? module.attempts : [],
       ...(module.examDate ? { examDate: module.examDate } : {}),
+      ...(module.recognition ? { recognition: module.recognition } : {}),
     }
   })
   const incoming = new Set(preset.modules.map((module) => module.code))

@@ -19,6 +19,21 @@ export const dialogs = {
     addAttempt: 'Weiteren Versuch eintragen',
     examDate: 'Prüfungstermin',
     optional: '(optional)',
+    recognition: 'Anerkennung',
+    recognitionToggle: 'Anderswo erbracht, z. B. im Auslandssemester oder an einer anderen Hochschule',
+    recognitionStatus: 'Stand',
+    recognitionStatuses: {
+      planned: 'Geplant, z. B. im Learning Agreement',
+      requested: 'Beantragt',
+      approved: 'Anerkannt',
+      rejected: 'Abgelehnt',
+    },
+    recognitionInstitution: 'Hochschule',
+    recognitionOriginalTitle: 'Ursprüngliche Lehrveranstaltung',
+    recognitionOriginalCredits: 'Ursprüngliche LP',
+    recognitionNote: 'Notiz',
+    recognitionApprovedHint:
+      'Trag oben die anerkannte Note oder „bestanden“ ein, damit die Leistungspunkte zählen.',
   },
   attempts: {
     exhausted_one: 'Alle {{count}} Versuche sind verbraucht.',

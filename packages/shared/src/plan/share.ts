@@ -15,7 +15,8 @@ export function toSharedPlan(plan: Plan, options: SharedPlanOptions = {}): Plan 
   return {
     ...rest,
     id: 'shared',
-    modules: plan.modules.map(({ examDate: _examDate, ...module }) =>
+    // Recognition details (where and what the student studied before) are personal too.
+    modules: plan.modules.map(({ examDate: _examDate, recognition: _recognition, ...module }) =>
       options.includeGrades ? module : { ...module, attempts: [] },
     ),
   }

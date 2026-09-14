@@ -7,6 +7,7 @@ import {
   choosePlaceholder,
   createIcs,
   creditRequirements,
+  graduationForecast,
   insertSemester,
   isPlaceholderId,
   localIsoDate,
@@ -16,12 +17,15 @@ import {
   type Plan,
   PlanError,
   planDeadlines,
+  type RecognitionInput,
   removeCustomModule,
   removePlaceholder,
   removeSemester,
   semesterIndexAt,
   setExamDate,
   setModuleAttempts,
+  setRecognition,
+  setSemesterKind,
   setTargetGrade,
   summarizePlan,
   unchooseModule,
@@ -44,6 +48,7 @@ import { type PickerTarget, PlaceholderPickerDialog } from '../components/board/
 import { PlanInsights } from '../components/board/plan-insights.tsx'
 import { PlanOverview } from '../components/board/plan-overview.tsx'
 import { columnTitle, placeholderAreaName, SemesterBoard } from '../components/board/semester-board.tsx'
+import { SuggestPlanDialog } from '../components/board/suggest-plan-dialog.tsx'
 import { SummaryPanel } from '../components/board/summary-panel.tsx'
 import { StorageNotice } from '../components/storage-notice.tsx'
 import { StudyAssistant } from '../components/study-assistant.tsx'
@@ -151,6 +156,11 @@ function Board({ plan }: { plan: Plan }) {
   )
   const whatIf = useMemo(() => analyzeWhatIf(plan, plan.targetGrade), [plan])
   const requirements = useMemo(() => creditRequirements(plan).filter((item) => !item.passed), [plan])
+  const forecast = useMemo(
+    () => graduationForecast(plan, { currentSemesterIndex: currentIndex }),
+    [plan, currentIndex],
+  )
+  const [suggestOpen, setSuggestOpen] = useState(false)
   const allDeadlines = useMemo(() => planDeadlines(plan), [plan])
   const upcoming = useMemo(() => upcomingDeadlines(plan, today, DEADLINE_HORIZON_DAYS), [plan, today])
 
@@ -262,6 +272,16 @@ function Board({ plan }: { plan: Plan }) {
       if (semester.moduleCodes.length > 0) setDeleteSemesterId(semesterId)
       else deleteSemester(semesterId)
     },
+    onSetSemesterKind: (semesterId, kind) => {
+      if (apply((current) => setSemesterKind(current, semesterId, kind))) {
+        announce(
+          t('semesterMenu.kindChanged', {
+            column: columnTitle(plan, semesterId),
+            kind: t(`semesterMenu.kinds.${kind}`),
+          }),
+        )
+      }
+    },
   })
   useModuleDropMonitor(actions.onMove, actions.onPlaceArea)
   useSemesterDropMonitor(actions.onMoveSemester)
@@ -295,10 +315,28 @@ function Board({ plan }: { plan: Plan }) {
     if (apply((current) => removeCustomModule(current, code))) announce(t('announce.customDeleted', { name }))
   }
 
-  const saveResult = (code: string, entries: AttemptEntry[], examDate: string | null) => {
-    store.updatePlan((current) => setExamDate(setModuleAttempts(current, code, entries), code, examDate))
+  const saveResult = (
+    code: string,
+    entries: AttemptEntry[],
+    examDate: string | null,
+    recognition: RecognitionInput | null,
+  ) => {
+    const saved = apply((current) =>
+      setRecognition(
+        setExamDate(setModuleAttempts(current, code, entries), code, examDate),
+        code,
+        recognition,
+      ),
+    )
+    if (!saved) return
     setGradingCode(null)
     announce(`${moduleName(code)}: ${describeAttempts(entries)}`)
+  }
+
+  const applySuggestion = (next: Plan, moved: number) => {
+    store.updatePlan(() => next)
+    setSuggestOpen(false)
+    announce(t('suggest.applied', { count: moved }))
   }
 
   const changeTarget = (grade: number | null) => {
@@ -320,7 +358,7 @@ function Board({ plan }: { plan: Plan }) {
   return (
     // On phones main fills the screen, so the bottom bar sits at the bottom edge even on short pages.
     <main className="mx-auto max-w-[240rem] space-y-4 px-4 pt-5 max-sm:flex max-sm:min-h-dvh max-sm:flex-col sm:px-6 sm:pb-5">
-      <AppHeader plan={plan} />
+      <AppHeader plan={plan} onSuggestPlan={() => setSuggestOpen(true)} />
       <div className="space-y-4 empty:hidden print:hidden">
         <StorageNotice plan={plan} />
         <AccountSyncBanner />
@@ -332,6 +370,8 @@ function Board({ plan }: { plan: Plan }) {
         <PlanInsights
           plan={plan}
           hints={issues.list}
+          forecast={forecast}
+          onSuggestPlan={() => setSuggestOpen(true)}
           whatIf={whatIf}
           requirements={requirements}
           today={today}
@@ -458,6 +498,13 @@ function Board({ plan }: { plan: Plan }) {
         plan={plan}
         onSave={saveResult}
         onClose={() => setGradingCode(null)}
+      />
+      <SuggestPlanDialog
+        open={suggestOpen}
+        onOpenChange={setSuggestOpen}
+        plan={plan}
+        currentIndex={currentIndex}
+        onApply={applySuggestion}
       />
       {wide ? (
         <Button
