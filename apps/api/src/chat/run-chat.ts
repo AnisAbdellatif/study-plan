@@ -1,4 +1,4 @@
-import type { LlmClient, LlmMessage, LlmUsage } from '../llm/types.ts'
+import { type LlmClient, LlmError, type LlmMessage, type LlmUsage } from '../llm/types.ts'
 import type { ChatProgramme } from './programme.ts'
 import { CHAT_TOOLS, executeTool } from './tools.ts'
 
@@ -17,6 +17,13 @@ export interface ChatAnswer {
 
 const MAX_TOOL_ROUNDS = 4
 const MAX_REFERENCES = 8
+/** Room for the answer, and for models that think before answering. */
+const MAX_OUTPUT_TOKENS = 2000
+
+const ANSWER_NOW = {
+  de: 'Bitte beantworte meine Frage jetzt mit den Informationen, die du nachgeschlagen hast.',
+  en: 'Please answer my question now, using the information you looked up.',
+} as const
 
 const LANGUAGE = { de: 'German', en: 'English' } as const
 
@@ -63,17 +70,19 @@ export async function runChat({
   }
 
   let reply: string | null = null
+  let finishReason: string | null = null
   for (let round = 0; round <= MAX_TOOL_ROUNDS && reply === null; round++) {
     const lastRound = round === MAX_TOOL_ROUNDS
     const response = await llm.complete({
       ...(model ? { model } : {}),
       messages,
       ...(lastRound ? {} : { tools: CHAT_TOOLS }),
-      maxTokens: 1200,
+      maxTokens: MAX_OUTPUT_TOKENS,
       temperature: 0.2,
       signal,
     })
     addUsage(response.usage)
+    finishReason = response.finishReason
     if (lastRound || response.toolCalls.length === 0) {
       reply = response.content.trim()
       break
@@ -86,7 +95,25 @@ export async function runChat({
     }
   }
 
-  const text = reply ?? ''
+  // Some models end with an empty message, e.g. when their reasoning used up the output tokens. Ask once more for
+  // the answer itself; a blank reply is no answer and must not reach the conversation.
+  if (!reply) {
+    const response = await llm.complete({
+      ...(model ? { model } : {}),
+      messages: [...messages, { role: 'user', content: ANSWER_NOW[locale] }],
+      maxTokens: MAX_OUTPUT_TOKENS,
+      temperature: 0.2,
+      signal,
+    })
+    addUsage(response.usage)
+    finishReason = response.finishReason
+    reply = response.content.trim()
+  }
+  if (!reply) {
+    throw new LlmError('invalid_response', `empty answer (finish reason: ${finishReason ?? 'unknown'})`)
+  }
+
+  const text = reply
   // Modules named in the answer count as references too, even when the model only searched.
   const mentioned = programme.modules
     .filter((module) => text.includes(module.code))

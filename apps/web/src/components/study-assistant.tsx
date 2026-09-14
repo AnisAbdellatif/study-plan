@@ -186,7 +186,10 @@ export function StudyAssistant({
       const reply = await chatApi.send({
         planId,
         locale: currentLocale(),
-        messages: history.slice(-HISTORY_LIMIT).map(({ role, content }) => ({ role, content })),
+        messages: history
+          .filter((entry) => entry.content.trim() !== '')
+          .slice(-HISTORY_LIMIT)
+          .map(({ role, content }) => ({ role, content })),
       })
       setEntries([...history, { role: 'assistant', content: reply.reply, modules: reply.modules }])
       setStatus((current) =>
@@ -280,13 +283,13 @@ export function StudyAssistant({
                 <p className="max-w-[90%] rounded-2xl bg-indigo-600 px-3 py-2 break-words whitespace-pre-line text-white">
                   {entry.content}
                 </p>
-              ) : (
+              ) : entry.content.trim() ? (
                 <div className="max-w-[90%] min-w-0 rounded-2xl bg-white px-3 py-2 ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800">
                   <Suspense fallback={<p className="break-words whitespace-pre-line">{entry.content}</p>}>
                     <ChatMarkdown>{entry.content}</ChatMarkdown>
                   </Suspense>
                 </div>
-              )}
+              ) : null}
               {entry.modules && entry.modules.length > 0 ? (
                 <ul className="flex max-w-[90%] flex-wrap gap-1.5" aria-label={t('assistant.modules')}>
                   {entry.modules.map((module) => (

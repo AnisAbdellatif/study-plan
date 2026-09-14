@@ -470,6 +470,21 @@ describe('chat', () => {
     await updateChatSettings(connection.db, { enabled: true, dailyLimit: 20, model: null })
     expect(await chatSettings(connection.db)).toEqual({ enabled: true, dailyLimit: 20, model: null })
 
+    // A blank answer still held by an older browser tab doesn't break the conversation.
+    const afterBlank = await ask({
+      cookie,
+      body: {
+        ...question,
+        messages: [
+          { role: 'user', content: 'Erste Frage' },
+          { role: 'assistant', content: '' },
+          { role: 'user', content: 'Zweite Frage' },
+        ],
+      },
+    })
+    expect(afterBlank.status).toBe(200)
+    expect(llm.requests.at(-1)?.messages.filter((message) => message.role === 'assistant')).toEqual([])
+
     // The app without a model reports the chat as unavailable.
     expect(await json(await call('/api/chat/status', { cookie }))).toMatchObject({ available: false })
   })

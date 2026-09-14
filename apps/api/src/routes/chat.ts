@@ -21,11 +21,13 @@ const bodySchema = z
       .array(
         z.object({
           role: z.enum(['user', 'assistant']),
-          content: z.string().trim().min(1).max(MAX_MESSAGE_LENGTH),
+          content: z.string().trim().max(MAX_MESSAGE_LENGTH),
         }),
       )
       .min(1)
-      .max(MAX_MESSAGES),
+      .max(MAX_MESSAGES)
+      // An empty message adds nothing; dropping it keeps a conversation going after a blank answer.
+      .transform((messages) => messages.filter((message) => message.content.length > 0)),
   })
   .refine((body) => body.messages.at(-1)?.role === 'user', {
     message: 'The last message must be the question',

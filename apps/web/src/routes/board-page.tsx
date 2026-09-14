@@ -474,8 +474,9 @@ function Board({ plan }: { plan: Plan }) {
         onOpenChange={setAssistantOpen}
         title={t('assistant.title')}
         size="lg"
+        fill
       >
-        <StudyAssistant onOpenModule={setDetailsCode} className="h-[65dvh]" showTitle={false} />
+        <StudyAssistant onOpenModule={setDetailsCode} className="min-h-0 flex-1" showTitle={false} />
       </Dialog>
       <ModuleDetailsDialog
         module={plan.modules.find((m) => m.code === detailsCode) ?? null}

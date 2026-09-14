@@ -146,4 +146,25 @@ describe('runChat', () => {
     expect(llm.requests.at(-1)?.tools).toBeUndefined()
     expect(llm.requests.length).toBe(5)
   })
+
+  it('asks once more after an empty answer and fails instead of returning a blank reply', async () => {
+    const recovering = createScriptedLlm([
+      { content: '  ', finishReason: 'length' },
+      { content: 'Jetzt aber.' },
+    ])
+    const answer = await runChat({
+      llm: recovering,
+      programme,
+      history: [{ role: 'user', content: 'Hilfe' }],
+      locale: 'de',
+    })
+    expect(answer.reply).toBe('Jetzt aber.')
+    expect(recovering.requests.at(-1)?.tools).toBeUndefined()
+    expect(recovering.requests.at(-1)?.messages.at(-1)).toMatchObject({ role: 'user' })
+
+    const silent = createScriptedLlm([{ content: '', finishReason: 'length' }])
+    await expect(
+      runChat({ llm: silent, programme, history: [{ role: 'user', content: 'Hilfe' }], locale: 'de' }),
+    ).rejects.toMatchObject({ kind: 'invalid_response', message: expect.stringContaining('length') })
+  })
 })
