@@ -26,7 +26,12 @@ export interface SuggestPlanDialogProps {
   onApply: (next: Plan, moved: number) => void
 }
 
-/** Rearranges the open modules with `suggestPlan`, after a preview of what would change. */
+/**
+ * Rearranges the open modules with `suggestPlan`, after a preview of what would change.
+ *
+ * Not mounted anywhere at the moment: the rule-based suggestion was taken out of the interface and is meant to come
+ * back AI-assisted. The dialog, `suggestPlan` and their tests stay so that version can build on them.
+ */
 export function SuggestPlanDialog({
   open,
   onOpenChange,

@@ -20,7 +20,6 @@ import {
   ListChecks,
   Target,
   TriangleAlert,
-  WandSparkles,
 } from 'lucide-react'
 import { useId } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -328,15 +327,7 @@ function RequirementCard({ plan, requirement }: { plan: Plan; requirement: Credi
   )
 }
 
-function ForecastCard({
-  plan,
-  forecast,
-  onSuggestPlan,
-}: {
-  plan: Plan
-  forecast: GraduationForecast
-  onSuggestPlan: () => void
-}) {
+function ForecastCard({ plan, forecast }: { plan: Plan; forecast: GraduationForecast }) {
   const { t } = useTranslation('board')
   const headingId = useId()
   const label = plan.preset.creditLabel
@@ -401,10 +392,6 @@ function ForecastCard({
         </p>
       ) : null}
       <p className="mt-2 text-xs text-zinc-600 dark:text-zinc-400">{t('forecast.note')}</p>
-      <Button size="sm" variant="ghost" onClick={onSuggestPlan} className="mt-2 -ml-2">
-        <WandSparkles aria-hidden className="size-4" />
-        {t('forecast.suggest')}
-      </Button>
     </section>
   )
 }
@@ -413,7 +400,6 @@ export interface PlanInsightsProps {
   plan: Plan
   hints: readonly IssueText[]
   forecast: GraduationForecast
-  onSuggestPlan: () => void
   whatIf: WhatIfAnalysis
   /** Modules with a credit requirement that are not passed yet, usually the thesis. */
   requirements: readonly CreditRequirement[]
@@ -428,7 +414,6 @@ export function PlanInsights({
   plan,
   hints,
   forecast,
-  onSuggestPlan,
   whatIf,
   requirements,
   today,
@@ -440,7 +425,7 @@ export function PlanInsights({
   return (
     <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
       <HintsCard hints={hints} />
-      <ForecastCard plan={plan} forecast={forecast} onSuggestPlan={onSuggestPlan} />
+      <ForecastCard plan={plan} forecast={forecast} />
       <WhatIfCard plan={plan} analysis={whatIf} onTargetChange={onTargetChange} />
       <DeadlinesCard
         plan={plan}

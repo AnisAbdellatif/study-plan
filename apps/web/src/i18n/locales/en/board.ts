@@ -9,7 +9,6 @@ export const board = {
     sharePlan: 'Share plan…',
     print: 'Print or save as PDF',
     updateProgramme: 'Update programme data…',
-    suggestPlan: 'Suggest a plan…',
     restoreDefault: 'Reset to default plan…',
     restoreDefaultTitle: 'Reset the plan to its default?',
     restoreDefaultDescription:
@@ -419,7 +418,6 @@ export const board = {
   },
   forecast: {
     title: 'Expected graduation',
-    suggest: 'Suggest a plan…',
     finish: '{{term}} · subject semester {{number}}',
     withinStandard_one: 'Within the standard period of study of {{count}} semester.',
     withinStandard_other: 'Within the standard period of study of {{count}} semesters.',

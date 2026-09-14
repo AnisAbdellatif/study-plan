@@ -31,7 +31,7 @@ import {
 } from './ui/menu.tsx'
 import { useExportPlan } from './use-export-plan.ts'
 
-export function AppHeader({ plan, onSuggestPlan }: { plan: Plan; onSuggestPlan?: () => void }) {
+export function AppHeader({ plan }: { plan: Plan }) {
   const { t, i18n } = useTranslation(['board', 'common', 'dialogs'])
   const theme = useTheme()
   const importer = useImportPlan()
@@ -90,7 +90,6 @@ export function AppHeader({ plan, onSuggestPlan }: { plan: Plan; onSuggestPlan?:
                 </MenuItem>
                 <MenuSeparator />
               </div>
-              {onSuggestPlan ? <MenuItem onClick={onSuggestPlan}>{t('header.suggestPlan')}</MenuItem> : null}
               <MenuItem onClick={() => setImportOpen(true)}>{t('header.importGrades')}</MenuItem>
               <MenuItem onClick={() => setShareOpen(true)}>{t('header.sharePlan')}</MenuItem>
               <MenuItem onClick={() => window.print()}>{t('header.print')}</MenuItem>

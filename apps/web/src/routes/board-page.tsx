@@ -48,7 +48,6 @@ import { type PickerTarget, PlaceholderPickerDialog } from '../components/board/
 import { PlanInsights } from '../components/board/plan-insights.tsx'
 import { PlanOverview } from '../components/board/plan-overview.tsx'
 import { columnTitle, placeholderAreaName, SemesterBoard } from '../components/board/semester-board.tsx'
-import { SuggestPlanDialog } from '../components/board/suggest-plan-dialog.tsx'
 import { SummaryPanel } from '../components/board/summary-panel.tsx'
 import { StorageNotice } from '../components/storage-notice.tsx'
 import { StudyAssistant } from '../components/study-assistant.tsx'
@@ -160,7 +159,6 @@ function Board({ plan }: { plan: Plan }) {
     () => graduationForecast(plan, { currentSemesterIndex: currentIndex }),
     [plan, currentIndex],
   )
-  const [suggestOpen, setSuggestOpen] = useState(false)
   const allDeadlines = useMemo(() => planDeadlines(plan), [plan])
   const upcoming = useMemo(() => upcomingDeadlines(plan, today, DEADLINE_HORIZON_DAYS), [plan, today])
 
@@ -333,12 +331,6 @@ function Board({ plan }: { plan: Plan }) {
     announce(`${moduleName(code)}: ${describeAttempts(entries)}`)
   }
 
-  const applySuggestion = (next: Plan, moved: number) => {
-    store.updatePlan(() => next)
-    setSuggestOpen(false)
-    announce(t('suggest.applied', { count: moved }))
-  }
-
   const changeTarget = (grade: number | null) => {
     store.updatePlan((current) => setTargetGrade(current, grade))
   }
@@ -358,7 +350,7 @@ function Board({ plan }: { plan: Plan }) {
   return (
     // On phones main fills the screen, so the bottom bar sits at the bottom edge even on short pages.
     <main className="mx-auto max-w-[240rem] space-y-4 px-4 pt-5 max-sm:flex max-sm:min-h-dvh max-sm:flex-col sm:px-6 sm:pb-5">
-      <AppHeader plan={plan} onSuggestPlan={() => setSuggestOpen(true)} />
+      <AppHeader plan={plan} />
       <div className="space-y-4 empty:hidden print:hidden">
         <StorageNotice plan={plan} />
         <AccountSyncBanner />
@@ -371,7 +363,6 @@ function Board({ plan }: { plan: Plan }) {
           plan={plan}
           hints={issues.list}
           forecast={forecast}
-          onSuggestPlan={() => setSuggestOpen(true)}
           whatIf={whatIf}
           requirements={requirements}
           today={today}
@@ -498,13 +489,6 @@ function Board({ plan }: { plan: Plan }) {
         plan={plan}
         onSave={saveResult}
         onClose={() => setGradingCode(null)}
-      />
-      <SuggestPlanDialog
-        open={suggestOpen}
-        onOpenChange={setSuggestOpen}
-        plan={plan}
-        currentIndex={currentIndex}
-        onApply={applySuggestion}
       />
       {wide ? (
         <Button

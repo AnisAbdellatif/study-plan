@@ -2,11 +2,12 @@ import { createPlanFromPreset, type Plan } from '@study-plan/shared'
 import { createMemoryHistory, RouterProvider } from '@tanstack/react-router'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import i18n from '../../i18n/index.ts'
 import { createAppRouter } from '../../router.tsx'
 import { createGuestStore, GuestStoreContext } from '../../store/guest-store.ts'
 import { examplePreset } from '../../test/fixtures.ts'
+import { SuggestPlanDialog } from './suggest-plan-dialog.tsx'
 
 function makePlan(): Plan {
   return createPlanFromPreset(examplePreset, {
@@ -41,13 +42,19 @@ describe('planning features on the board', () => {
     expect(await screen.findByText(/ist ein Urlaubssemester, trotzdem ist dort/)).toBeInTheDocument()
   })
 
-  it('shows the expected graduation and applies a suggested plan', async () => {
-    const plan = makePlan()
-    const { store, user } = renderBoard(plan)
+  it('shows the expected graduation, and no plan suggestion for now', async () => {
+    renderBoard(makePlan())
     expect(await screen.findByRole('heading', { name: 'Voraussichtlicher Abschluss' })).toBeInTheDocument()
     expect(screen.getByTestId('forecast-planned')).toHaveTextContent('Fachsemester')
+    expect(screen.queryByRole('button', { name: /Plan vorschlagen/ })).not.toBeInTheDocument()
+  })
 
-    await user.click(screen.getByRole('button', { name: 'Plan vorschlagen…' }))
+  // The dialog is not mounted on the board; it stays for an AI-assisted version of the suggestion.
+  it('keeps the suggestion dialog working on its own', async () => {
+    const plan = makePlan()
+    const onApply = vi.fn()
+    render(<SuggestPlanDialog open onOpenChange={() => {}} plan={plan} currentIndex={0} onApply={onApply} />)
+    const user = userEvent.setup()
     const dialog = await screen.findByRole('dialog', { name: 'Plan vorschlagen' })
     const credits = within(dialog).getByLabelText(`${plan.preset.creditLabel} pro Semester`)
     await user.clear(credits)
@@ -57,8 +64,8 @@ describe('planning features on the board', () => {
     )
 
     await user.click(within(dialog).getByRole('button', { name: 'Vorschlag übernehmen' }))
-    expect(screen.queryByRole('dialog', { name: 'Plan vorschlagen' })).not.toBeInTheDocument()
-    expect(store.getState().plan?.semesters.length).toBeGreaterThan(plan.semesters.length)
+    const [next] = onApply.mock.calls[0] ?? []
+    expect((next as Plan).semesters.length).toBeGreaterThan(plan.semesters.length)
   })
 
   it('records a recognition in the grade dialog and asks for the recognised result', async () => {

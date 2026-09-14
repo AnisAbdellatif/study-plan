@@ -6,7 +6,6 @@ export const board = {
     sharePlan: 'Plan teilen…',
     print: 'Drucken oder als PDF speichern',
     updateProgramme: 'Studiengangsdaten aktualisieren…',
-    suggestPlan: 'Plan vorschlagen…',
     restoreDefault: 'Auf Standardplan zurücksetzen…',
     restoreDefaultTitle: 'Plan auf den Standard zurücksetzen?',
     restoreDefaultDescription:
@@ -419,7 +418,6 @@ export const board = {
   },
   forecast: {
     title: 'Voraussichtlicher Abschluss',
-    suggest: 'Plan vorschlagen…',
     finish: '{{term}} · {{number}}. Fachsemester',
     withinStandard_one: 'Innerhalb der Regelstudienzeit von {{count}} Semester.',
     withinStandard_other: 'Innerhalb der Regelstudienzeit von {{count}} Semestern.',
