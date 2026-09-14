@@ -34,7 +34,7 @@ describe('OpenRouter client', () => {
             },
           },
         ],
-        usage: { prompt_tokens: 120, completion_tokens: 12 },
+        usage: { prompt_tokens: 120, completion_tokens: 12, total_tokens: 132, cost: 0.00042 },
       }),
     )
     const client = createOpenRouterClient({
@@ -66,7 +66,7 @@ describe('OpenRouter client', () => {
       content: '',
       toolCalls: [{ id: 'call-1', name: 'get_module', arguments: '{"code":"INF-101"}' }],
       finishReason: 'tool_calls',
-      usage: { promptTokens: 120, completionTokens: 12 },
+      usage: { promptTokens: 120, completionTokens: 12, cost: 0.00042 },
       model: 'anthropic/claude-haiku-4.5',
     })
     const [call] = fetch.calls
@@ -125,5 +125,45 @@ describe('OpenRouter client', () => {
     await expect(offline.complete({ messages: [{ role: 'user', content: 'x' }] })).rejects.toMatchObject({
       kind: 'unavailable',
     })
+  })
+
+  it('reads the key’s spending', async () => {
+    const fetch = fakeFetch(() =>
+      json({
+        data: {
+          label: 'sk-or-v1-abc...xyz',
+          usage: 1.25,
+          usage_daily: 0.05,
+          usage_weekly: 0.4,
+          usage_monthly: 1.1,
+          limit: 10,
+          limit_remaining: 8.75,
+          is_free_tier: false,
+        },
+      }),
+    )
+    const client = createOpenRouterClient({
+      apiKey: 'sk-test',
+      model: 'm',
+      baseUrl: 'https://openrouter.test/api/v1',
+      fetch: fetch.impl,
+    })
+
+    expect(await client.credits?.()).toEqual({
+      used: 1.25,
+      usedToday: 0.05,
+      usedThisWeek: 0.4,
+      usedThisMonth: 1.1,
+      limit: 10,
+      remaining: 8.75,
+    })
+    const [call] = fetch.calls
+    expect(call?.url).toBe('https://openrouter.test/api/v1/key')
+    expect(call?.init.method).toBe('GET')
+    expect(call?.init.body).toBeUndefined()
+    expect(new Headers(call?.init.headers).get('authorization')).toBe('Bearer sk-test')
+
+    const broken = createOpenRouterClient({ apiKey: 'k', model: 'm', fetch: fakeFetch(() => json({})).impl })
+    await expect(broken.credits?.()).rejects.toMatchObject({ kind: 'invalid_response' })
   })
 })

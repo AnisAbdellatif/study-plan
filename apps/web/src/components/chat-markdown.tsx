@@ -26,7 +26,7 @@ const components: Components = {
         {children}
       </a>
     ) : (
-      <>{children}</>
+      children
     ),
   code: ({ children }) => (
     <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-[0.85em] dark:bg-zinc-800">

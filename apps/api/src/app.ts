@@ -112,6 +112,7 @@ export function createApp({ config, db, auth, mailer, llm, staticFiles }: AppDep
     adminRoutes(db, auth, mailer, config.publicUrl, {
       configured: llm !== undefined,
       model: llm?.model ?? null,
+      credits: llm?.credits?.bind(llm),
     }),
   )
   app.all('/api/*', (c) => c.json({ error: 'not_found' }, 404))

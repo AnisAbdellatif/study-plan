@@ -35,6 +35,21 @@ export interface LlmRequest {
 export interface LlmUsage {
   promptTokens: number
   completionTokens: number
+  /** What the call cost in the provider's credits (USD for OpenRouter), when the provider reports it. */
+  cost: number | null
+}
+
+/** Spending of the configured API key in the provider's credits, for the admin dashboard. */
+export interface LlmCredits {
+  /** All time. */
+  used: number
+  /** The provider's current day, week and month (UTC for OpenRouter), when reported. */
+  usedToday: number | null
+  usedThisWeek: number | null
+  usedThisMonth: number | null
+  /** The key's spending cap and what is left of it; null when the key has no cap. */
+  limit: number | null
+  remaining: number | null
 }
 
 export interface LlmResponse {
@@ -51,6 +66,8 @@ export interface LlmClient {
   /** The configured model id, for the admin dashboard. */
   readonly model: string
   complete(request: LlmRequest): Promise<LlmResponse>
+  /** The key's spending so far, if the provider can report it. */
+  credits?(signal?: AbortSignal): Promise<LlmCredits>
 }
 
 /**

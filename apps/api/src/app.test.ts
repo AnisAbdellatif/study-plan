@@ -13,6 +13,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { createApp } from './app.ts'
 import { createAuth } from './auth.ts'
 import { chatSettings, updateChatSettings } from './chat/settings.ts'
+import { chatUsageReport } from './chat/usage.ts'
 import { loadConfig } from './config.ts'
 import { type DatabaseConnection, openDatabase } from './db/connection.ts'
 import {
@@ -389,8 +390,14 @@ describe('plans', () => {
 describe('chat', () => {
   it('answers from programme data only, keeps a daily limit and needs one of the account’s plans', async () => {
     const llm = createScriptedLlm([
-      { toolCalls: [{ id: 'c1', name: 'get_module', arguments: JSON.stringify({ code: 'INF-101' }) }] },
-      { content: 'INF-101 wird im Wintersemester angeboten.' },
+      {
+        toolCalls: [{ id: 'c1', name: 'get_module', arguments: JSON.stringify({ code: 'INF-101' }) }],
+        usage: { promptTokens: 100, completionTokens: 5, cost: 0.002 },
+      },
+      {
+        content: 'INF-101 wird im Wintersemester angeboten.',
+        usage: { promptTokens: 200, completionTokens: 20, cost: 0.003 },
+      },
     ])
     const chatApp = createApp({ config, db: connection.db, auth, mailer, llm })
     const ask = (options: CallOptions) => {
@@ -432,6 +439,20 @@ describe('chat', () => {
     const sent = JSON.stringify(llm.requests)
     for (const secret of ['attempts', '2027-02-15', 'targetGrade', '"grade"'])
       expect(sent, secret).not.toContain(secret)
+
+    // The admin dashboard gets totals per day and model, nothing tied to the account.
+    const usage = await chatUsageReport(connection.db)
+    expect(usage.totals.today).toMatchObject({
+      questions: 1,
+      failed: 0,
+      calls: 2,
+      promptTokens: 300,
+      completionTokens: 25,
+    })
+    expect(usage.totals.today.cost).toBeCloseTo(0.005)
+    expect(usage.models).toMatchObject([{ model: 'test/scripted', questions: 1, calls: 2 }])
+    expect(usage.days).toHaveLength(30)
+    expect(usage.days.at(-1)).toMatchObject({ day: berlinDate(new Date()), questions: 1 })
 
     const foreign = await ask({ cookie, body: { ...question, planId: crypto.randomUUID() } })
     expect(foreign.status).toBe(404)

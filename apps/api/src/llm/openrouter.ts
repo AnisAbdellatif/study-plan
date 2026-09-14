@@ -1,8 +1,16 @@
 import { z } from 'zod'
-import { type LlmClient, LlmError, type LlmMessage, type LlmRequest, type LlmResponse } from './types.ts'
+import {
+  type LlmClient,
+  type LlmCredits,
+  LlmError,
+  type LlmMessage,
+  type LlmRequest,
+  type LlmResponse,
+} from './types.ts'
 
 export const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1'
 const DEFAULT_TIMEOUT_MS = 60_000
+const CREDITS_TIMEOUT_MS = 10_000
 
 export interface OpenRouterOptions {
   apiKey: string
@@ -37,7 +45,21 @@ const responseSchema = z.object({
       }),
     )
     .min(1),
-  usage: z.object({ prompt_tokens: z.number(), completion_tokens: z.number() }).nullish(),
+  usage: z
+    .object({ prompt_tokens: z.number(), completion_tokens: z.number(), cost: z.number().nullish() })
+    .nullish(),
+})
+
+/** GET /key: the spending of the key the request is made with. */
+const keySchema = z.object({
+  data: z.object({
+    usage: z.number(),
+    usage_daily: z.number().nullish(),
+    usage_weekly: z.number().nullish(),
+    usage_monthly: z.number().nullish(),
+    limit: z.number().nullish(),
+    limit_remaining: z.number().nullish(),
+  }),
 })
 
 const errorBodySchema = z.object({ error: z.object({ message: z.string().optional() }).optional() })
@@ -78,6 +100,46 @@ export function createOpenRouterClient(options: OpenRouterOptions): LlmClient {
   const fetchImpl = options.fetch ?? fetch
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS
 
+  /** Sends one request and returns the parsed JSON of a successful answer; every failure becomes an LlmError. */
+  async function send(
+    path: string,
+    init: { method: 'GET' | 'POST'; body?: unknown },
+    timeout: number,
+    signal?: AbortSignal,
+  ): Promise<unknown> {
+    const signals = [AbortSignal.timeout(timeout), ...(signal ? [signal] : [])]
+    let response: Response
+    try {
+      response = await fetchImpl(`${baseUrl}${path}`, {
+        method: init.method,
+        headers: {
+          authorization: `Bearer ${options.apiKey}`,
+          ...(init.body === undefined ? {} : { 'content-type': 'application/json' }),
+          ...(options.appUrl ? { 'HTTP-Referer': options.appUrl } : {}),
+          ...(options.appName ? { 'X-Title': options.appName } : {}),
+        },
+        ...(init.body === undefined ? {} : { body: JSON.stringify(init.body) }),
+        signal: AbortSignal.any(signals),
+      })
+    } catch (error) {
+      const timedOut =
+        error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')
+      throw new LlmError(timedOut ? 'timeout' : 'unavailable', 'OpenRouter request failed')
+    }
+
+    if (!response.ok) {
+      // The provider's message helps operators; it never contains the prompt.
+      const parsed = errorBodySchema.safeParse(await response.json().catch(() => null))
+      const detail = parsed.success ? parsed.data.error?.message : undefined
+      throw new LlmError(
+        errorKind(response.status),
+        `OpenRouter answered ${response.status}${detail ? `: ${detail}` : ''}`,
+        response.status,
+      )
+    }
+    return response.json().catch(() => null)
+  }
+
   return {
     model: options.model,
 
@@ -98,39 +160,10 @@ export function createOpenRouterClient(options: OpenRouterOptions): LlmClient {
         // Only route to providers that neither store prompts nor train on them.
         provider: { data_collection: 'deny' },
       }
-      const signals = [AbortSignal.timeout(timeoutMs), ...(request.signal ? [request.signal] : [])]
 
-      let response: Response
-      try {
-        response = await fetchImpl(`${baseUrl}/chat/completions`, {
-          method: 'POST',
-          headers: {
-            authorization: `Bearer ${options.apiKey}`,
-            'content-type': 'application/json',
-            ...(options.appUrl ? { 'HTTP-Referer': options.appUrl } : {}),
-            ...(options.appName ? { 'X-Title': options.appName } : {}),
-          },
-          body: JSON.stringify(body),
-          signal: AbortSignal.any(signals),
-        })
-      } catch (error) {
-        const timedOut =
-          error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')
-        throw new LlmError(timedOut ? 'timeout' : 'unavailable', 'OpenRouter request failed')
-      }
-
-      if (!response.ok) {
-        // The provider's message helps operators; it never contains the prompt.
-        const parsed = errorBodySchema.safeParse(await response.json().catch(() => null))
-        const detail = parsed.success ? parsed.data.error?.message : undefined
-        throw new LlmError(
-          errorKind(response.status),
-          `OpenRouter answered ${response.status}${detail ? `: ${detail}` : ''}`,
-          response.status,
-        )
-      }
-
-      const parsed = responseSchema.safeParse(await response.json().catch(() => null))
+      const parsed = responseSchema.safeParse(
+        await send('/chat/completions', { method: 'POST', body }, timeoutMs, request.signal),
+      )
       if (!parsed.success) throw new LlmError('invalid_response', 'OpenRouter answer has an unexpected shape')
       const [choice] = parsed.data.choices
       if (!choice) throw new LlmError('invalid_response', 'OpenRouter answer has no choices')
@@ -147,9 +180,25 @@ export function createOpenRouterClient(options: OpenRouterOptions): LlmClient {
           ? {
               promptTokens: parsed.data.usage.prompt_tokens,
               completionTokens: parsed.data.usage.completion_tokens,
+              cost: parsed.data.usage.cost ?? null,
             }
           : null,
         model: parsed.data.model ?? options.model,
+      }
+    },
+
+    async credits(signal?: AbortSignal): Promise<LlmCredits> {
+      const parsed = keySchema.safeParse(await send('/key', { method: 'GET' }, CREDITS_TIMEOUT_MS, signal))
+      if (!parsed.success)
+        throw new LlmError('invalid_response', 'OpenRouter key info has an unexpected shape')
+      const key = parsed.data.data
+      return {
+        used: key.usage,
+        usedToday: key.usage_daily ?? null,
+        usedThisWeek: key.usage_weekly ?? null,
+        usedThisMonth: key.usage_monthly ?? null,
+        limit: key.limit ?? null,
+        remaining: key.limit_remaining ?? null,
       }
     },
   }

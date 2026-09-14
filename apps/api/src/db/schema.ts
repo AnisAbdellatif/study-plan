@@ -8,6 +8,7 @@ import {
   bigint,
   boolean,
   date,
+  doublePrecision,
   index,
   integer,
   jsonb,
@@ -142,6 +143,25 @@ export const chatUsage = pgTable(
     count: integer('count').notNull().default(0),
   },
   (table) => [primaryKey({ columns: [table.userId, table.day] })],
+)
+
+/**
+ * Study assistant totals per day (Berlin time) and model for the admin dashboard. No account, question or answer
+ * is stored with them. `cost` is in the provider's credits (USD for OpenRouter).
+ */
+export const chatModelUsage = pgTable(
+  'chat_model_usage',
+  {
+    day: date('day', { mode: 'string' }).notNull(),
+    model: text('model').notNull(),
+    questions: integer('questions').notNull().default(0),
+    failed: integer('failed').notNull().default(0),
+    calls: integer('calls').notNull().default(0),
+    promptTokens: bigint('prompt_tokens', { mode: 'number' }).notNull().default(0),
+    completionTokens: bigint('completion_tokens', { mode: 'number' }).notNull().default(0),
+    cost: doublePrecision('cost').notNull().default(0),
+  },
+  (table) => [primaryKey({ columns: [table.day, table.model] })],
 )
 
 /** Unlisted share links. Only a SHA-256 hash of the token is stored; the owner sees the token once. */

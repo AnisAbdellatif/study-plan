@@ -5,6 +5,7 @@ import { createMiddleware } from 'hono/factory'
 import { z } from 'zod'
 import type { Auth } from '../auth.ts'
 import { chatDailyLimitSchema, chatSettings, updateChatSettings } from '../chat/settings.ts'
+import { chatUsageReport } from '../chat/usage.ts'
 import type { Database } from '../db/connection.ts'
 import {
   adminAuditLog,
@@ -16,6 +17,7 @@ import {
   session,
   user,
 } from '../db/schema.ts'
+import type { LlmCredits } from '../llm/types.ts'
 import { type MonitoredMailer, testMail } from '../mail.ts'
 import { globalPlanLimit, planLimitSchema, setGlobalPlanLimit } from '../plan-limits.ts'
 import { createPasswordAccount, isAdminRole } from '../roles.ts'
@@ -100,9 +102,14 @@ export function adminRoutes(
   mailer: MonitoredMailer,
   publicUrl: string,
   /** Whether an API key is configured and which model it uses; the key itself never leaves the server. */
-  chat: { configured: boolean; model: string | null },
+  chat: {
+    configured: boolean
+    model: string | null
+    credits?: (signal?: AbortSignal) => Promise<LlmCredits>
+  },
 ) {
   const routes = new Hono<AppEnv>()
+  const chatInfo = { configured: chat.configured, model: chat.model }
 
   const audit = async (c: Context<AppEnv>, action: AdminAction, targetUserId: string) => {
     await db
@@ -258,7 +265,19 @@ export function adminRoutes(
 
   routes.get('/chat', async (c) => {
     c.header('Cache-Control', 'no-store')
-    return c.json({ ...(await chatSettings(db)), ...chat })
+    return c.json({ ...(await chatSettings(db)), ...chatInfo })
+  })
+
+  /** Questions, tokens and cost of the study assistant, plus the key's spending as the provider reports it. */
+  routes.get('/chat/usage', async (c) => {
+    c.header('Cache-Control', 'no-store')
+    const report = await chatUsageReport(db)
+    if (!chat.credits) return c.json({ ...report, credits: null, creditsStatus: 'unsupported' })
+    try {
+      return c.json({ ...report, credits: await chat.credits(c.req.raw.signal), creditsStatus: 'ok' })
+    } catch {
+      return c.json({ ...report, credits: null, creditsStatus: 'error' })
+    }
   })
 
   routes.put('/chat', async (c) => {
@@ -266,7 +285,7 @@ export function adminRoutes(
     if (!body.success) return c.json({ error: 'invalid_request' }, 400)
     await updateChatSettings(db, body.data)
     await audit(c, 'update_chat_settings', SETTINGS_TARGET)
-    return c.json({ ...body.data, ...chat })
+    return c.json({ ...body.data, ...chatInfo })
   })
 
   /** The account's own plan limit. Existing plans above a lowered limit stay; the account can't add more. */

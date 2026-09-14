@@ -18,6 +18,7 @@ import {
   type UserRole,
 } from '../lib/api.ts'
 import { ChatSettingsSection } from './admin-chat-section.tsx'
+import { ChatUsageSection } from './admin-chat-usage.tsx'
 import { MailSection } from './admin-mail-section.tsx'
 import { PlanLimitDialog, PlanLimitSection } from './admin-plan-limits.tsx'
 
@@ -807,6 +808,7 @@ export function AdminPage() {
       <AdminPresetsSection onChanged={changed} />
       <PlanLimitSection onChanged={changed} />
       <ChatSettingsSection onChanged={changed} />
+      <ChatUsageSection />
       {viewer === 'superadmin' ? <AdminTeam {...sectionProps} /> : null}
       <Accounts {...sectionProps} />
       <AuditLog entries={audit} />

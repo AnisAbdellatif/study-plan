@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { programmeForChat } from '../chat/programme.ts'
 import { runChat } from '../chat/run-chat.ts'
 import { chatMessagesToday, chatSettings, claimChatMessage, refundChatMessage } from '../chat/settings.ts'
+import { meterLlm, recordChatUsage } from '../chat/usage.ts'
 import type { Database } from '../db/connection.ts'
 import { plan } from '../db/schema.ts'
 import { type LlmClient, LlmError } from '../llm/types.ts'
@@ -67,14 +68,21 @@ export function chatRoutes(db: Database, llm: LlmClient | undefined) {
     if (used === null) return c.json({ error: 'chat_quota_exceeded', dailyLimit: settings.dailyLimit }, 429)
 
     const programme = programmeForChat(row.document.plan)
+    // Counts and tokens per model per day for the admin dashboard; no account or content is stored with them.
+    const meter = meterLlm(llm)
+    const record = (outcome: 'answered' | 'failed') =>
+      recordChatUsage(db, { model: llm.model, calls: meter.calls(), outcome }).catch(() => {
+        console.warn('[chat] usage could not be recorded')
+      })
     try {
       const answer = await runChat({
-        llm,
+        llm: meter.client,
         programme,
         history: body.data.messages,
         locale: body.data.locale,
         signal: c.req.raw.signal,
       })
+      await record('answered')
       const names = new Map(programme.modules.map((module) => [module.code, module.name]))
       c.header('Cache-Control', 'no-store')
       return c.json({
@@ -83,6 +91,7 @@ export function chatRoutes(db: Database, llm: LlmClient | undefined) {
         remaining: Math.max(0, settings.dailyLimit - used),
       })
     } catch (error) {
+      await record('failed')
       await refundChatMessage(db, userId)
       if (!(error instanceof LlmError)) throw error
       // The error message is built from the status and OpenRouter's own error text (limits, routing, credits);

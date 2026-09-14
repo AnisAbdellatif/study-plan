@@ -51,11 +51,12 @@ export async function runChat({
   signal?: AbortSignal
 }): Promise<ChatAnswer> {
   const messages: LlmMessage[] = [{ role: 'system', content: systemPrompt(programme, locale) }, ...history]
-  const usage: LlmUsage = { promptTokens: 0, completionTokens: 0 }
+  const usage: LlmUsage = { promptTokens: 0, completionTokens: 0, cost: null }
   const references: string[] = []
   const addUsage = (next: LlmUsage | null) => {
     usage.promptTokens += next?.promptTokens ?? 0
     usage.completionTokens += next?.completionTokens ?? 0
+    if (next?.cost != null) usage.cost = (usage.cost ?? 0) + next.cost
   }
 
   let reply: string | null = null

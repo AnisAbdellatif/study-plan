@@ -312,6 +312,36 @@ export interface AdminChatSettings {
 export const CHAT_LIMIT_MIN = 1
 export const CHAT_LIMIT_MAX = 500
 
+export interface ChatUsageTotals {
+  questions: number
+  /** Questions the model could not answer; their tokens still count. */
+  failed: number
+  /** Model requests; one question takes several when the model looks things up. */
+  calls: number
+  promptTokens: number
+  completionTokens: number
+  /** US dollars, as OpenRouter bills them. */
+  cost: number
+}
+
+/** Study assistant totals per Berlin day and per model; nothing tied to accounts or content. */
+export interface AdminChatUsage {
+  /** The last 30 days, oldest first, including days without questions. */
+  days: (ChatUsageTotals & { day: string })[]
+  models: (ChatUsageTotals & { model: string })[]
+  totals: { today: ChatUsageTotals; last7Days: ChatUsageTotals; last30Days: ChatUsageTotals }
+  /** The API key's spending as OpenRouter reports it, in US dollars. */
+  credits: {
+    used: number
+    usedToday: number | null
+    usedThisWeek: number | null
+    usedThisMonth: number | null
+    limit: number | null
+    remaining: number | null
+  } | null
+  creditsStatus: 'ok' | 'unsupported' | 'error'
+}
+
 export interface NewAdmin {
   email: string
   name?: string
@@ -352,6 +382,7 @@ export const adminApi = {
   chatSettings: (): Promise<AdminChatSettings> => request<AdminChatSettings>('/api/admin/chat'),
   updateChatSettings: (settings: { enabled: boolean; dailyLimit: number }): Promise<AdminChatSettings> =>
     request<AdminChatSettings>('/api/admin/chat', { method: 'PUT', body: JSON.stringify(settings) }),
+  chatUsage: (): Promise<AdminChatUsage> => request<AdminChatUsage>('/api/admin/chat/usage'),
   audit: async (): Promise<AdminAuditEntry[]> =>
     (await request<{ entries: AdminAuditEntry[] }>('/api/admin/audit')).entries,
   sendVerificationEmail: (id: string): Promise<void> =>

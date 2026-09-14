@@ -105,9 +105,12 @@ describe('runChat', () => {
     const llm = createScriptedLlm([
       {
         toolCalls: [{ id: 'c1', name: 'get_module', arguments: JSON.stringify({ code: first }) }],
-        usage: { promptTokens: 100, completionTokens: 10 },
+        usage: { promptTokens: 100, completionTokens: 10, cost: 0.001 },
       },
-      { content: `Das Modul ${first} hat 8 LP.`, usage: { promptTokens: 150, completionTokens: 20 } },
+      {
+        content: `Das Modul ${first} hat 8 LP.`,
+        usage: { promptTokens: 150, completionTokens: 20, cost: null },
+      },
     ])
     const answer = await runChat({
       llm,
@@ -119,7 +122,7 @@ describe('runChat', () => {
     expect(answer).toEqual({
       reply: `Das Modul ${first} hat 8 LP.`,
       moduleCodes: [first],
-      usage: { promptTokens: 250, completionTokens: 30 },
+      usage: { promptTokens: 250, completionTokens: 30, cost: 0.001 },
     })
     expect(llm.requests[0]?.tools).toEqual(CHAT_TOOLS)
     expect(llm.requests[0]?.messages[0]).toMatchObject({ role: 'system' })
