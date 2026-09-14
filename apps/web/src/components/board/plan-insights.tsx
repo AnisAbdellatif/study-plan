@@ -423,7 +423,8 @@ export function PlanInsights({
   onExportCalendar,
 }: PlanInsightsProps) {
   return (
-    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+    // On wide screens every card shares one row, however many admission cards there are.
+    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-flow-col 2xl:grid-cols-none 2xl:auto-cols-fr">
       <HintsCard hints={hints} />
       <ForecastCard plan={plan} forecast={forecast} />
       <WhatIfCard plan={plan} analysis={whatIf} onTargetChange={onTargetChange} />
