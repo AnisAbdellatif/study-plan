@@ -4,6 +4,7 @@ import {
   type LlmCredits,
   LlmError,
   type LlmMessage,
+  type LlmModelInfo,
   type LlmRequest,
   type LlmResponse,
 } from './types.ts'
@@ -59,6 +60,21 @@ const keySchema = z.object({
     usage_monthly: z.number().nullish(),
     limit: z.number().nullish(),
     limit_remaining: z.number().nullish(),
+  }),
+})
+
+/** GET /models/{id}/endpoints: the providers serving a model. Prices are USD per token, sent as strings. */
+const modelEndpointsSchema = z.object({
+  data: z.object({
+    id: z.string(),
+    name: z.string(),
+    endpoints: z.array(
+      z.object({
+        context_length: z.number().nullish(),
+        pricing: z.object({ prompt: z.coerce.number(), completion: z.coerce.number() }),
+        supported_parameters: z.array(z.string()).nullish(),
+      }),
+    ),
   }),
 })
 
@@ -145,7 +161,7 @@ export function createOpenRouterClient(options: OpenRouterOptions): LlmClient {
 
     async complete(request: LlmRequest): Promise<LlmResponse> {
       const body = {
-        model: options.model,
+        model: request.model ?? options.model,
         messages: request.messages.map(toWire),
         ...(request.tools?.length
           ? {
@@ -199,6 +215,43 @@ export function createOpenRouterClient(options: OpenRouterOptions): LlmClient {
         usedThisMonth: key.usage_monthly ?? null,
         limit: key.limit ?? null,
         remaining: key.limit_remaining ?? null,
+      }
+    },
+
+    async describeModel(id: string, signal?: AbortSignal): Promise<LlmModelInfo | null> {
+      let raw: unknown
+      try {
+        // Ids are checked against a strict pattern before they get here (author/slug with an optional :variant).
+        raw = await send(`/models/${id}/endpoints`, { method: 'GET' }, CREDITS_TIMEOUT_MS, signal)
+      } catch (error) {
+        if (error instanceof LlmError && error.status === 404) return null
+        throw error
+      }
+      const parsed = modelEndpointsSchema.safeParse(raw)
+      if (!parsed.success)
+        throw new LlmError('invalid_response', 'OpenRouter model info has an unexpected shape')
+
+      const { endpoints } = parsed.data.data
+      const withTools = endpoints.filter((endpoint) => endpoint.supported_parameters?.includes('tools'))
+      const [cheapest] = [...withTools].sort(
+        (a, b) => a.pricing.prompt + a.pricing.completion - (b.pricing.prompt + b.pricing.completion),
+      )
+      const contextLengths = endpoints.flatMap((endpoint) => endpoint.context_length ?? [])
+      return {
+        id: parsed.data.data.id,
+        name: parsed.data.data.name,
+        providers: endpoints.length,
+        supportsTools: withTools.length > 0,
+        free:
+          endpoints.length > 0 &&
+          endpoints.every((endpoint) => endpoint.pricing.prompt === 0 && endpoint.pricing.completion === 0),
+        pricing: cheapest
+          ? {
+              prompt: cheapest.pricing.prompt * 1_000_000,
+              completion: cheapest.pricing.completion * 1_000_000,
+            }
+          : null,
+        contextLength: contextLengths.length > 0 ? Math.max(...contextLengths) : null,
       }
     },
   }

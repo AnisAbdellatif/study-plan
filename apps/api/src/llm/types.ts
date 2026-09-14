@@ -25,6 +25,8 @@ export type LlmMessage =
   | { role: 'tool'; toolCallId: string; content: string }
 
 export interface LlmRequest {
+  /** Overrides the client's configured model for this request. */
+  model?: string
   messages: LlmMessage[]
   tools?: LlmToolDefinition[]
   maxTokens?: number
@@ -68,6 +70,22 @@ export interface LlmClient {
   complete(request: LlmRequest): Promise<LlmResponse>
   /** The key's spending so far, if the provider can report it. */
   credits?(signal?: AbortSignal): Promise<LlmCredits>
+  /** What the provider knows about a model id; null when there is no such model. */
+  describeModel?(id: string, signal?: AbortSignal): Promise<LlmModelInfo | null>
+}
+
+export interface LlmModelInfo {
+  id: string
+  name: string
+  /** Providers currently serving the model. */
+  providers: number
+  /** Whether at least one provider accepts tool definitions, which the chat needs. */
+  supportsTools: boolean
+  /** Every provider serves the model at no charge. */
+  free: boolean
+  /** The cheapest provider with tool support, in USD per million tokens; null when there is none. */
+  pricing: { prompt: number; completion: number } | null
+  contextLength: number | null
 }
 
 /**

@@ -127,6 +127,80 @@ describe('OpenRouter client', () => {
     })
   })
 
+  it('uses a model chosen per request', async () => {
+    const fetch = fakeFetch(() =>
+      json({ model: 'openai/gpt-5-mini', choices: [{ message: { content: 'Hi' } }] }),
+    )
+    const client = createOpenRouterClient({ apiKey: 'k', model: 'default/model', fetch: fetch.impl })
+    const response = await client.complete({
+      model: 'openai/gpt-5-mini',
+      messages: [{ role: 'user', content: 'x' }],
+    })
+    expect(JSON.parse(String(fetch.calls[0]?.init.body)).model).toBe('openai/gpt-5-mini')
+    expect(response.model).toBe('openai/gpt-5-mini')
+  })
+
+  it('describes a model: providers, tool support, price per million tokens, and unknown ids as null', async () => {
+    const endpoints = (prices: [string, string][]) =>
+      json({
+        data: {
+          id: 'google/gemma-4-31b-it',
+          name: 'Google: Gemma 4 31B',
+          endpoints: prices.map(([prompt, completion], index) => ({
+            provider_name: `Provider ${index}`,
+            context_length: 131072 * (index + 1),
+            pricing: { prompt, completion, input_cache_read: '0' },
+            // Only the first provider supports tools, although the second one is cheaper.
+            supported_parameters: index === 0 ? ['tools', 'tool_choice', 'max_tokens'] : ['max_tokens'],
+          })),
+        },
+      })
+
+    const paidFetch = fakeFetch(() =>
+      endpoints([
+        ['0.00000009', '0.00000034'],
+        ['0.00000002', '0.00000005'],
+      ]),
+    )
+    const paid = createOpenRouterClient({
+      apiKey: 'k',
+      model: 'm',
+      baseUrl: 'https://openrouter.test/api/v1',
+      fetch: paidFetch.impl,
+    })
+    const info = await paid.describeModel?.('google/gemma-4-31b-it')
+    expect(info).toMatchObject({
+      id: 'google/gemma-4-31b-it',
+      name: 'Google: Gemma 4 31B',
+      providers: 2,
+      supportsTools: true,
+      free: false,
+      contextLength: 262144,
+    })
+    expect(info?.pricing?.prompt).toBeCloseTo(0.09)
+    expect(info?.pricing?.completion).toBeCloseTo(0.34)
+    expect(paidFetch.calls[0]?.url).toBe(
+      'https://openrouter.test/api/v1/models/google/gemma-4-31b-it/endpoints',
+    )
+
+    const free = createOpenRouterClient({
+      apiKey: 'k',
+      model: 'm',
+      fetch: fakeFetch(() => endpoints([['0', '0']])).impl,
+    })
+    expect(await free.describeModel?.('google/gemma-4-31b-it:free')).toMatchObject({
+      free: true,
+      pricing: { prompt: 0, completion: 0 },
+    })
+
+    const missing = createOpenRouterClient({
+      apiKey: 'k',
+      model: 'm',
+      fetch: fakeFetch(() => json({ error: { message: 'Model not found' } }, 404)).impl,
+    })
+    expect(await missing.describeModel?.('nobody/nothing')).toBeNull()
+  })
+
   it('reads the key’s spending', async () => {
     const fetch = fakeFetch(() =>
       json({

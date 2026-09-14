@@ -25,6 +25,7 @@ import {
   user as userTable,
 } from './db/schema.ts'
 import { createScriptedLlm } from './llm/scripted.ts'
+import type { LlmModelInfo } from './llm/types.ts'
 import { createMemoryMailer, type Mailer } from './mail.ts'
 import { berlinDate, runReminders, UNSUBSCRIBE_PATH, verifyUnsubscribeToken } from './reminders.ts'
 import { ensureSuperadmin } from './roles.ts'
@@ -458,19 +459,108 @@ describe('chat', () => {
     expect(foreign.status).toBe(404)
     expect((await ask({ cookie, body: { ...question, messages: [] } })).status).toBe(400)
 
-    await updateChatSettings(connection.db, { enabled: true, dailyLimit: 2 })
+    await updateChatSettings(connection.db, { enabled: true, dailyLimit: 2, model: null })
     expect((await ask({ cookie, body: question })).status).toBe(200)
     const limited = await ask({ cookie, body: question })
     expect(limited.status).toBe(429)
     expect(await json(limited)).toEqual({ error: 'chat_quota_exceeded', dailyLimit: 2 })
 
-    await updateChatSettings(connection.db, { enabled: false, dailyLimit: 20 })
+    await updateChatSettings(connection.db, { enabled: false, dailyLimit: 20, model: null })
     expect((await ask({ cookie, body: question })).status).toBe(503)
-    await updateChatSettings(connection.db, { enabled: true, dailyLimit: 20 })
-    expect(await chatSettings(connection.db)).toEqual({ enabled: true, dailyLimit: 20 })
+    await updateChatSettings(connection.db, { enabled: true, dailyLimit: 20, model: null })
+    expect(await chatSettings(connection.db)).toEqual({ enabled: true, dailyLimit: 20, model: null })
 
     // The app without a model reports the chat as unavailable.
     expect(await json(await call('/api/chat/status', { cookie }))).toMatchObject({ available: false })
+  })
+
+  it('lets admins switch the model once it exists and supports tools, and asks to confirm a paid one', async () => {
+    const info = (id: string, overrides: Partial<LlmModelInfo> = {}): LlmModelInfo => ({
+      id,
+      name: id,
+      providers: 2,
+      supportsTools: true,
+      free: false,
+      pricing: { prompt: 0.1, completion: 0.4 },
+      contextLength: 131072,
+      ...overrides,
+    })
+    const llm = createScriptedLlm([{ content: 'Antwort' }], 'default/model', {
+      'paid/model': info('paid/model'),
+      'free/model:free': info('free/model:free', { free: true, pricing: { prompt: 0, completion: 0 } }),
+      'plain/model': info('plain/model', { supportsTools: false }),
+    })
+    const chatApp = createApp({ config, db: connection.db, auth, mailer, llm })
+    const request = (path: string, { method = 'GET', body, cookie }: CallOptions = {}) => {
+      const headers = new Headers({ origin: config.publicOrigin, 'content-type': 'application/json' })
+      if (cookie) headers.set('cookie', cookie)
+      return chatApp.request(path, {
+        method,
+        headers,
+        body: body === undefined ? undefined : JSON.stringify(body),
+      })
+    }
+    const adminEmail = 'model-admin@example.org'
+    const admin = await registerVerifiedUser(adminEmail)
+    await connection.db.update(userTable).set({ role: 'admin' }).where(eq(userTable.email, adminEmail))
+    const save = (model: string | null, acceptPaid?: boolean) =>
+      request('/api/admin/chat', {
+        method: 'PUT',
+        cookie: admin,
+        body: { enabled: true, dailyLimit: 20, model, ...(acceptPaid === undefined ? {} : { acceptPaid }) },
+      })
+
+    expect(await json(await request('/api/admin/chat', { cookie: admin }))).toEqual({
+      enabled: true,
+      dailyLimit: 20,
+      configured: true,
+      model: 'default/model',
+      customModel: null,
+      defaultModel: 'default/model',
+    })
+
+    const unknown = await save('nobody/model')
+    expect(unknown.status).toBe(400)
+    expect(await json(unknown)).toEqual({ error: 'unknown_model' })
+    expect(await json(await save('plain/model'))).toMatchObject({ error: 'model_without_tools' })
+    expect((await save('../../key')).status).toBe(400)
+
+    const check = await request('/api/admin/chat/model-check', {
+      method: 'POST',
+      cookie: admin,
+      body: { model: 'paid/model' },
+    })
+    expect(await json(check)).toEqual({ model: info('paid/model') })
+
+    const unconfirmed = await save('paid/model')
+    expect(unconfirmed.status).toBe(409)
+    expect(await json(unconfirmed)).toMatchObject({ error: 'model_not_free', model: { id: 'paid/model' } })
+    expect((await chatSettings(connection.db)).model).toBeNull()
+
+    expect(await json(await save('paid/model', true))).toMatchObject({
+      model: 'paid/model',
+      customModel: 'paid/model',
+    })
+    // Saving the other settings again keeps the confirmed model without asking once more.
+    expect((await save('paid/model')).status).toBe(200)
+
+    // The chat now asks the chosen model.
+    const created = await json<{ id: string }>(
+      await call('/api/plans', { method: 'POST', cookie: admin, body: { document: planDocument() } }),
+    )
+    const asked = await request('/api/chat', {
+      method: 'POST',
+      cookie: admin,
+      body: { planId: created.id, locale: 'de', messages: [{ role: 'user', content: 'Hallo' }] },
+    })
+    expect(asked.status).toBe(200)
+    expect(llm.requests.at(-1)?.model).toBe('paid/model')
+
+    expect((await save('free/model:free')).status).toBe(200)
+    expect(await json(await save(null))).toMatchObject({ model: 'default/model', customModel: null })
+
+    // Leave no extra admin behind for the admin tests further down.
+    await connection.db.update(userTable).set({ role: 'user' }).where(eq(userTable.email, adminEmail))
   })
 })
 

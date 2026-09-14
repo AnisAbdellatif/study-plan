@@ -4,7 +4,13 @@ import { type Context, Hono } from 'hono'
 import { createMiddleware } from 'hono/factory'
 import { z } from 'zod'
 import type { Auth } from '../auth.ts'
-import { chatDailyLimitSchema, chatSettings, updateChatSettings } from '../chat/settings.ts'
+import {
+  type ChatSettings,
+  chatDailyLimitSchema,
+  chatModelIdSchema,
+  chatSettings,
+  updateChatSettings,
+} from '../chat/settings.ts'
 import { chatUsageReport } from '../chat/usage.ts'
 import type { Database } from '../db/connection.ts'
 import {
@@ -17,7 +23,7 @@ import {
   session,
   user,
 } from '../db/schema.ts'
-import type { LlmCredits } from '../llm/types.ts'
+import type { LlmCredits, LlmModelInfo } from '../llm/types.ts'
 import { type MonitoredMailer, testMail } from '../mail.ts'
 import { globalPlanLimit, planLimitSchema, setGlobalPlanLimit } from '../plan-limits.ts'
 import { createPasswordAccount, isAdminRole } from '../roles.ts'
@@ -65,7 +71,15 @@ const superadminOnly = createMiddleware<AppEnv>(async (c, next) => {
 
 const roleChangeSchema = z.object({ role: z.enum(['admin', 'user']) })
 const settingsSchema = z.object({ maxPlansPerUser: planLimitSchema })
-const chatSettingsSchema = z.object({ enabled: z.boolean(), dailyLimit: chatDailyLimitSchema })
+const chatSettingsSchema = z.object({
+  enabled: z.boolean(),
+  dailyLimit: chatDailyLimitSchema,
+  /** Null returns to OPENROUTER_MODEL; left out keeps the current choice. */
+  model: chatModelIdSchema.nullable().optional(),
+  /** Confirms a model that is not free to use. */
+  acceptPaid: z.boolean().default(false),
+})
+const modelCheckSchema = z.object({ model: chatModelIdSchema })
 /** Null returns the account to the global limit. */
 const userPlanLimitSchema = z.object({ planLimit: planLimitSchema.nullable() })
 /** Audit target for changes that concern every account rather than one. */
@@ -106,10 +120,10 @@ export function adminRoutes(
     configured: boolean
     model: string | null
     credits?: (signal?: AbortSignal) => Promise<LlmCredits>
+    describeModel?: (id: string, signal?: AbortSignal) => Promise<LlmModelInfo | null>
   },
 ) {
   const routes = new Hono<AppEnv>()
-  const chatInfo = { configured: chat.configured, model: chat.model }
 
   const audit = async (c: Context<AppEnv>, action: AdminAction, targetUserId: string) => {
     await db
@@ -263,9 +277,44 @@ export function adminRoutes(
     return c.json({ maxPlansPerUser: body.data.maxPlansPerUser })
   })
 
+  const chatView = (settings: ChatSettings) => ({
+    enabled: settings.enabled,
+    dailyLimit: settings.dailyLimit,
+    configured: chat.configured,
+    /** The model the assistant uses now. */
+    model: chat.configured ? (settings.model ?? chat.model) : null,
+    customModel: settings.model,
+    defaultModel: chat.model,
+  })
+
+  /** Looks a model up with the provider. Returns the response to send instead when it can't serve the chat. */
+  const verifyModel = async (c: Context<AppEnv>, id: string) => {
+    if (!chat.describeModel) return { response: c.json({ error: 'model_check_unavailable' }, 503) }
+    let info: LlmModelInfo | null
+    try {
+      info = await chat.describeModel(id, c.req.raw.signal)
+    } catch {
+      return { response: c.json({ error: 'model_check_failed' }, 502) }
+    }
+    if (!info) return { response: c.json({ error: 'unknown_model' }, 400) }
+    if (info.providers === 0) return { response: c.json({ error: 'model_unavailable', model: info }, 400) }
+    // The assistant looks everything up through tools; a model without them could only guess.
+    if (!info.supportsTools) return { response: c.json({ error: 'model_without_tools', model: info }, 400) }
+    return { info }
+  }
+
   routes.get('/chat', async (c) => {
     c.header('Cache-Control', 'no-store')
-    return c.json({ ...(await chatSettings(db)), ...chatInfo })
+    return c.json(chatView(await chatSettings(db)))
+  })
+
+  /** Checks a model id before an admin saves it: whether it exists, supports tools, and what it costs. */
+  routes.post('/chat/model-check', async (c) => {
+    const body = modelCheckSchema.safeParse(await readJson(c))
+    if (!body.success) return c.json({ error: 'invalid_request' }, 400)
+    const { info, response } = await verifyModel(c, body.data.model)
+    if (!info) return response
+    return c.json({ model: info })
   })
 
   /** Questions, tokens and cost of the study assistant, plus the key's spending as the provider reports it. */
@@ -283,9 +332,18 @@ export function adminRoutes(
   routes.put('/chat', async (c) => {
     const body = chatSettingsSchema.safeParse(await readJson(c))
     if (!body.success) return c.json({ error: 'invalid_request' }, 400)
-    await updateChatSettings(db, body.data)
+    const current = await chatSettings(db)
+    const model = body.data.model === undefined ? current.model : body.data.model
+    if (model !== null && model !== current.model) {
+      const { info, response } = await verifyModel(c, model)
+      if (!info) return response
+      // A paid model spends the OpenRouter credit, so the admin confirms it explicitly.
+      if (!info.free && !body.data.acceptPaid) return c.json({ error: 'model_not_free', model: info }, 409)
+    }
+    const next: ChatSettings = { enabled: body.data.enabled, dailyLimit: body.data.dailyLimit, model }
+    await updateChatSettings(db, next)
     await audit(c, 'update_chat_settings', SETTINGS_TARGET)
-    return c.json({ ...body.data, ...chatInfo })
+    return c.json(chatView(next))
   })
 
   /** The account's own plan limit. Existing plans above a lowered limit stay; the account can't add more. */

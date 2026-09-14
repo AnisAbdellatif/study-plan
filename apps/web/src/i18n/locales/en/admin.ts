@@ -243,6 +243,28 @@ export const admin = {
     save: 'Save',
     saved: 'Saved.',
     loadError: "The settings couldn't be loaded.",
+    modelLabel: 'Model (OpenRouter id)',
+    modelHint:
+      'Leave empty for the default model from the server configuration ({{model}}). When you save, the server checks with OpenRouter that the model exists, supports tool calls and what it costs.',
+    modelsLink: 'Models on openrouter.ai',
+    paidTitle: '“{{name}}” is not free',
+    paidPricing:
+      'Cheapest provider with tool calls: {{prompt}} per million input tokens and {{completion}} per million output tokens.',
+    paidNoPricing: "OpenRouter doesn't list a price for this model.",
+    paidNote:
+      'The costs come out of the OpenRouter credit. One question usually takes several requests of a few thousand tokens each.',
+    usePaid: 'Use it anyway',
+    savedFreeModel:
+      'Saved. Free models have tight daily limits on OpenRouter, and their providers are often allowed to store inputs. Because the assistant only uses providers that store nothing, the model may not answer then.',
+    modelErrors: {
+      unknown_model: 'OpenRouter has no model “{{model}}”. Check the id, for example google/gemma-4-31b-it.',
+      model_unavailable: '“{{model}}” has no provider on OpenRouter right now.',
+      model_without_tools:
+        '“{{model}}” doesn’t support tool calls. The assistant needs them to look things up in the programme.',
+      model_check_failed:
+        "OpenRouter couldn't be reached, so the model couldn't be checked. Try again later.",
+      invalid_request: '“{{model}}” is not a valid model id. It has the form provider/model.',
+    },
   },
   chatUsage: {
     heading: 'Assistant usage',

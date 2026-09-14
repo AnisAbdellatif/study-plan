@@ -7,14 +7,22 @@ import { berlinDate } from '../reminders.ts'
 /** Messages per account per day unless an admin changes it. */
 export const CHAT_DEFAULT_DAILY_LIMIT = 20
 export const chatDailyLimitSchema = z.number().int().min(1).max(500)
+/** An OpenRouter model id: author/slug, optionally with a variant such as :free. Nothing else reaches a URL. */
+export const chatModelIdSchema = z
+  .string()
+  .trim()
+  .max(200)
+  .regex(/^[\w.-]+\/[\w.-]+(?::[\w.-]+)?$/)
 
 export interface ChatSettings {
   /** Admins can switch the chat off without removing the API key. */
   enabled: boolean
   dailyLimit: number
+  /** A model an admin chose on the dashboard; null uses OPENROUTER_MODEL. */
+  model: string | null
 }
 
-const KEYS = { enabled: 'chatEnabled', dailyLimit: 'chatDailyLimit' } as const
+const KEYS = { enabled: 'chatEnabled', dailyLimit: 'chatDailyLimit', model: 'chatModel' } as const
 /** Usage rows are only needed for today; a week of history is kept for the admin to look at if needed. */
 const USAGE_RETENTION_DAYS = 7
 
@@ -22,19 +30,25 @@ export async function chatSettings(db: Database): Promise<ChatSettings> {
   const rows = await db
     .select({ key: appSetting.key, value: appSetting.value })
     .from(appSetting)
-    .where(inArray(appSetting.key, [KEYS.enabled, KEYS.dailyLimit]))
+    .where(inArray(appSetting.key, Object.values(KEYS)))
   const value = (key: string) => rows.find((row) => row.key === key)?.value
   const enabled = z.boolean().safeParse(value(KEYS.enabled))
   const dailyLimit = chatDailyLimitSchema.safeParse(value(KEYS.dailyLimit))
+  const model = chatModelIdSchema.safeParse(value(KEYS.model))
   return {
     enabled: enabled.success ? enabled.data : true,
     dailyLimit: dailyLimit.success ? dailyLimit.data : CHAT_DEFAULT_DAILY_LIMIT,
+    model: model.success ? model.data : null,
   }
 }
 
 export async function updateChatSettings(db: Database, settings: ChatSettings): Promise<void> {
   for (const [field, key] of Object.entries(KEYS) as [keyof ChatSettings, string][]) {
     const value = settings[field]
+    if (value === null) {
+      await db.delete(appSetting).where(eq(appSetting.key, key))
+      continue
+    }
     await db
       .insert(appSetting)
       .values({ key, value })

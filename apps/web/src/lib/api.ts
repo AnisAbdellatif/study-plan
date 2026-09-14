@@ -305,7 +305,24 @@ export interface AdminChatSettings {
   dailyLimit: number
   /** Whether the server has an API key; the key itself never reaches the browser. */
   configured: boolean
+  /** The model the assistant uses now. */
   model: string | null
+  /** Chosen on the dashboard; null uses the server's OPENROUTER_MODEL. */
+  customModel: string | null
+  defaultModel: string | null
+}
+
+/** What OpenRouter reports about a model id. */
+export interface ChatModelInfo {
+  id: string
+  name: string
+  providers: number
+  supportsTools: boolean
+  /** Every provider serves it at no charge. */
+  free: boolean
+  /** The cheapest provider with tool support, in US dollars per million tokens. */
+  pricing: { prompt: number; completion: number } | null
+  contextLength: number | null
 }
 
 /** Bounds of the daily message limit, see apps/api/src/chat/settings.ts. */
@@ -380,8 +397,22 @@ export const adminApi = {
       body: JSON.stringify({ planLimit }),
     }),
   chatSettings: (): Promise<AdminChatSettings> => request<AdminChatSettings>('/api/admin/chat'),
-  updateChatSettings: (settings: { enabled: boolean; dailyLimit: number }): Promise<AdminChatSettings> =>
+  /** A model that is not free is only saved with `acceptPaid`; otherwise the API answers 409 model_not_free. */
+  updateChatSettings: (settings: {
+    enabled: boolean
+    dailyLimit: number
+    model: string | null
+    acceptPaid?: boolean
+  }): Promise<AdminChatSettings> =>
     request<AdminChatSettings>('/api/admin/chat', { method: 'PUT', body: JSON.stringify(settings) }),
+  /** Fails with unknown_model, model_unavailable, model_without_tools or model_check_failed. */
+  checkChatModel: async (model: string): Promise<ChatModelInfo> =>
+    (
+      await request<{ model: ChatModelInfo }>('/api/admin/chat/model-check', {
+        method: 'POST',
+        body: JSON.stringify({ model }),
+      })
+    ).model,
   chatUsage: (): Promise<AdminChatUsage> => request<AdminChatUsage>('/api/admin/chat/usage'),
   audit: async (): Promise<AdminAuditEntry[]> =>
     (await request<{ entries: AdminAuditEntry[] }>('/api/admin/audit')).entries,

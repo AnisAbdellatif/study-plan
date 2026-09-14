@@ -243,6 +243,29 @@ export const admin = {
     save: 'Speichern',
     saved: 'Gespeichert.',
     loadError: 'Die Einstellungen ließen sich nicht laden.',
+    modelLabel: 'Modell (OpenRouter-ID)',
+    modelHint:
+      'Leer lassen für das Standardmodell aus der Serverkonfiguration ({{model}}). Beim Speichern prüft der Server bei OpenRouter, ob es das Modell gibt, ob es Tool-Aufrufe unterstützt und was es kostet.',
+    modelsLink: 'Modelle auf openrouter.ai',
+    paidTitle: '„{{name}}“ ist nicht kostenlos',
+    paidPricing:
+      'Günstigster Anbieter mit Tool-Aufrufen: {{prompt}} pro Million Eingabe-Tokens und {{completion}} pro Million Ausgabe-Tokens.',
+    paidNoPricing: 'OpenRouter nennt für dieses Modell keinen Preis.',
+    paidNote:
+      'Die Kosten gehen vom OpenRouter-Guthaben ab. Eine Frage braucht meist mehrere Anfragen mit jeweils einigen Tausend Tokens.',
+    usePaid: 'Trotzdem verwenden',
+    savedFreeModel:
+      'Gespeichert. Kostenlose Modelle haben bei OpenRouter enge Tageslimits, und ihre Anbieter dürfen Eingaben oft speichern. Weil der Assistent nur Anbieter ohne Datenspeicherung nutzt, kann es sein, dass das Modell dann nicht antwortet.',
+    modelErrors: {
+      unknown_model:
+        'Bei OpenRouter gibt es kein Modell „{{model}}“. Prüfe die ID, zum Beispiel google/gemma-4-31b-it.',
+      model_unavailable: '„{{model}}“ hat bei OpenRouter gerade keinen Anbieter.',
+      model_without_tools:
+        '„{{model}}“ unterstützt keine Tool-Aufrufe. Der Assistent braucht sie, um im Studiengang nachzuschlagen.',
+      model_check_failed:
+        'OpenRouter war nicht erreichbar, daher ließ sich das Modell nicht prüfen. Versuche es später noch einmal.',
+      invalid_request: '„{{model}}“ ist keine gültige Modell-ID. Sie hat die Form anbieter/modell.',
+    },
   },
   chatUsage: {
     heading: 'Nutzung des Assistenten',

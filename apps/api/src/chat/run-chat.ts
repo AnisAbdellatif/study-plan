@@ -39,12 +39,15 @@ Rules:
  */
 export async function runChat({
   llm,
+  model,
   programme,
   history,
   locale,
   signal,
 }: {
   llm: LlmClient
+  /** The model an admin chose; without it the client's configured model answers. */
+  model?: string
   programme: ChatProgramme
   history: readonly ChatTurn[]
   locale: 'de' | 'en'
@@ -63,6 +66,7 @@ export async function runChat({
   for (let round = 0; round <= MAX_TOOL_ROUNDS && reply === null; round++) {
     const lastRound = round === MAX_TOOL_ROUNDS
     const response = await llm.complete({
+      ...(model ? { model } : {}),
       messages,
       ...(lastRound ? {} : { tools: CHAT_TOOLS }),
       maxTokens: 1200,

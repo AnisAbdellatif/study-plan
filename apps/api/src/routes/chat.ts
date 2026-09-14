@@ -68,15 +68,18 @@ export function chatRoutes(db: Database, llm: LlmClient | undefined) {
     if (used === null) return c.json({ error: 'chat_quota_exceeded', dailyLimit: settings.dailyLimit }, 429)
 
     const programme = programmeForChat(row.document.plan)
+    // An admin may have chosen another model on the dashboard; otherwise OPENROUTER_MODEL answers.
+    const model = settings.model ?? llm.model
     // Counts and tokens per model per day for the admin dashboard; no account or content is stored with them.
     const meter = meterLlm(llm)
     const record = (outcome: 'answered' | 'failed') =>
-      recordChatUsage(db, { model: llm.model, calls: meter.calls(), outcome }).catch(() => {
+      recordChatUsage(db, { model, calls: meter.calls(), outcome }).catch(() => {
         console.warn('[chat] usage could not be recorded')
       })
     try {
       const answer = await runChat({
         llm: meter.client,
+        model,
         programme,
         history: body.data.messages,
         locale: body.data.locale,
