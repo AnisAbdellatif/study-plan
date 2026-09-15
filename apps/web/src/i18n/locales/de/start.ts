@@ -1,7 +1,33 @@
 export const start = {
   title: 'Studienplan anlegen',
   intro:
-    'Wähle deinen Studiengang aus den Vorlagen oder füge ihn selbst hinzu: Ein Sprachmodell deiner Wahl liest deine Prüfungsordnung und den Modulkatalog aus, und aus seiner Antwort entsteht dein Plan. Die Module werden nach dem Studienverlaufsplan vorsortiert, du kannst sie danach frei verschieben. Du brauchst kein Konto: dein Plan wird nur in diesem Browser gespeichert.',
+    'Wähle deinen Studiengang und deinen Studienbeginn. Die Module werden nach dem Studienverlaufsplan in Semester sortiert, danach verschiebst du sie frei.',
+  highlights: {
+    noAccount: 'Kein Konto nötig',
+    local: 'Plan bleibt in deinem Browser',
+    editable: 'Jederzeit änderbar',
+  },
+  methods: {
+    label: 'So legst du deinen Studiengang an',
+    template: 'Vorlage',
+    file: 'Datei',
+    llm: 'Mit KI',
+  },
+  llm: {
+    progress: 'Fortschritt',
+    done: 'erledigt',
+    steps: {
+      describe: 'Beschreiben',
+      prompt: 'Prompt nutzen',
+      answer: 'Antwort prüfen',
+      create: 'Plan anlegen',
+    },
+  },
+  other: {
+    heading: 'Oder so starten',
+    exampleTitle: 'Erst mal ausprobieren',
+    importTitle: 'Gesicherten Plan öffnen',
+  },
   loadError:
     'Dein gespeicherter Plan konnte nicht gelesen werden. Eine Kopie der Daten bleibt im Browser erhalten. Du kannst einen exportierten Plan importieren oder neu beginnen.',
   dismiss: 'Ausblenden',
@@ -15,7 +41,7 @@ export const start = {
   semesterTerm: '{{number}}. Semester: {{term}}',
   import: 'Gesicherten Plan wiederherstellen',
   importNote:
-    'Für eine Plan-Datei, die du vorher über „Exportieren“ gespeichert hast. Sie enthält deinen ganzen Plan mit Noten und Platzierungen. Eine Studiengangsdatei vom Sprachmodell lädst du dagegen unten unter „Studiengang aus Datei laden“.',
+    'Für eine Plan-Datei, die du vorher über „Exportieren“ gespeichert hast. Sie enthält deinen ganzen Plan mit Noten und Platzierungen. Eine Studiengangsdatei vom Sprachmodell lädst du dagegen oben im Reiter „Datei“.',
   presets: {
     heading: 'Studiengang auswählen',
     intro:
@@ -29,12 +55,12 @@ export const start = {
     loading: 'Studiengänge werden geladen…',
     empty: 'Noch sind keine Studiengänge hinterlegt.',
     loadError:
-      'Die Studiengänge konnten gerade nicht geladen werden. Du kannst deinen Studiengang trotzdem unten aus einer Datei laden oder mit einem Sprachmodell erstellen.',
+      'Die Studiengänge konnten gerade nicht geladen werden. Du kannst deinen Studiengang trotzdem in den Reitern oben aus einer Datei laden oder mit einem Sprachmodell erstellen.',
     loadingPreset: 'Studiengang wird geladen…',
     presetError:
       'Dieser Studiengang konnte nicht geladen werden. Wähle ihn noch einmal aus, um es erneut zu versuchen.',
     alternatives:
-      'Dein Studiengang ist nicht dabei? Lade eine Studiengangsdatei oder erstelle sie mit einem Sprachmodell.',
+      'Dein Studiengang ist nicht dabei? Lade eine Studiengangsdatei oder erstelle sie mit einem Sprachmodell, beides in den Reitern oben.',
   },
   programmeFile: {
     heading: 'Studiengang aus Datei laden',
@@ -47,7 +73,8 @@ export const start = {
       'Die Datei enthält nur Module und Regeln des Studiengangs, keine Noten. Daraus entsteht ein neuer, leerer Plan.',
     readError: 'Die Datei konnte nicht gelesen werden.',
   },
-  orSteps: 'Noch keine Studiengangsdatei? Dann erstellst du sie in vier Schritten mit einem Sprachmodell:',
+  orSteps:
+    'Kein passender Studiengang dabei? Erstelle ihn in vier Schritten mit einem Sprachmodell deiner Wahl, zum Beispiel ChatGPT, Claude oder Gemini.',
   haveAccount: 'Schon ein Konto?',
   signIn: 'Anmelden',
   backToPlan: 'Zurück zu deinem Plan',

@@ -42,12 +42,16 @@ async function openCardMenu(user: ReturnType<typeof userEvent.setup>, moduleName
 }
 
 describe('onboarding', () => {
-  it('sends visitors without a plan to the programme flow and creates a plan from the example', async () => {
+  it('shows visitors without a plan the landing page and creates a plan from the example', async () => {
     const { user, store, router } = renderApp()
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Dein Studium, klar geplant.' }),
+    ).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/')
+
+    await user.click(screen.getByRole('link', { name: 'Loslegen' }))
     expect(await screen.findByRole('heading', { name: 'Studienplan anlegen' })).toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/start')
-    expect(screen.getByRole('heading', { name: '1. Studiengang beschreiben' })).toBeInTheDocument()
-    expect(screen.getByText(/Ein Sprachmodell deiner Wahl liest deine Prüfungsordnung/)).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Mit Beispiel ausprobieren' }))
 
@@ -388,12 +392,14 @@ describe('board menu actions', () => {
     expect(dialog).toHaveTextContent('Zum Teilen brauchst du ein Konto')
   })
 
-  it('opens the print dialog', async () => {
+  it('opens the print page instead of printing the board right away', async () => {
     const print = vi.spyOn(window, 'print').mockImplementation(() => {})
-    const { user } = renderApp({ plan: makePlan() })
+    const { user, router } = renderApp({ plan: makePlan() })
     await user.click(await screen.findByRole('button', { name: 'Weitere Aktionen' }))
     await user.click(await screen.findByRole('menuitem', { name: 'Drucken oder als PDF speichern' }))
-    expect(print).toHaveBeenCalledOnce()
+    expect(await screen.findByRole('button', { name: 'Drucken' })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/print')
+    expect(print).not.toHaveBeenCalled()
   })
 })
 

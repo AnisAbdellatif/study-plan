@@ -1,6 +1,7 @@
 import { Link, useMatchRoute } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../lib/cn.ts'
+import { useGuestState } from '../store/guest-store.ts'
 
 const linkClass = 'underline-offset-4 hover:underline'
 
@@ -11,7 +12,9 @@ const linkClass = 'underline-offset-4 hover:underline'
 export function SiteFooter({ placement = 'page' }: { placement?: 'page' | 'board' }) {
   const { t } = useTranslation()
   const matchRoute = useMatchRoute()
-  const onBoard = Boolean(matchRoute({ to: '/' }))
+  const { plan } = useGuestState()
+  // Without a plan, / shows the landing page, which keeps the normal footer.
+  const onBoard = Boolean(matchRoute({ to: '/' })) && plan !== null
   // Only the page footer is the contentinfo landmark; the board's copy is a plain block inside main.
   const Tag = placement === 'page' ? 'footer' : 'div'
   return (
@@ -22,6 +25,9 @@ export function SiteFooter({ placement = 'page' }: { placement?: 'page' | 'board
         placement === 'page' && onBoard && 'max-sm:hidden',
       )}
     >
+      <Link to="/about" className={linkClass}>
+        {t('footer.about')}
+      </Link>
       <Link to="/legal-notice" className={linkClass}>
         {t('footer.legalNotice')}
       </Link>

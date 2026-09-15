@@ -12,6 +12,9 @@ import { SiteFooter } from './components/site-footer.tsx'
 import { SiteHeader } from './components/site-header.tsx'
 import { validateAdminSearch } from './routes/admin-tabs.ts'
 import { BoardPage } from './routes/board-page.tsx'
+import { LandingPage } from './routes/landing-page.tsx'
+import { validatePrintSearch } from './routes/print-options.ts'
+import { validateStartSearch } from './routes/start-methods.ts'
 import { StartPage } from './routes/start-page.tsx'
 
 // The board and the start page are where almost every visit begins, so they ship in the main bundle. Every other
@@ -27,6 +30,7 @@ const ImpressumPage = lazyRouteComponent(() => import('./legal/impressum-page.ts
 const DatenschutzPage = lazyRouteComponent(() => import('./legal/datenschutz-page.tsx'), 'DatenschutzPage')
 const AdminPage = lazyRouteComponent(() => import('./routes/admin-page.tsx'), 'AdminPage')
 const ContactPage = lazyRouteComponent(() => import('./routes/contact-page.tsx'), 'ContactPage')
+const PrintPage = lazyRouteComponent(() => import('./routes/print-page.tsx'), 'PrintPage')
 const SharedPlanPage = lazyRouteComponent(() => import('./routes/shared-plan-page.tsx'), 'SharedPlanPage')
 const UpdateProgrammePage = lazyRouteComponent(
   () => import('./routes/update-programme-page.tsx'),
@@ -52,7 +56,19 @@ const rootRoute = createRootRoute({
 })
 
 const boardRoute = createRoute({ getParentRoute: () => rootRoute, path: '/', component: BoardPage })
-const startRoute = createRoute({ getParentRoute: () => rootRoute, path: '/start', component: StartPage })
+const startRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/start',
+  validateSearch: validateStartSearch,
+  component: StartPage,
+})
+const aboutRoute = createRoute({ getParentRoute: () => rootRoute, path: '/about', component: LandingPage })
+const printRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/print',
+  validateSearch: validatePrintSearch,
+  component: PrintPage,
+})
 const updateProgrammeRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/plan/update',
@@ -128,6 +144,8 @@ export const routeTree = rootRoute.addChildren([
   unsubscribeRoute,
   adminRoute,
   contactRoute,
+  aboutRoute,
+  printRoute,
 ])
 
 type RouterOptions = Parameters<typeof createRouter<typeof routeTree>>[0]

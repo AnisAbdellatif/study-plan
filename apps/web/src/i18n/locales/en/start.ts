@@ -4,7 +4,33 @@ import type { Messages } from '../types.ts'
 export const start = {
   title: 'Create your study plan',
   intro:
-    'Pick your degree programme from the presets or add it yourself: a language model of your choice reads your examination regulations and module handbook, and your plan is created from its answer. Modules are pre-sorted following the recommended study plan, and you can move them freely afterwards. You don’t need an account: your plan is only saved in this browser.',
+    'Choose your programme and your start of studies. Modules are sorted into semesters following the recommended study plan, and you can move them freely afterwards.',
+  highlights: {
+    noAccount: 'No account needed',
+    local: 'Your plan stays in your browser',
+    editable: 'Change it any time',
+  },
+  methods: {
+    label: 'How to add your programme',
+    template: 'Template',
+    file: 'File',
+    llm: 'With AI',
+  },
+  llm: {
+    progress: 'Progress',
+    done: 'done',
+    steps: {
+      describe: 'Describe',
+      prompt: 'Use the prompt',
+      answer: 'Check the answer',
+      create: 'Create plan',
+    },
+  },
+  other: {
+    heading: 'Or start like this',
+    exampleTitle: 'Just try it out',
+    importTitle: 'Open a saved plan',
+  },
   loadError:
     'Your saved plan couldn’t be read. A copy of the data stays in the browser. You can import an exported plan or start over.',
   dismiss: 'Dismiss',
@@ -18,7 +44,7 @@ export const start = {
   semesterTerm: 'Semester {{number}}: {{term}}',
   import: 'Restore a saved plan',
   importNote:
-    'For a plan file you saved earlier with “Export”. It contains your whole plan with grades and placements. A programme file from a language model goes into “Load programme from file” below instead.',
+    'For a plan file you saved earlier with “Export”. It contains your whole plan with grades and placements. A programme file from a language model goes into the “File” tab above instead.',
   presets: {
     heading: 'Choose your programme',
     intro:
@@ -32,10 +58,11 @@ export const start = {
     loading: 'Loading programmes…',
     empty: 'No programmes have been added yet.',
     loadError:
-      'The programmes couldn’t be loaded right now. You can still load your programme from a file or create it with a language model below.',
+      'The programmes couldn’t be loaded right now. You can still load your programme from a file or create it with a language model in the tabs above.',
     loadingPreset: 'Loading programme…',
     presetError: 'This programme couldn’t be loaded. Pick it again to retry.',
-    alternatives: 'Your programme isn’t listed? Load a programme file or create one with a language model.',
+    alternatives:
+      'Your programme isn’t listed? Load a programme file or create one with a language model, both in the tabs above.',
   },
   programmeFile: {
     heading: 'Load programme from file',
@@ -48,7 +75,8 @@ export const start = {
       'The file only contains the programme’s modules and rules, no grades. It creates a new, empty plan.',
     readError: 'The file couldn’t be read.',
   },
-  orSteps: 'No programme file yet? Create one with a language model in four steps:',
+  orSteps:
+    'Your programme isn’t there? Create it in four steps with a language model of your choice, such as ChatGPT, Claude or Gemini.',
   haveAccount: 'Already have an account?',
   signIn: 'Sign in',
   backToPlan: 'Back to your plan',

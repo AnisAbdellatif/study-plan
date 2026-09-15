@@ -11,6 +11,7 @@ export const common = {
     en: 'English',
   },
   footer: {
+    about: 'About Study Plan',
     legalNotice: 'Legal notice',
     privacy: 'Privacy',
     contact: 'Contact',
