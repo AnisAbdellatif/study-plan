@@ -337,6 +337,26 @@ function Accounts({ viewer, selfEmail, version, onChanged }: SectionProps) {
   }, [version])
   const { message, setMessage, request, dialog, progress, busy } = useAccountActions(onChanged)
   const { t } = useTranslation('admin')
+  const [chatToggling, setChatToggling] = useState<string | null>(null)
+
+  const toggleUnlimitedChat = async (account: AdminUser) => {
+    setMessage(null)
+    setChatToggling(account.id)
+    try {
+      const saved = await adminApi.setUnlimitedChat(account.id, !account.unlimitedChat)
+      setMessage({
+        tone: 'ok',
+        text: t(saved.unlimitedChat ? 'accounts.unlimitedChatGranted' : 'accounts.unlimitedChatRevoked', {
+          email: account.email,
+        }),
+      })
+      onChanged()
+    } catch {
+      setMessage({ tone: 'error', text: t('messages.failed') })
+    } finally {
+      setChatToggling(null)
+    }
+  }
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: a new version reloads the list after a change.
   useEffect(() => {
@@ -416,6 +436,7 @@ function Accounts({ viewer, selfEmail, version, onChanged }: SectionProps) {
                       <span className="block text-xs text-zinc-600 dark:text-zinc-400">
                         {user.emailVerified ? t('accounts.verified') : t('accounts.unverified')}
                         {user.reminders ? ` · ${t('accounts.remindersOn')}` : ''}
+                        {user.unlimitedChat ? ` · ${t('accounts.unlimitedChat')}` : ''}
                         {access === 'self' ? ` · ${t('accounts.self')}` : ''}
                       </span>
                     </td>
@@ -455,6 +476,16 @@ function Accounts({ viewer, selfEmail, version, onChanged }: SectionProps) {
                           ) : null}
                           <ActionButton disabled={busy} onClick={() => setLimitFor(user)}>
                             {t('accounts.actions.planLimit')}
+                          </ActionButton>
+                          <ActionButton
+                            disabled={busy || chatToggling !== null}
+                            onClick={() => void toggleUnlimitedChat(user)}
+                          >
+                            {t(
+                              user.unlimitedChat
+                                ? 'accounts.actions.revokeUnlimitedChat'
+                                : 'accounts.actions.grantUnlimitedChat',
+                            )}
                           </ActionButton>
                           <ActionButton disabled={busy} onClick={() => request({ user, action: 'sign_out' })}>
                             {t('accounts.actions.signOut')}

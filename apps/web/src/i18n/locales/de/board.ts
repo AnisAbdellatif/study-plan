@@ -83,6 +83,7 @@ export const board = {
     newConversation: 'Neues Gespräch',
     remaining_one: 'Heute noch {{count}} Nachricht',
     remaining_other: 'Heute noch {{count}} Nachrichten',
+    unlimited: 'Ohne Tageslimit',
     quota: 'Du hast heute alle {{limit}} Nachrichten genutzt. Morgen geht es weiter.',
     failed: 'Das hat nicht geklappt. Bitte versuch es gleich noch einmal.',
     modules: 'Genannte Module',

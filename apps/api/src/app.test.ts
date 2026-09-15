@@ -384,6 +384,44 @@ describe('plans', () => {
     expect((await create()).status).toBe(201)
     expect((await create()).status).toBe(409)
 
+    // Unlimited assistant messages are granted and taken back the same way, and show in the list.
+    const unlimitedChat = await call(`/api/admin/users/${studentId}/unlimited-chat`, {
+      method: 'PUT',
+      cookie: admin,
+      body: { unlimitedChat: true },
+    })
+    expect(await json(unlimitedChat)).toEqual({ unlimitedChat: true })
+    expect(
+      (
+        await json<{ users: { unlimitedChat: boolean }[] }>(
+          await call('/api/admin/users?q=limits-student', { cookie: admin }),
+        )
+      ).users[0],
+    ).toMatchObject({ unlimitedChat: true })
+    expect(
+      (
+        await call(`/api/admin/users/${studentId}/unlimited-chat`, {
+          method: 'PUT',
+          cookie: admin,
+          body: { unlimitedChat: 'yes' },
+        })
+      ).status,
+    ).toBe(400)
+    expect(
+      (
+        await call(`/api/admin/users/${studentId}/unlimited-chat`, {
+          method: 'PUT',
+          cookie: student,
+          body: { unlimitedChat: true },
+        })
+      ).status,
+    ).toBe(404)
+    await call(`/api/admin/users/${studentId}/unlimited-chat`, {
+      method: 'PUT',
+      cookie: admin,
+      body: { unlimitedChat: false },
+    })
+
     // Back to the global value: the six plans stay, but no new one fits.
     await call(`/api/admin/users/${studentId}/plan-limit`, {
       method: 'PUT',
@@ -449,7 +487,12 @@ describe('chat', () => {
     }
 
     expect((await ask({ body: question })).status).toBe(401)
-    expect(await json(await ask({ cookie }))).toEqual({ available: true, dailyLimit: 20, remaining: 20 })
+    expect(await json(await ask({ cookie }))).toEqual({
+      available: true,
+      dailyLimit: 20,
+      unlimited: false,
+      remaining: 20,
+    })
 
     const answered = await ask({ cookie, body: question })
     expect(answered.status).toBe(200)
@@ -486,6 +529,16 @@ describe('chat', () => {
     const limited = await ask({ cookie, body: question })
     expect(limited.status).toBe(429)
     expect(await json(limited)).toEqual({ error: 'chat_quota_exceeded', dailyLimit: 2 })
+
+    // An admin lifts the limit for this account: questions go through and nothing counts down.
+    const chatUser = eq(userTable.email, 'chat@example.org')
+    await connection.db.update(userTable).set({ unlimitedChat: true }).where(chatUser)
+    expect(await json(await ask({ cookie }))).toMatchObject({ unlimited: true, remaining: null })
+    const unlimited = await ask({ cookie, body: question })
+    expect(unlimited.status).toBe(200)
+    expect(await json(unlimited)).toMatchObject({ remaining: null })
+    await connection.db.update(userTable).set({ unlimitedChat: false }).where(chatUser)
+    expect((await ask({ cookie, body: question })).status).toBe(429)
 
     await updateChatSettings(connection.db, { enabled: false, dailyLimit: 20, model: null })
     expect((await ask({ cookie, body: question })).status).toBe(503)

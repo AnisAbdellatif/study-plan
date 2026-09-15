@@ -86,6 +86,7 @@ export const board = {
     newConversation: 'New conversation',
     remaining_one: '{{count}} message left today',
     remaining_other: '{{count}} messages left today',
+    unlimited: 'No daily limit',
     quota: "You've used all {{limit}} messages for today. You can continue tomorrow.",
     failed: "That didn't work. Please try again in a moment.",
     modules: 'Modules mentioned',

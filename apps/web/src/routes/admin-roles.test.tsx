@@ -24,6 +24,8 @@ const account = (id: string, email: string, role: string) => ({
   createdAt: '2026-09-01T10:00:00Z',
   lastActiveAt: null,
   plans: 0,
+  planLimit: null,
+  unlimitedChat: false,
   activeShares: 0,
   reminders: false,
 })
@@ -46,6 +48,8 @@ function mockApi(role: 'admin' | 'superadmin', email: string) {
       return respond({ users: [superadmin, admin] })
     if (url.startsWith('/api/admin/users?')) return respond({ users: [superadmin, admin, student] })
     if (url === '/api/admin/admins' && init?.method === 'POST') return respond({ id: 'n' }, 201)
+    if (url === '/api/admin/users/u/unlimited-chat' && init?.method === 'PUT')
+      return respond(JSON.parse(String(init.body)))
     return respond({ error: 'not_found' }, 404)
   })
 }
@@ -100,6 +104,26 @@ describe('admin roles in the dashboard', () => {
       email: 'Neu@example.org',
       password: 'ein-startpasswort',
     })
+  })
+
+  it('lets an admin lift the assistant’s daily limit for one account', async () => {
+    const fetchMock = mockApi('admin', 'admin@example.org')
+    const user = renderAdmin()
+
+    const accounts = await screen.findByRole('region', { name: 'Konten' })
+    await waitFor(() => expect(within(accounts).getByText('studi@example.org')).toBeInTheDocument())
+    await user.click(
+      within(rowOf(accounts, 'studi@example.org')).getByRole('button', { name: 'Assistent ohne Limit' }),
+    )
+
+    expect(
+      await within(accounts).findByText(
+        'studi@example.org kann den Assistenten jetzt ohne Tageslimit nutzen.',
+      ),
+    ).toBeInTheDocument()
+    const call = fetchMock.mock.calls.find(([url]) => url === '/api/admin/users/u/unlimited-chat')
+    expect(call?.[1]?.method).toBe('PUT')
+    expect(JSON.parse(String(call?.[1]?.body))).toEqual({ unlimitedChat: true })
   })
 
   it('hides admin management from regular admins', async () => {

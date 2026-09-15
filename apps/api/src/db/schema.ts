@@ -41,6 +41,8 @@ export const user = pgTable(
       .default('user'),
     /** Plans this account may keep. Null uses the global value, see src/plan-limits.ts. Set by admins only. */
     planLimit: integer('plan_limit'),
+    /** Study assistant messages without the daily limit, see routes/chat.ts. Set by admins only. */
+    unlimitedChat: boolean('unlimited_chat').notNull().default(false),
     ...timestamps(),
   },
   // At most one superadmin, enforced by the database.
@@ -238,6 +240,7 @@ export const adminAuditLog = pgTable(
         'update_settings',
         'set_plan_limit',
         'update_chat_settings',
+        'set_unlimited_chat',
       ],
     }).notNull(),
     targetUserId: text('target_user_id').notNull(),

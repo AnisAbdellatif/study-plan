@@ -109,14 +109,18 @@ export type PlanApi = typeof planApi
 export interface ChatStatus {
   available: boolean
   dailyLimit: number
-  remaining: number
+  /** An admin lifted the daily limit for this account. Missing from older servers means limited. */
+  unlimited?: boolean
+  /** Messages left today; null when unlimited. */
+  remaining: number | null
 }
 
 export interface ChatReply {
   reply: string
   /** Modules the answer is based on. */
   modules: { code: string; name: string }[]
-  remaining: number
+  /** Messages left today; null when unlimited. */
+  remaining: number | null
 }
 
 export interface ChatRequest {
@@ -241,6 +245,8 @@ export interface AdminUser {
   plans: number
   /** The account's own plan limit; null uses the global value. */
   planLimit: number | null
+  /** Study assistant messages without the daily limit. */
+  unlimitedChat: boolean
   activeShares: number
   reminders: boolean
 }
@@ -266,6 +272,7 @@ export interface AdminAuditEntry {
     | 'update_settings'
     | 'set_plan_limit'
     | 'update_chat_settings'
+    | 'set_unlimited_chat'
   targetUserId: string
   createdAt: string
 }
@@ -390,6 +397,11 @@ export const adminApi = {
     request<{ planLimit: number | null }>(`${adminUser(id)}/plan-limit`, {
       method: 'PUT',
       body: JSON.stringify({ planLimit }),
+    }),
+  setUnlimitedChat: (id: string, unlimitedChat: boolean): Promise<{ unlimitedChat: boolean }> =>
+    request<{ unlimitedChat: boolean }>(`${adminUser(id)}/unlimited-chat`, {
+      method: 'PUT',
+      body: JSON.stringify({ unlimitedChat }),
     }),
   chatSettings: (): Promise<AdminChatSettings> => request<AdminChatSettings>('/api/admin/chat'),
   /** A model that is not free is only saved with `acceptPaid`; otherwise the API answers 409 model_not_free. */
