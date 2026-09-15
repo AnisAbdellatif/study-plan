@@ -344,6 +344,9 @@ export const board = {
     areaValue: '{{earned}} {{label}} earned, {{planned}} {{label}} planned, {{target}} {{label}} required',
     barValue: '{{earned}} of {{total}} earned, {{planned}} planned',
     howCalculated: 'How your grade average is calculated',
+    calculationTeaser: 'Your average from {{credits}} graded {{label}}, worked out step by step.',
+    calculationTeaserEmpty: 'Once you pass a graded exam, you can see the calculation here.',
+    calculationOpen: 'Show calculation',
     calc: {
       intro:
         'Your grade average is a weighted average: every passed, graded exam counts with its weight, usually its credits. Grade times weight is added up and divided by the sum of the weights. Ungraded and open modules don’t count.',

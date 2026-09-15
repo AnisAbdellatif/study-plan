@@ -1,10 +1,12 @@
 import type { Plan, PlanSummary } from '@study-plan/shared'
-import { GraduationCap, Layers, type LucideIcon, TrendingUp } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { Calculator, GraduationCap, Layers, type LucideIcon, TrendingUp } from 'lucide-react'
+import { type ReactNode, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { type AreaTone, areaTone } from '../../lib/area-colors.ts'
 import { cn } from '../../lib/cn.ts'
 import { describeRounding, formatCredits, formatGradeString } from '../../lib/format.ts'
+import { Button } from '../ui/button.tsx'
+import { Dialog } from '../ui/dialog.tsx'
 import { GradeCalculation } from './grade-calculation.tsx'
 
 const cardClass = 'rounded-xl bg-white p-4 shadow-sm ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800'
@@ -73,14 +75,17 @@ export function SummaryPanel({ plan, summary }: { plan: Plan; summary: PlanSumma
   const { t } = useTranslation('board')
   const { overall, credits } = summary
   const label = plan.preset.creditLabel
+  const [calculationOpen, setCalculationOpen] = useState(false)
 
   return (
     <aside
       aria-label={t('summary.overview')}
-      // In print the three cards share one compact row, leaving the page to the study plan overview.
-      className="grid grid-cols-2 gap-3 lg:grid-cols-[minmax(0,14rem)_minmax(0,1fr)_minmax(0,1fr)] print:grid-cols-[minmax(0,10rem)_minmax(0,13rem)_minmax(0,1fr)] print:gap-2"
+      // From lg the average, progress and the calculation stack in a narrow first column, so the areas get the whole
+      // remaining width. The DOM order stays the phone order. In print the three data cards share one compact row
+      // again (the placements are reset) and the calculation card is left out, leaving the page to the overview.
+      className="grid grid-cols-2 gap-3 lg:grid-cols-[minmax(0,16rem)_minmax(0,1fr)] lg:grid-rows-[auto_auto_1fr] print:grid-cols-[minmax(0,10rem)_minmax(0,13rem)_minmax(0,1fr)] print:grid-rows-none print:gap-2"
     >
-      <section className="rounded-xl bg-linear-to-br from-indigo-50 to-white p-4 shadow-sm ring-1 ring-indigo-200/70 dark:from-indigo-950/60 dark:to-zinc-900 dark:ring-indigo-900/60 print:p-2.5 print:shadow-none">
+      <section className="lg:col-start-1 lg:row-start-1 print:col-start-auto print:row-start-auto rounded-xl bg-linear-to-br from-indigo-50 to-white p-4 shadow-sm ring-1 ring-indigo-200/70 dark:from-indigo-950/60 dark:to-zinc-900 dark:ring-indigo-900/60 print:p-2.5 print:shadow-none">
         <CardHeading icon={GraduationCap}>{t('summary.currentAverage')}</CardHeading>
         <p
           className="mt-1 text-3xl font-semibold tabular-nums print:mt-0 print:text-2xl"
@@ -99,7 +104,12 @@ export function SummaryPanel({ plan, summary }: { plan: Plan; summary: PlanSumma
         </p>
       </section>
 
-      <section className={cn(cardClass, 'print:p-2.5 print:shadow-none')}>
+      <section
+        className={cn(
+          cardClass,
+          'lg:col-start-1 lg:row-start-2 print:col-start-auto print:row-start-auto print:p-2.5 print:shadow-none',
+        )}
+      >
         <CardHeading icon={TrendingUp}>{t('summary.progress')}</CardHeading>
         <p className="mt-1 text-lg font-semibold tabular-nums">
           {formatCredits(credits.earned)}{' '}
@@ -121,7 +131,10 @@ export function SummaryPanel({ plan, summary }: { plan: Plan; summary: PlanSumma
       </section>
 
       <section
-        className={cn(cardClass, 'col-span-2 lg:col-span-1 print:col-span-1 print:p-2.5 print:shadow-none')}
+        className={cn(
+          cardClass,
+          'col-span-2 lg:col-span-1 lg:col-start-2 lg:row-span-3 lg:row-start-1 print:col-span-1 print:col-start-auto print:row-span-1 print:row-start-auto print:p-2.5 print:shadow-none',
+        )}
       >
         <div className="flex items-center justify-between gap-2">
           <CardHeading icon={Layers}>{t('summary.areas')}</CardHeading>
@@ -177,10 +190,31 @@ export function SummaryPanel({ plan, summary }: { plan: Plan; summary: PlanSumma
         </ul>
       </section>
 
-      <details className={cn(cardClass, 'col-span-2 text-sm lg:col-span-3 print:hidden')}>
-        <summary className="cursor-pointer font-medium">{t('summary.howCalculated')}</summary>
+      {/* The worked calculation has tables that need room, so the card opens it in a dialog instead of unfolding. */}
+      <section
+        className={cn(
+          cardClass,
+          'col-span-2 flex flex-col lg:col-span-1 lg:col-start-1 lg:row-start-3 print:hidden',
+        )}
+      >
+        <CardHeading icon={Calculator}>{t('summary.howCalculated')}</CardHeading>
+        <p className="mt-1 mb-3 text-xs text-zinc-600 dark:text-zinc-400">
+          {overall.value !== null
+            ? t('summary.calculationTeaser', { credits: formatCredits(overall.countedCredits), label })
+            : t('summary.calculationTeaserEmpty')}
+        </p>
+        <Button size="sm" className="mt-auto w-full" onClick={() => setCalculationOpen(true)}>
+          {t('summary.calculationOpen')}
+        </Button>
+      </section>
+      <Dialog
+        open={calculationOpen}
+        onOpenChange={setCalculationOpen}
+        title={t('summary.howCalculated')}
+        size="lg"
+      >
         <GradeCalculation plan={plan} overall={overall} />
-      </details>
+      </Dialog>
     </aside>
   )
 }

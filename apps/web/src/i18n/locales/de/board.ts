@@ -342,6 +342,9 @@ export const board = {
     areaValue: '{{earned}} {{label}} erreicht, {{planned}} {{label}} geplant, Soll {{target}} {{label}}',
     barValue: '{{earned}} von {{total}} erreicht, {{planned}} eingeplant',
     howCalculated: 'So wird dein Schnitt berechnet',
+    calculationTeaser: 'Dein Schnitt aus {{credits}} {{label}} mit Note, Schritt für Schritt nachgerechnet.',
+    calculationTeaserEmpty: 'Sobald du eine benotete Prüfung bestanden hast, siehst du hier die Rechnung.',
+    calculationOpen: 'Rechnung ansehen',
     calc: {
       intro:
         'Dein Schnitt ist ein gewichteter Durchschnitt: Jede bestandene, benotete Prüfung zählt mit ihrem Gewicht, meistens den Leistungspunkten. Note mal Gewicht wird zusammengezählt und durch die Summe der Gewichte geteilt. Unbenotete und noch offene Module zählen nicht mit.',
