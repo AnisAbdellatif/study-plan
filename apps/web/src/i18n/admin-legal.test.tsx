@@ -81,13 +81,24 @@ describe('admin dashboard in English', () => {
       const { user } = renderApp('/admin')
       expect(await screen.findByRole('heading', { name: 'Admin dashboard' })).toBeInTheDocument()
       expect(screen.getByRole('heading', { name: 'Overview' })).toBeInTheDocument()
-      expect(screen.getByRole('heading', { name: 'Accounts' })).toBeInTheDocument()
-      expect(screen.getByRole('heading', { name: 'Audit log' })).toBeInTheDocument()
       expect(await screen.findByText('10,200 confirmed, 3 new in the last 30 days')).toBeInTheDocument()
       expect(screen.getByText('12,345')).toBeInTheDocument()
       expect(screen.getByText('PO 2017 in der Fassung ab WS 2026/27')).toBeInTheDocument()
+      expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
+        'Overview',
+        'Accounts',
+        'Presets',
+        'Assistant',
+        'Settings',
+        'Audit log',
+      ])
+
+      await user.click(screen.getByRole('tab', { name: 'Audit log' }))
+      expect(await screen.findByRole('heading', { name: 'Audit log' })).toBeInTheDocument()
       expect(await screen.findByText('Shared links deactivated')).toBeInTheDocument()
 
+      await user.click(screen.getByRole('tab', { name: 'Accounts' }))
+      expect(await screen.findByRole('heading', { name: 'Accounts' })).toBeInTheDocument()
       const row = (await screen.findByText('studi@example.org')).closest('tr')
       if (!row) throw new Error('expected a table row')
       expect(within(row).getByText('not confirmed')).toBeInTheDocument()

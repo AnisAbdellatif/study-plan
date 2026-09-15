@@ -1,4 +1,5 @@
-import { Link } from '@tanstack/react-router'
+import { Tabs } from '@base-ui/react/tabs'
+import { Link, useNavigate, useSearch } from '@tanstack/react-router'
 import { ArrowLeft } from 'lucide-react'
 import { type FormEvent, type ReactNode, useCallback, useEffect, useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -21,6 +22,7 @@ import { ChatSettingsSection } from './admin-chat-section.tsx'
 import { ChatUsageSection } from './admin-chat-usage.tsx'
 import { MailSection } from './admin-mail-section.tsx'
 import { PlanLimitDialog, PlanLimitSection } from './admin-plan-limits.tsx'
+import { ADMIN_TABS, type AdminTab, isAdminTab } from './admin-tabs.ts'
 
 const cardClass = 'rounded-xl bg-white p-4 ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800'
 const inputClass =
@@ -771,6 +773,14 @@ export function AdminPage() {
   const [version, setVersion] = useState(0)
   const [stats, setStats] = useState<AdminStats | null>(null)
   const [audit, setAudit] = useState<AdminAuditEntry[]>([])
+  const navigate = useNavigate()
+  const search = useSearch({ from: '/admin' })
+  const tab: AdminTab = search.tab ?? 'overview'
+  // Replacing the entry keeps the back button for leaving the dashboard rather than stepping through tabs.
+  const selectTab = (value: unknown) => {
+    if (!isAdminTab(value)) return
+    void navigate({ to: '/admin', search: value === 'overview' ? {} : { tab: value }, replace: true })
+  }
 
   const refresh = useCallback(async () => {
     const [nextStats, nextAudit] = await Promise.all([adminApi.stats(), adminApi.audit()])
@@ -832,7 +842,7 @@ export function AdminPage() {
 
   const sectionProps = { viewer, selfEmail, version, onChanged: changed }
   return (
-    <main className="mx-auto max-w-6xl space-y-8 px-4 py-6 sm:px-6">
+    <main className="mx-auto max-w-6xl space-y-6 px-4 py-6 sm:px-6">
       <header>
         <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
           <BrandMark />
@@ -847,15 +857,45 @@ export function AdminPage() {
           <RoleBadge role={viewer} />
         </p>
       </header>
-      {stats ? <Overview stats={stats} /> : <LoadingText>{t('loadingStats')}</LoadingText>}
-      <MailSection onChanged={changed} />
-      <AdminPresetsSection onChanged={changed} />
-      <PlanLimitSection onChanged={changed} />
-      <ChatSettingsSection onChanged={changed} />
-      <ChatUsageSection />
-      {viewer === 'superadmin' ? <AdminTeam {...sectionProps} /> : null}
-      <Accounts {...sectionProps} />
-      <AuditLog entries={audit} />
+      {/* One area at a time. The tab is in the URL, so a reload or a shared link opens the same one. */}
+      <Tabs.Root value={tab} onValueChange={selectTab} className="space-y-6">
+        <Tabs.List
+          aria-label={t('tabs.label')}
+          className="-mx-4 flex gap-1 overflow-x-auto border-b border-zinc-200 px-4 [scrollbar-width:none] sm:mx-0 sm:px-0 dark:border-zinc-800"
+        >
+          {ADMIN_TABS.map((value) => (
+            <Tabs.Tab key={value} value={value} className={tabClass}>
+              {t(`tabs.${value}`)}
+            </Tabs.Tab>
+          ))}
+        </Tabs.List>
+        <Tabs.Panel value="overview" className={panelClass}>
+          {stats ? <Overview stats={stats} /> : <LoadingText>{t('loadingStats')}</LoadingText>}
+        </Tabs.Panel>
+        <Tabs.Panel value="accounts" className={panelClass}>
+          <Accounts {...sectionProps} />
+          {viewer === 'superadmin' ? <AdminTeam {...sectionProps} /> : null}
+        </Tabs.Panel>
+        <Tabs.Panel value="presets" className={panelClass}>
+          <AdminPresetsSection onChanged={changed} />
+        </Tabs.Panel>
+        <Tabs.Panel value="assistant" className={panelClass}>
+          <ChatSettingsSection onChanged={changed} />
+          <ChatUsageSection />
+        </Tabs.Panel>
+        <Tabs.Panel value="settings" className={panelClass}>
+          <PlanLimitSection onChanged={changed} />
+          <MailSection onChanged={changed} />
+        </Tabs.Panel>
+        <Tabs.Panel value="log" className={panelClass}>
+          <AuditLog entries={audit} />
+        </Tabs.Panel>
+      </Tabs.Root>
     </main>
   )
 }
+
+const tabClass =
+  '-mb-px shrink-0 border-b-2 border-transparent px-3 py-2.5 text-sm font-medium whitespace-nowrap text-zinc-600 outline-none hover:text-zinc-900 focus-visible:rounded-t-md focus-visible:bg-zinc-100 aria-selected:border-indigo-600 aria-selected:text-indigo-700 dark:text-zinc-400 dark:hover:text-zinc-100 dark:focus-visible:bg-zinc-800 dark:aria-selected:border-indigo-400 dark:aria-selected:text-indigo-300'
+const panelClass =
+  'space-y-8 rounded-lg outline-none focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-indigo-500'

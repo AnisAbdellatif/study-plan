@@ -5,6 +5,15 @@ export const admin = {
   title: 'Admin dashboard',
   signedInAs: 'Signed in as {{email}}',
   backToHome: 'Back to home',
+  tabs: {
+    label: 'Admin dashboard sections',
+    overview: 'Overview',
+    accounts: 'Accounts',
+    presets: 'Presets',
+    assistant: 'Assistant',
+    settings: 'Settings',
+    log: 'Audit log',
+  },
   loadingStats: 'Loading numbers…',
   access: {
     notFound: 'Page not found',

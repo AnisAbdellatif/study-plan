@@ -2,6 +2,15 @@ export const admin = {
   title: 'Verwaltung',
   signedInAs: 'Angemeldet als {{email}}',
   backToHome: 'Zur Startseite',
+  tabs: {
+    label: 'Bereiche der Verwaltung',
+    overview: 'Überblick',
+    accounts: 'Konten',
+    presets: 'Vorlagen',
+    assistant: 'Assistent',
+    settings: 'Einstellungen',
+    log: 'Protokoll',
+  },
   loadingStats: 'Zahlen werden geladen…',
   access: {
     notFound: 'Seite nicht gefunden',

@@ -10,6 +10,7 @@ import { AnnouncerProvider } from './components/announcer.tsx'
 import { LocaleSync } from './components/locale-sync.tsx'
 import { SiteFooter } from './components/site-footer.tsx'
 import { SiteHeader } from './components/site-header.tsx'
+import { validateAdminSearch } from './routes/admin-tabs.ts'
 import { BoardPage } from './routes/board-page.tsx'
 import { StartPage } from './routes/start-page.tsx'
 
@@ -99,7 +100,12 @@ const unsubscribeRoute = createRoute({
   component: UnsubscribePage,
 })
 
-const adminRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin', component: AdminPage })
+const adminRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/admin',
+  validateSearch: validateAdminSearch,
+  component: AdminPage,
+})
 
 export const routeTree = rootRoute.addChildren([
   boardRoute,

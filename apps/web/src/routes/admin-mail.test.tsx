@@ -51,7 +51,9 @@ describe('mail delivery in the admin dashboard', () => {
 
     render(
       <GuestStoreContext.Provider value={createGuestStore(window.localStorage)}>
-        <RouterProvider router={createAppRouter(createMemoryHistory({ initialEntries: ['/admin'] }))} />
+        <RouterProvider
+          router={createAppRouter(createMemoryHistory({ initialEntries: ['/admin?tab=settings'] }))}
+        />
       </GuestStoreContext.Provider>,
     )
     const user = userEvent.setup()

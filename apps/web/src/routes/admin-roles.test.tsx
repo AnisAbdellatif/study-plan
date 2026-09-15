@@ -57,7 +57,9 @@ function mockApi(role: 'admin' | 'superadmin', email: string) {
 function renderAdmin() {
   render(
     <GuestStoreContext.Provider value={createGuestStore(window.localStorage)}>
-      <RouterProvider router={createAppRouter(createMemoryHistory({ initialEntries: ['/admin'] }))} />
+      <RouterProvider
+        router={createAppRouter(createMemoryHistory({ initialEntries: ['/admin?tab=accounts'] }))}
+      />
     </GuestStoreContext.Provider>,
   )
   return userEvent.setup()
