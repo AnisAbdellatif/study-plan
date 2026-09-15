@@ -1,6 +1,6 @@
 import type { Plan, PlanSummary } from '@study-plan/shared'
 import { Calculator, GraduationCap, Layers, type LucideIcon, TrendingUp } from 'lucide-react'
-import { type ReactNode, useState } from 'react'
+import { type ReactNode, useLayoutEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { type AreaTone, areaTone } from '../../lib/area-colors.ts'
 import { cn } from '../../lib/cn.ts'
@@ -71,11 +71,42 @@ function CreditBar({
   )
 }
 
+/** The narrowest an area column may get. */
+const AREA_MIN_WIDTH_REM = 15
+
+/**
+ * Stores the area list's column count as --area-columns: as many columns as fit, evened out so every row is about
+ * as full as the others, e.g. 8 areas with room for 7 columns become 4 × 2 instead of 7 + 1.
+ */
+function useBalancedColumns(count: number) {
+  const ref = useRef<HTMLUListElement>(null)
+  useLayoutEffect(() => {
+    const list = ref.current
+    if (!list || typeof ResizeObserver === 'undefined') return
+    const px = (value: string) => Number.parseFloat(value) || 0
+    const update = () => {
+      const style = getComputedStyle(list)
+      const gap = px(style.columnGap)
+      const rem = px(getComputedStyle(document.documentElement).fontSize) || 16
+      const width = list.clientWidth - px(style.paddingLeft) - px(style.paddingRight)
+      const fit = Math.max(1, Math.floor((width + gap) / (AREA_MIN_WIDTH_REM * rem + gap)))
+      const rows = Math.max(1, Math.ceil(count / fit))
+      list.style.setProperty('--area-columns', String(Math.max(1, Math.ceil(count / rows))))
+    }
+    update()
+    const observer = new ResizeObserver(update)
+    observer.observe(list)
+    return () => observer.disconnect()
+  }, [count])
+  return ref
+}
+
 export function SummaryPanel({ plan, summary }: { plan: Plan; summary: PlanSummary }) {
   const { t } = useTranslation('board')
   const { overall, credits } = summary
   const label = plan.preset.creditLabel
   const [calculationOpen, setCalculationOpen] = useState(false)
+  const areaListRef = useBalancedColumns(summary.areas.length)
 
   return (
     <aside
@@ -143,9 +174,12 @@ export function SummaryPanel({ plan, summary }: { plan: Plan; summary: PlanSumma
           <CardHeading icon={Layers}>{t('summary.areas')}</CardHeading>
           <span className="text-xs text-zinc-500">{t('summary.areaLegend')}</span>
         </div>
-        {/* As many columns of areas as fit the card's width, each at least 15rem. Two columns in print keep this card
-            as short as the other two. The negative margin puts the scrollbar into the card's padding. */}
-        <ul className="-mr-2 mt-2 grid min-h-0 flex-1 grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] content-start gap-x-6 gap-y-2.5 overflow-y-auto pr-2 max-lg:max-h-72 print:mt-1 print:max-h-none print:grid-cols-2 print:gap-x-4 print:gap-y-1 print:overflow-visible">
+        {/* Evenly filled columns of areas, see useBalancedColumns. Two columns in print keep this card as short as the
+            other two. The negative margin puts the scrollbar into the card's padding. */}
+        <ul
+          ref={areaListRef}
+          className="-mr-2 mt-2 grid min-h-0 flex-1 grid-cols-[repeat(var(--area-columns,1),minmax(0,1fr))] content-start gap-x-6 gap-y-2.5 overflow-y-auto pr-2 max-lg:max-h-72 print:mt-1 print:max-h-none print:grid-cols-2 print:gap-x-4 print:gap-y-1 print:overflow-visible"
+        >
           {summary.areas.map((area) => {
             const planned = area.plannedCredits + area.placeholderCredits
             const hasRange = area.maxCredits !== undefined && area.maxCredits !== area.minCredits
