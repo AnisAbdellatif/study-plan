@@ -4,10 +4,12 @@ import {
   type Preset,
   type PresetArea,
   type PresetModule,
+  presetAreaChoiceSchema,
   presetAreaSchema,
   presetModuleSchema,
 } from '../schema/preset.ts'
 import { creditValueSchema, type GradeRules, gradeRulesSchema, gradeValueSchema } from '../schema/rules.ts'
+import { type AreaChoiceState, heldBackModuleCodes } from './area-choices.ts'
 import { type Term, termSchema } from './terms.ts'
 
 export const attemptSchema = z.object({
@@ -102,6 +104,10 @@ export const planSchema = z
     preset: presetInfoSchema,
     rules: gradeRulesSchema,
     areas: z.array(presetAreaSchema),
+    /** Groups of areas the student picks one of, e.g. the Nebenfach. Missing when the programme has none. */
+    areaChoices: z.array(presetAreaChoiceSchema).optional(),
+    /** Area choice id → id of the area the student picked. */
+    chosenAreas: z.record(z.string(), z.string()).optional(),
     startTerm: termSchema,
     semesters: z.array(planSemesterSchema).min(1).max(20),
     /** Module codes that are not placed in any semester yet ("Nicht eingeplant"). */
@@ -133,8 +139,30 @@ export const planSchema = z
       semesterIds.add(semester.id)
     }
 
-    const placeholderIds = new Set<string>()
     const areaIds = new Set(plan.areas.map((area) => area.id))
+    for (const choice of plan.areaChoices ?? []) {
+      for (const areaId of choice.areaIds) {
+        if (!areaIds.has(areaId)) {
+          ctx.addIssue({
+            code: 'custom',
+            path: ['areaChoices'],
+            message: `Area choice "${choice.id}" refers to unknown area "${areaId}"`,
+          })
+        }
+      }
+    }
+    for (const [choiceId, areaId] of Object.entries(plan.chosenAreas ?? {})) {
+      const choice = plan.areaChoices?.find((item) => item.id === choiceId)
+      if (!choice?.areaIds.includes(areaId)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['chosenAreas'],
+          message: `"${areaId}" is not an area of area choice "${choiceId}"`,
+        })
+      }
+    }
+
+    const placeholderIds = new Set<string>()
     for (const placeholder of plan.placeholders ?? []) {
       if (placeholderIds.has(placeholder.id) || codes.has(placeholder.id)) {
         ctx.addIssue({
@@ -241,13 +269,15 @@ function inferredChoices(modules: readonly PresetModule[], areas: readonly Prese
 }
 
 /**
- * Where modules start in a new plan: their recommended semester, while choices, modules without a recommendation
- * and modules kept only for their results (retired) start unplanned.
+ * Where modules start in a new plan: their recommended semester, while choices, modules without a recommendation,
+ * modules of areas that aren't picked (e.g. every Nebenfach but the chosen one) and modules kept only for their
+ * results (retired) start unplanned.
  */
 function defaultPlacement(
   modules: readonly (PresetModule & { retired?: true; custom?: true })[],
   areas: readonly PresetArea[],
   standardSemesters: number,
+  choiceState: AreaChoiceState,
 ): { semesters: PlanSemester[]; backlog: string[] } {
   const semesters: PlanSemester[] = Array.from({ length: standardSemesters }, (_, index) => ({
     id: `s${index + 1}`,
@@ -256,9 +286,13 @@ function defaultPlacement(
   }))
   const backlog: string[] = []
   const choices = inferredChoices(modules, areas)
+  const heldBack = heldBackModuleCodes(areas, choiceState)
   for (const module of modules) {
     const unplanned =
-      module.retired === true || module.custom === true || (module.elective ?? choices.has(module.code))
+      module.retired === true ||
+      module.custom === true ||
+      heldBack.has(module.code) ||
+      (module.elective ?? choices.has(module.code))
     const target =
       module.typicalSemester === undefined || unplanned ? undefined : semesters[module.typicalSemester - 1]
     if (target) target.moduleCodes.push(module.code)
@@ -283,7 +317,8 @@ export function resetPlan(plan: Plan, options: ResetPlanOptions = {}): Plan {
         .filter((module) => !module.retired)
         .map(({ examDate: _examDate, ...module }) => ({ ...module, attempts: [] }))
     : plan.modules
-  const { semesters, backlog } = defaultPlacement(modules, plan.areas, plan.preset.standardSemesters)
+  // The student's picks, e.g. the Nebenfach, are decisions like the target grade and stay.
+  const { semesters, backlog } = defaultPlacement(modules, plan.areas, plan.preset.standardSemesters, plan)
   return {
     ...withoutTarget,
     ...(options.clearResults || targetGrade === undefined ? {} : { targetGrade }),
@@ -331,7 +366,12 @@ export interface CreatePlanOptions {
  * within the standard duration, otherwise in the backlog.
  */
 export function createPlanFromPreset(preset: Preset, options: CreatePlanOptions): Plan {
-  const { semesters, backlog } = defaultPlacement(preset.modules, preset.areas, preset.standardSemesters)
+  const { semesters, backlog } = defaultPlacement(
+    preset.modules,
+    preset.areas,
+    preset.standardSemesters,
+    preset,
+  )
 
   const timestamp = options.now.toISOString()
   return {
@@ -342,6 +382,7 @@ export function createPlanFromPreset(preset: Preset, options: CreatePlanOptions)
     preset: presetInfoFrom(preset),
     rules: structuredClone(preset.gradeRules),
     areas: structuredClone(preset.areas),
+    ...(preset.areaChoices ? { areaChoices: structuredClone(preset.areaChoices) } : {}),
     startTerm: { ...options.startTerm },
     semesters,
     backlog,

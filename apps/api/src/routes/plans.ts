@@ -54,7 +54,8 @@ export function planRoutes(db: Database) {
     const userId = c.get('user').id
     // Lowering a limit keeps existing plans; it only stops new ones.
     const usage = await planUsage(db, userId)
-    if (usage.count >= usage.limit) return c.json({ error: 'too_many_plans', limit: usage.limit }, 409)
+    if (usage.limit !== null && usage.count >= usage.limit)
+      return c.json({ error: 'too_many_plans', limit: usage.limit }, 409)
 
     const [created] = await db
       .insert(plan)

@@ -1,5 +1,6 @@
 import { toHalves } from '../engine/units.ts'
 import type { PresetArea } from '../schema/preset.ts'
+import { type AreaChoiceState, inactiveAreaIds } from './area-choices.ts'
 import { PlanError, removePlaceholderEntry } from './operations.ts'
 import { isPlaceholderId, PLACEHOLDER_PREFIX, type Placeholder, type Plan, type PlanModule } from './plan.ts'
 
@@ -18,19 +19,26 @@ export interface ChoiceArea {
 }
 
 /**
- * The modules a student picks from, per area. Explicit `elective` flags win when an area has any. Otherwise, in an
- * area with a credit maximum that lists more credits than that, modules without a recommended semester and modules
- * whose semester group exceeds the maximum are options; a compulsory module that fits keeps its semester.
+ * The modules a student picks from, per area. In an area of a choice the student hasn't picked (e.g. a Nebenfach
+ * that isn't the chosen one) every module is an option. Otherwise explicit `elective` flags win when an area has
+ * any. Otherwise, in an area with a credit maximum that lists more credits than that, modules without a recommended
+ * semester and modules whose semester group exceeds the maximum are options; a compulsory module that fits keeps
+ * its semester.
  */
-export function choiceOptionCodes(plan: Pick<Plan, 'modules' | 'areas'>): Map<string, string[]> {
+export function choiceOptionCodes(
+  plan: Pick<Plan, 'modules' | 'areas'> & AreaChoiceState,
+): Map<string, string[]> {
   const byCode = new Map(plan.modules.map((module) => [module.code, module]))
+  const inactive = inactiveAreaIds(plan)
   const result = new Map<string, string[]>()
   for (const area of plan.areas) {
     const members = area.moduleCodes
       .map((code) => byCode.get(code))
       .filter((module): module is PlanModule => module !== undefined && !module.custom && !module.retired)
     let options: PlanModule[]
-    if (members.some((module) => module.elective === true)) {
+    if (inactive.has(area.id)) {
+      options = members
+    } else if (members.some((module) => module.elective === true)) {
       options = members.filter((module) => module.elective === true)
     } else if (area.maxCredits !== undefined) {
       const max = toHalves(area.maxCredits)
@@ -181,6 +189,22 @@ export function choosePlaceholder(plan: Plan, placeholderId: string, moduleCode:
     })),
     backlog: plan.backlog.filter((code) => code !== moduleCode),
   }
+}
+
+/**
+ * Picks the area the student takes for an area choice such as the Nebenfach, or clears the pick with null. Planned
+ * modules stay where they are; validation points out those of areas that are no longer picked.
+ */
+export function chooseArea(plan: Plan, choiceId: string, areaId: string | null): Plan {
+  const choice = plan.areaChoices?.find((item) => item.id === choiceId)
+  if (!choice) throw new PlanError(`Unknown area choice "${choiceId}"`)
+  if (areaId !== null && !choice.areaIds.includes(areaId)) {
+    throw new PlanError(`Area "${areaId}" is not part of area choice "${choiceId}"`)
+  }
+  const { chosenAreas: previous, ...rest } = plan
+  const { [choiceId]: _replaced, ...others } = previous ?? {}
+  const chosenAreas = areaId === null ? others : { ...others, [choiceId]: areaId }
+  return Object.keys(chosenAreas).length > 0 ? { ...rest, chosenAreas } : rest
 }
 
 /** Turns a chosen module back into a placeholder of its area; the module returns to the unplanned modules. */

@@ -66,7 +66,7 @@ export const CHAT_TOOLS: LlmToolDefinition[] = [
   {
     name: 'get_programme_overview',
     description:
-      'The programme itself: university, degree, examination regulations version, standard duration, total credits, exam rules, areas with their credit requirements, and how the final grade is calculated.',
+      'The programme itself: university, degree, examination regulations version, standard duration, total credits, exam rules, areas with their credit requirements, groups of areas a student picks one of (e.g. one Nebenfach, whose compulsory modules only apply once picked), and how the final grade is calculated.',
     parameters: { type: 'object', properties: {}, additionalProperties: false },
   },
 ]

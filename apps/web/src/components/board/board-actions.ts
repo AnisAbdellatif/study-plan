@@ -9,6 +9,8 @@ export interface BoardActions {
   onPlaceArea: PlaceAreaHandler
   /** Opens the option picker for an area without choosing. */
   onBrowseArea: (areaId: string) => void
+  /** Picks the area for an area choice such as the Nebenfach; null clears the pick. */
+  onChooseArea: (choiceId: string, areaId: string | null) => void
   /** Opens the option picker to replace a placeholder. */
   onChoose: (placeholderId: string) => void
   onRemovePlaceholder: (placeholderId: string) => void

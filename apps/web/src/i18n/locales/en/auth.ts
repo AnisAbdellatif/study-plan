@@ -107,6 +107,8 @@ export const auth = {
     plans: {
       title: 'Your plans',
       usage: '{{used}} of {{limit}} plans in use.',
+      usageUnlimited_one: '{{count}} plan. As an admin you have no limit.',
+      usageUnlimited_other: '{{count}} plans. As an admin you have no limit.',
       loadError: "Your plans couldn't be loaded.",
       empty: 'No plan in your account yet.',
       open: 'open in this browser',

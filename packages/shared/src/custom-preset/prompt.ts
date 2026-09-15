@@ -302,6 +302,14 @@ Look in the PO, its annexes and the Studienverlaufsplan for a Praktikum (Betrieb
 
 The areas of the programme with their credit requirements (Kompetenzbereiche, Studienbereiche, Pflicht- and Wahlpflichtbereiche, Schlüsselkompetenzen, Abschlussarbeit). \`id\`: lowercase letters, digits and dashes. \`minCredits\` and \`maxCredits\`: the credits required from the area; omit \`maxCredits\` if there is no upper limit. \`moduleCodes\`: the codes of all modules in the area. For choice lists, \`minCredits\` and \`maxCredits\` are the credits the student must choose, not the total of all listed modules (e.g. one 5 LP Proseminar out of 14 gives an area with maxCredits 5, or 10 together with a compulsory 5 LP module).
 
+## Choosing one of several areas (\`areaChoices\`)
+
+Some programmes let the student take exactly one of several areas, most often one Nebenfach (minor subject) out of a list, sometimes one Schwerpunkt or Anwendungsfach. Model each option as its own area with its own credit requirement and modules, and list the options together in one entry of \`areaChoices\`: {"id": "nebenfach", "name": "Nebenfach", "areaIds": ["nebenfach-physik", "nebenfach-bwl"]}. Set \`optional\` to true only if the student may also take none of them.
+
+- The planner applies an option's credit requirement and its compulsory modules only after the student picks it, so give each option area the credits the PO requires once it is chosen.
+- A module that is compulsory (Pflicht) within one option is a compulsory module of that option's area: omit \`elective\` for it. Set \`elective\` true only for modules the student picks among alternatives inside that option.
+- An area belongs to at most one entry of \`areaChoices\`. Areas every student takes are never listed.
+
 # Grade calculation (\`gradeRules\`)
 
 This is the most important part. Read the PO paragraph on the Gesamtnote (often "Bildung der Noten", "Bewertung", "Gesamtnote") and any annex with weights.

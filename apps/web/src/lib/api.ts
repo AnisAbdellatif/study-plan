@@ -21,7 +21,8 @@ export interface StoredPlan extends PlanSummary {
 /** The account's plans and how many it may keep. */
 export interface PlanOverview {
   plans: PlanSummary[]
-  limit: number
+  /** Null for admins, who may keep any number of plans. */
+  limit: number | null
 }
 
 export class ApiError extends Error {

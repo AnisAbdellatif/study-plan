@@ -38,6 +38,12 @@ export const issues = {
   alternativesConflictCard: 'Only one of the alternatives is possible',
   areaBelowMinimum: '{{area}}: {{planned}} planned out of at least {{min}}.',
   areaAboveMaximum: '{{area}}: {{planned}} planned, but at most {{max}} are allowed.',
+  areaChoiceMissing:
+    '{{choice}}: nothing picked yet. Pick one of its areas under “Not planned” so its compulsory modules and credits count.',
+  areaChoiceConflict:
+    '{{choice}}: you picked {{chosen}}, but modules from {{areas}} are planned too. They don’t count for it.',
+  areaChoiceConflictUnchosen:
+    '{{choice}}: modules from {{areas}} are planned. Under the examination regulations you pick only one of these areas.',
   recognitionPlanned: 'You plan to have {{name}} recognised. Apply to the examination office in good time.',
   recognitionRequested:
     'Recognition of {{name}} has been requested. Its credits don’t count until it’s decided.',

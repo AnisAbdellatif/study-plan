@@ -4,6 +4,7 @@ import {
   addPlaceholder,
   analyzeWhatIf,
   type CustomModuleInput,
+  chooseArea,
   choosePlaceholder,
   createIcs,
   creditRequirements,
@@ -237,6 +238,15 @@ function Board({ plan }: { plan: Plan }) {
     onDetails: setDetailsCode,
     onPlaceArea: placeArea,
     onBrowseArea: (areaId) => setPicker({ mode: 'browse', areaId }),
+    onChooseArea: (choiceId, areaId) => {
+      const choice = plan.areaChoices?.find((item) => item.id === choiceId)
+      if (!choice || !apply((current) => chooseArea(current, choiceId, areaId))) return
+      announce(
+        areaId === null
+          ? t('announce.areaPickCleared', { choice: choice.name })
+          : t('announce.areaPicked', { area: areaName(areaId), choice: choice.name }),
+      )
+    },
     onChoose: (placeholderId) => setPicker({ mode: 'choose', placeholderId }),
     onRemovePlaceholder: (placeholderId) => {
       const area = placeholderAreaName(plan, placeholderId) ?? placeholderId

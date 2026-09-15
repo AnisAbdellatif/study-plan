@@ -615,7 +615,9 @@ function AccountPlans() {
       ) : (
         <>
           <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            {t('account.plans.usage', { used: overview.plans.length, limit: overview.limit })}
+            {overview.limit === null
+              ? t('account.plans.usageUnlimited', { count: overview.plans.length })
+              : t('account.plans.usage', { used: overview.plans.length, limit: overview.limit })}
           </p>
           {overview.plans.length === 0 ? (
             <p className="text-sm">{t('account.plans.empty')}</p>

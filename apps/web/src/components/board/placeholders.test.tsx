@@ -129,6 +129,50 @@ describe('choice area tiles', () => {
   })
 })
 
+describe('area choices', () => {
+  /** The two Vertiefung areas as a choice of one, the way a programme offers its Nebenfächer. */
+  const planWithChoice = (): Plan =>
+    createPlanFromPreset(
+      {
+        ...luhPreset,
+        areaChoices: [
+          {
+            id: 'schwerpunkt',
+            name: 'Schwerpunkt',
+            areaIds: ['vertiefung-informatik', 'vertiefung-informationstechnik'],
+          },
+        ],
+      },
+      { id: 'plan-test', startTerm: { season: 'winter', year: 2026 }, now: new Date('2026-09-13T10:00:00Z') },
+    )
+
+  it('groups the areas under the choice, keeps only the picked one and clears the pick', async () => {
+    const { user, store } = renderBoard(planWithChoice())
+    const backlog = await screen.findByRole('region', { name: /^Nicht eingeplant/ })
+    expect(within(backlog).queryByRole('list', { name: 'Wahlbereiche' })).not.toBeInTheDocument()
+    const group = () => within(backlog).getByRole('list', { name: 'Schwerpunkt' })
+    expect(cardNames(group())).toEqual(['Vertiefung der Informatik', 'Vertiefung der Informationstechnik'])
+
+    await user.click(
+      within(group()).getByRole('button', { name: 'Vertiefung der Informatik wählen (Schwerpunkt)' }),
+    )
+    await waitFor(() =>
+      expect(store.getState().plan?.chosenAreas).toEqual({ schwerpunkt: 'vertiefung-informatik' }),
+    )
+    expect(await screen.findByText('Vertiefung der Informatik als Schwerpunkt gewählt')).toBeInTheDocument()
+    const picked = within(group()).getAllByTestId('choice-area-tile')
+    expect(picked).toHaveLength(1)
+    expect(picked[0]).toHaveTextContent(/Vertiefung der Informatik\s*Gewählt/)
+    expect(within(group()).queryByRole('button', { name: /wählen \(Schwerpunkt\)/ })).not.toBeInTheDocument()
+
+    await user.click(within(group()).getByRole('button', { name: 'Aktionen für Vertiefung der Informatik' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Wahl aufheben' }))
+    await waitFor(() => expect(store.getState().plan?.chosenAreas).toBeUndefined())
+    expect(within(group()).getAllByTestId('choice-area-tile')).toHaveLength(2)
+    expect(await screen.findByText('Wahl für Schwerpunkt aufgehoben')).toBeInTheDocument()
+  })
+})
+
 describe('placeholder cards', () => {
   it('narrows the options with the search and replaces the placeholder in place', async () => {
     const { user, store } = renderBoard(planWithPlaceholder())

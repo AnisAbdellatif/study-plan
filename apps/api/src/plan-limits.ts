@@ -30,9 +30,22 @@ export async function setGlobalPlanLimit(db: Database, limit: number): Promise<v
     .onConflictDoUpdate({ target: appSetting.key, set: { value: limit, updatedAt: new Date() } })
 }
 
-/** The account's own limit if an admin set one, otherwise the global value; and how many plans it has. */
-export async function planUsage(db: Database, userId: string): Promise<{ limit: number; count: number }> {
-  const [row] = await db.select({ planLimit: user.planLimit }).from(user).where(eq(user.id, userId))
+/**
+ * How many plans the account has, and how many it may keep: null for admins, who have no limit; otherwise the
+ * account's own limit if an admin set one, or the global value.
+ */
+export async function planUsage(
+  db: Database,
+  userId: string,
+): Promise<{ limit: number | null; count: number }> {
+  const [row] = await db
+    .select({ planLimit: user.planLimit, role: user.role })
+    .from(user)
+    .where(eq(user.id, userId))
   const [counted] = await db.select({ value: count() }).from(plan).where(eq(plan.userId, userId))
-  return { limit: row?.planLimit ?? (await globalPlanLimit(db)), count: counted?.value ?? 0 }
+  const unlimited = row?.role === 'admin' || row?.role === 'superadmin'
+  return {
+    limit: unlimited ? null : (row?.planLimit ?? (await globalPlanLimit(db))),
+    count: counted?.value ?? 0,
+  }
 }

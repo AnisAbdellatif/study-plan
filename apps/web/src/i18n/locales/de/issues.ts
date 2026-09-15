@@ -35,6 +35,12 @@ export const issues = {
   alternativesConflictCard: 'Nur eine der Alternativen möglich',
   areaBelowMinimum: '{{area}}: {{planned}} von mindestens {{min}} eingeplant.',
   areaAboveMaximum: '{{area}}: {{planned}} eingeplant, vorgesehen sind höchstens {{max}}.',
+  areaChoiceMissing:
+    '{{choice}}: noch keine Wahl getroffen. Wähle unter „Nicht eingeplant“ einen der Bereiche, dann zählen seine Pflichtmodule und Leistungspunkte.',
+  areaChoiceConflict:
+    '{{choice}}: Gewählt ist {{chosen}}, eingeplant sind aber auch Module aus {{areas}}. Diese zählen dafür nicht.',
+  areaChoiceConflictUnchosen:
+    '{{choice}}: Module aus {{areas}} sind eingeplant. Laut Prüfungsordnung wählst du nur einen dieser Bereiche.',
   recognitionPlanned: '{{name}} soll anerkannt werden. Stell den Antrag rechtzeitig beim Prüfungsamt.',
   recognitionRequested:
     'Die Anerkennung von {{name}} ist beantragt. Bis zur Entscheidung zählen die Leistungspunkte noch nicht.',

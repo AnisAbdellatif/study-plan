@@ -78,6 +78,15 @@ export function PresetPreview({ preset, warnings }: { preset: Preset; warnings: 
       ),
     })
   }
+  for (const choice of preset.areaChoices ?? []) {
+    const names = choice.areaIds.map((id) => preset.areas.find((area) => area.id === id)?.name ?? id)
+    rows.push({
+      label: choice.name,
+      value: t(choice.optional ? 'preview.areaChoiceOptional' : 'preview.areaChoice', {
+        areas: names.join(', '),
+      }),
+    })
+  }
   rows.push({ label: t('preview.rounding'), value: describeRounding(preset.gradeRules.finalRounding) })
   if (examLines.length > 0) {
     rows.push({

@@ -1,6 +1,7 @@
 import { computeOverall, type OverallResult } from '../engine/compute.ts'
 import { isModulePassed } from '../engine/progress.ts'
 import { toHalves } from '../engine/units.ts'
+import { inactiveAreaIds } from './area-choices.ts'
 import { placeholderCredits } from './placeholders.ts'
 import { type Plan, type PlanSemester, planGradeRules } from './plan.ts'
 import { addTerms, formatTerm, type Term } from './terms.ts'
@@ -61,6 +62,7 @@ export function summarizePlan(plan: Plan): PlanSummary {
   }
 
   const estimates = placeholderCredits(plan)
+  const inactive = inactiveAreaIds(plan)
 
   return {
     overall: computeOverall(planGradeRules(plan), plan.modules),
@@ -82,17 +84,26 @@ export function summarizePlan(plan: Plan): PlanSummary {
         load: loadFor(credits + estimated, semester.kind),
       }
     }),
-    areas: plan.areas.map((area) => ({
-      id: area.id,
-      name: area.name,
-      minCredits: area.minCredits,
-      maxCredits: area.maxCredits,
-      earnedCredits: sum(area.moduleCodes.filter((code) => passed.has(code))),
-      plannedCredits: sum(area.moduleCodes.filter((code) => placed.has(code))),
-      placeholderCredits:
-        (plan.placeholders ?? [])
-          .filter((placeholder) => placeholder.areaId === area.id)
-          .reduce((total, placeholder) => total + toHalves(estimates.get(placeholder.id) ?? 0), 0) / 2,
-    })),
+    areas: plan.areas
+      .map((area) => ({
+        id: area.id,
+        name: area.name,
+        minCredits: area.minCredits,
+        maxCredits: area.maxCredits,
+        earnedCredits: sum(area.moduleCodes.filter((code) => passed.has(code))),
+        plannedCredits: sum(area.moduleCodes.filter((code) => placed.has(code))),
+        placeholderCredits:
+          (plan.placeholders ?? [])
+            .filter((placeholder) => placeholder.areaId === area.id)
+            .reduce((total, placeholder) => total + toHalves(estimates.get(placeholder.id) ?? 0), 0) / 2,
+      }))
+      // Areas of a choice the student didn't pick, e.g. the other Nebenfächer, only show while they hold something.
+      .filter(
+        (area) =>
+          !inactive.has(area.id) ||
+          area.earnedCredits > 0 ||
+          area.plannedCredits > 0 ||
+          area.placeholderCredits > 0,
+      ),
   }
 }

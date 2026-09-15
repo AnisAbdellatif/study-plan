@@ -1,4 +1,11 @@
-import type { ChoiceArea, Plan, PlanModule, PlanSemester, SemesterLoad } from '@study-plan/shared'
+import type {
+  AreaChoiceStatus,
+  ChoiceArea,
+  Plan,
+  PlanModule,
+  PlanSemester,
+  SemesterLoad,
+} from '@study-plan/shared'
 import {
   ArrowLeft,
   ArrowLeftToLine,
@@ -165,6 +172,8 @@ export interface SemesterColumnProps {
   column: ColumnModel
   /** Choice areas, shown as tiles in the backlog only. */
   choices?: readonly ChoiceArea[]
+  /** Area choices such as the Nebenfach, shown with the tiles in the backlog only. */
+  areaChoices?: readonly AreaChoiceStatus[]
   passThreshold: number
   creditLabel: string
   showCode: boolean
@@ -178,11 +187,13 @@ export interface SemesterColumnProps {
 }
 
 const NO_CHOICES: readonly ChoiceArea[] = []
+const NO_AREA_CHOICES: readonly AreaChoiceStatus[] = []
 
 /** Memoised: the board keeps a column's props identical while nothing in it changed. */
 export const SemesterColumn = memo(function SemesterColumn({
   column,
   choices = NO_CHOICES,
+  areaChoices = NO_AREA_CHOICES,
   passThreshold,
   creditLabel,
   showCode,
@@ -234,8 +245,8 @@ export const SemesterColumn = memo(function SemesterColumn({
         // typical plan fits without scrolling; below the minimum width (many semesters) the board scrolls again.
         'print:w-[calc(33.333%-0.5rem)]! print:max-w-none! print:max-h-none print:break-inside-avoid relative flex w-[85vw] sm:max-h-[calc(100dvh-2rem)] max-w-sm shrink-0 snap-start flex-col rounded-xl p-2 transition-colors sm:w-[calc((100%-0.75rem)/2)] md:w-[calc((100%-1.5rem)/3)] xl:w-auto xl:max-w-none xl:min-w-40 xl:basis-0',
         // cn does not merge Tailwind classes, so each column gets exactly one flex-grow value.
-        // The not-planned column is only as tall as its content; semesters stretch so their whole height is a drop zone.
-        isBacklog ? 'sm:self-start xl:flex-[1.2]' : 'xl:flex-1',
+        // Every column, the not-planned one included, stretches to the tallest, so the whole height is a drop zone.
+        isBacklog ? 'xl:flex-[1.2]' : 'xl:flex-1',
         // Likewise exactly one background and ring per state: drop target, current semester, backlog, other semesters.
         isOver
           ? 'bg-indigo-100 ring-2 ring-indigo-500 dark:bg-indigo-900/40 dark:ring-indigo-400'
@@ -330,9 +341,10 @@ export const SemesterColumn = memo(function SemesterColumn({
         </p>
       </header>
 
-      {isBacklog && choices.length > 0 ? (
+      {isBacklog && (choices.length > 0 || areaChoices.length > 0) ? (
         <ChoiceAreaTiles
           choices={choices}
+          areaChoices={areaChoices}
           creditLabel={creditLabel}
           destinations={semesterDestinations}
           actions={actions}

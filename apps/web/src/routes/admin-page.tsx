@@ -458,8 +458,17 @@ function Accounts({ viewer, selfEmail, version, onChanged }: SectionProps) {
                       {user.lastActiveAt ? format().date.format(new Date(user.lastActiveAt)) : '–'}
                     </td>
                     <td className="px-2 py-2 text-right tabular-nums">
-                      {user.plans} / {user.planLimit ?? defaultLimit ?? '–'}
-                      {user.planLimit !== null ? (
+                      {/* Admins keep any number of plans, whatever limit is stored for them. */}
+                      {isAdminRole(user.role) ? (
+                        <span title={t('planLimits.adminUnlimited')}>
+                          {user.plans} / ∞<span className="sr-only"> ({t('planLimits.unlimited')})</span>
+                        </span>
+                      ) : (
+                        <>
+                          {user.plans} / {user.planLimit ?? defaultLimit ?? '–'}
+                        </>
+                      )}
+                      {user.planLimit !== null && !isAdminRole(user.role) ? (
                         <span className="ml-1 text-xs text-zinc-600 dark:text-zinc-400">
                           {t('planLimits.custom')}
                         </span>

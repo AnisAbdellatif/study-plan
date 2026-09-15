@@ -338,6 +338,25 @@ describe('plans', () => {
     expect((await call(`/api/plans/${created.id}`, { cookie })).status).toBe(404)
   })
 
+  it('lets admins and superadmins keep any number of plans', async () => {
+    for (const role of ['admin', 'superadmin'] as const) {
+      const email = `unlimited-${role}@example.org`
+      const account = await registerVerifiedUser(email)
+      await connection.db.update(userTable).set({ role, planLimit: 1 }).where(eq(userTable.email, email))
+      for (let index = 0; index < 6; index++) {
+        const created = await call('/api/plans', {
+          method: 'POST',
+          cookie: account,
+          body: { document: planDocument() },
+        })
+        expect(created.status).toBe(201)
+      }
+      expect(await json(await call('/api/plans', { cookie: account }))).toMatchObject({ limit: null })
+      // Later suites expect no superadmin yet.
+      await connection.db.update(userTable).set({ role: 'user' }).where(eq(userTable.email, email))
+    }
+  })
+
   it('allows 4 plans by default; admins change the global and the per-account limit', async () => {
     const adminEmail = 'limits-admin@example.org'
     const admin = await registerVerifiedUser(adminEmail)

@@ -111,7 +111,9 @@ export function diffPresetUpdate(plan: Plan, preset: Preset): PresetDiff {
     changed,
     info: infoChanged,
     rulesChanged: !same(plan.rules, preset.gradeRules),
-    areasChanged: !same(withoutCustomCodes(plan), preset.areas),
+    areasChanged:
+      !same(withoutCustomCodes(plan), preset.areas) ||
+      !same(plan.areaChoices ?? [], preset.areaChoices ?? []),
     targetGradeCleared:
       plan.targetGrade !== undefined && !preset.gradeRules.allowedValues.includes(plan.targetGrade),
   }
@@ -190,8 +192,20 @@ export function applyPresetUpdate(plan: Plan, preset: Preset): Plan {
         .map((module) => module.code),
     ],
   }))
-  const { targetGrade, placeholders: _placeholders, ...rest } = plan
+  const {
+    targetGrade,
+    placeholders: _placeholders,
+    areaChoices: _areaChoices,
+    chosenAreas: previousPicks,
+    ...rest
+  } = plan
   const keepTarget = targetGrade !== undefined && preset.gradeRules.allowedValues.includes(targetGrade)
+  // A pick such as the Nebenfach stays while its choice still offers that area.
+  const chosenAreas = Object.fromEntries(
+    Object.entries(previousPicks ?? {}).filter(([choiceId, areaId]) =>
+      preset.areaChoices?.some((choice) => choice.id === choiceId && choice.areaIds.includes(areaId)),
+    ),
+  )
 
   return {
     ...rest,
@@ -199,6 +213,8 @@ export function applyPresetUpdate(plan: Plan, preset: Preset): Plan {
     preset: presetInfoFrom(preset),
     rules: structuredClone(preset.gradeRules),
     areas,
+    ...(preset.areaChoices ? { areaChoices: structuredClone(preset.areaChoices) } : {}),
+    ...(Object.keys(chosenAreas).length > 0 ? { chosenAreas } : {}),
     ...(placeholders.length > 0 ? { placeholders } : {}),
     semesters: plan.semesters.map((semester) => ({
       ...semester,
