@@ -176,6 +176,9 @@ function RoleBadge({ role }: { role: UserRole }) {
   )
 }
 
+/** Admins and the superadmin always ask the study assistant without the daily limit, see apps/api/src/chat/settings.ts. */
+const isAdminRole = (role: UserRole) => role === 'admin' || role === 'superadmin'
+
 /**
  * What the viewer may do with an account, mirroring the API: nobody touches the superadmin or their own account,
  * and only the superadmin manages admins.
@@ -436,7 +439,9 @@ function Accounts({ viewer, selfEmail, version, onChanged }: SectionProps) {
                       <span className="block text-xs text-zinc-600 dark:text-zinc-400">
                         {user.emailVerified ? t('accounts.verified') : t('accounts.unverified')}
                         {user.reminders ? ` · ${t('accounts.remindersOn')}` : ''}
-                        {user.unlimitedChat ? ` · ${t('accounts.unlimitedChat')}` : ''}
+                        {user.unlimitedChat || isAdminRole(user.role)
+                          ? ` · ${t('accounts.unlimitedChat')}`
+                          : ''}
                         {access === 'self' ? ` · ${t('accounts.self')}` : ''}
                       </span>
                     </td>
@@ -477,16 +482,19 @@ function Accounts({ viewer, selfEmail, version, onChanged }: SectionProps) {
                           <ActionButton disabled={busy} onClick={() => setLimitFor(user)}>
                             {t('accounts.actions.planLimit')}
                           </ActionButton>
-                          <ActionButton
-                            disabled={busy || chatToggling !== null}
-                            onClick={() => void toggleUnlimitedChat(user)}
-                          >
-                            {t(
-                              user.unlimitedChat
-                                ? 'accounts.actions.revokeUnlimitedChat'
-                                : 'accounts.actions.grantUnlimitedChat',
-                            )}
-                          </ActionButton>
+                          {/* Admins always ask without the limit, so the switch is only for students. */}
+                          {isAdminRole(user.role) ? null : (
+                            <ActionButton
+                              disabled={busy || chatToggling !== null}
+                              onClick={() => void toggleUnlimitedChat(user)}
+                            >
+                              {t(
+                                user.unlimitedChat
+                                  ? 'accounts.actions.revokeUnlimitedChat'
+                                  : 'accounts.actions.grantUnlimitedChat',
+                              )}
+                            </ActionButton>
+                          )}
                           <ActionButton disabled={busy} onClick={() => request({ user, action: 'sign_out' })}>
                             {t('accounts.actions.signOut')}
                           </ActionButton>

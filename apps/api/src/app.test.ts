@@ -442,6 +442,16 @@ describe('plans', () => {
       expect(invalid.status).toBe(400)
     }
     await call('/api/admin/settings', { method: 'PUT', cookie: admin, body: { maxPlansPerUser: 4 } })
+
+    // Admins ask the assistant without the daily limit by default; students keep it unless it is lifted.
+    expect(await json(await call('/api/chat/status', { cookie: admin }))).toMatchObject({
+      unlimited: true,
+      remaining: null,
+    })
+    expect(await json(await call('/api/chat/status', { cookie: student }))).toMatchObject({
+      unlimited: false,
+      remaining: 20,
+    })
     // Leave no extra admin behind for the admin tests further down.
     await connection.db.update(userTable).set({ role: 'user' }).where(eq(userTable.email, adminEmail))
   })

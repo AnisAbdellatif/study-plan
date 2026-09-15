@@ -65,10 +65,14 @@ export async function chatMessagesToday(db: Database, userId: string, now = new 
   return row?.count ?? 0
 }
 
-/** Whether an admin lifted the daily limit for this account. */
+/** Whether the account asks without the daily limit: admins always, others when an admin lifted it for them. */
 export async function hasUnlimitedChat(db: Database, userId: string): Promise<boolean> {
-  const [row] = await db.select({ unlimitedChat: user.unlimitedChat }).from(user).where(eq(user.id, userId))
-  return row?.unlimitedChat ?? false
+  const [row] = await db
+    .select({ unlimitedChat: user.unlimitedChat, role: user.role })
+    .from(user)
+    .where(eq(user.id, userId))
+  if (!row) return false
+  return row.unlimitedChat || row.role === 'admin' || row.role === 'superadmin'
 }
 
 /**
