@@ -134,15 +134,18 @@ export function SummaryPanel({ plan, summary }: { plan: Plan; summary: PlanSumma
       <section
         className={cn(
           cardClass,
-          'col-span-2 lg:col-span-1 lg:col-start-2 lg:row-span-2 lg:row-start-1 print:col-span-1 print:col-start-auto print:row-span-1 print:row-start-auto print:p-2.5 print:shadow-none',
+          // From lg the card's content doesn't size the rows (contain-size): it takes the height of the two stacked
+          // cards and its list scrolls. Narrower screens cap the list instead.
+          'col-span-2 flex flex-col lg:col-span-1 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:contain-size print:col-span-1 print:col-start-auto print:row-span-1 print:row-start-auto print:p-2.5 print:shadow-none',
         )}
       >
         <div className="flex items-center justify-between gap-2">
           <CardHeading icon={Layers}>{t('summary.areas')}</CardHeading>
           <span className="text-xs text-zinc-500">{t('summary.areaLegend')}</span>
         </div>
-        {/* Two columns of areas in print keep this card as short as the other two. */}
-        <ul className="mt-2 space-y-2.5 print:mt-1 print:grid print:grid-cols-2 print:gap-x-4 print:gap-y-1 print:space-y-0">
+        {/* Two columns of areas in print keep this card as short as the other two. The negative margin puts the
+            scrollbar into the card's padding. */}
+        <ul className="-mr-2 mt-2 min-h-0 flex-1 space-y-2.5 overflow-y-auto pr-2 max-lg:max-h-72 print:mt-1 print:grid print:max-h-none print:grid-cols-2 print:gap-x-4 print:gap-y-1 print:space-y-0 print:overflow-visible">
           {summary.areas.map((area) => {
             const planned = area.plannedCredits + area.placeholderCredits
             const hasRange = area.maxCredits !== undefined && area.maxCredits !== area.minCredits
