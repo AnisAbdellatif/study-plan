@@ -75,8 +75,9 @@ function CreditBar({
 const AREA_MIN_WIDTH_REM = 15
 
 /**
- * Stores the area list's column count as --area-columns: as many columns as fit, evened out so every row is about
- * as full as the others, e.g. 8 areas with room for 7 columns become 4 × 2 instead of 7 + 1.
+ * Stores the area list's column count as --area-columns. The areas first fill the list's height: as many rows as
+ * fit, and only as many columns as those rows need (never more than fit the width). Then rows and columns are
+ * evened out, e.g. 8 areas with room for 4 rows become 2 × 4, and with room for 3 rows 3 + 3 + 2.
  */
 function useBalancedColumns(count: number) {
   const ref = useRef<HTMLUListElement>(null)
@@ -85,12 +86,23 @@ function useBalancedColumns(count: number) {
     if (!list || typeof ResizeObserver === 'undefined') return
     const px = (value: string) => Number.parseFloat(value) || 0
     const update = () => {
+      const item = list.firstElementChild as HTMLElement | null
+      // Hidden (e.g. in a phone tab that isn't open): measured again once it shows.
+      if (!item || item.offsetHeight === 0) return
       const style = getComputedStyle(list)
-      const gap = px(style.columnGap)
       const rem = px(getComputedStyle(document.documentElement).fontSize) || 16
+      const columnGap = px(style.columnGap)
+      const rowGap = px(style.rowGap)
       const width = list.clientWidth - px(style.paddingLeft) - px(style.paddingRight)
-      const fit = Math.max(1, Math.floor((width + gap) / (AREA_MIN_WIDTH_REM * rem + gap)))
-      const rows = Math.max(1, Math.ceil(count / fit))
+      // A capped list grows with its content, so the cap is the room; otherwise the card gives the list its height.
+      const height =
+        (style.maxHeight === 'none' ? list.clientHeight : px(style.maxHeight)) -
+        px(style.paddingTop) -
+        px(style.paddingBottom)
+      const fitColumns = Math.max(1, Math.floor((width + columnGap) / (AREA_MIN_WIDTH_REM * rem + columnGap)))
+      const fitRows = Math.max(1, Math.floor((height + rowGap) / (item.offsetHeight + rowGap)))
+      const columns = Math.min(fitColumns, Math.max(1, Math.ceil(count / fitRows)))
+      const rows = Math.max(1, Math.ceil(count / columns))
       list.style.setProperty('--area-columns', String(Math.max(1, Math.ceil(count / rows))))
     }
     update()
