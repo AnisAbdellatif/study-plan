@@ -76,7 +76,7 @@ export const board = {
     unavailable: 'The study assistant is not available right now.',
     consentTitle: 'Before you start',
     consentText:
-      'Your questions and the programme data of your plan (modules, module catalogue descriptions, examination rules) go to a language model through OpenRouter. Your grades, results, exam dates, target average and account details are never sent. Please don’t put personal information in your questions.',
+      'Your questions and the programme data of your plan (modules, module catalogue descriptions, examination rules) go to a language model through OpenRouter. OpenRouter is based in the USA, and the model’s provider may also be outside the EU, where data protection may not match the EU’s. Your grades, results, exam dates, target average and account details are never sent. Please don’t put personal information in your questions.',
     privacyLink: 'More in the privacy policy',
     consentAccept: 'Got it, use the assistant',
     inputLabel: 'Your question',

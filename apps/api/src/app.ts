@@ -12,6 +12,7 @@ import { UNSUBSCRIBE_PATH } from './reminders.ts'
 import { accountRoutes } from './routes/account.ts'
 import { adminRoutes, requireAdmin } from './routes/admin.ts'
 import { chatRoutes } from './routes/chat.ts'
+import { contactRoutes } from './routes/contact.ts'
 import { notificationSettingsRoutes, unsubscribeRoutes } from './routes/notifications.ts'
 import { planRoutes } from './routes/plans.ts'
 import { presetRoutes } from './routes/presets.ts'
@@ -116,6 +117,8 @@ export function createApp({ config, db, auth, mailer, llm, staticFiles }: AppDep
       describeModel: llm?.describeModel?.bind(llm),
     }),
   )
+  // Public: the contact form, limited per client.
+  app.route('/api/contact', contactRoutes(config, mailer))
   app.all('/api/*', (c) => c.json({ error: 'not_found' }, 404))
 
   if (staticFiles) {

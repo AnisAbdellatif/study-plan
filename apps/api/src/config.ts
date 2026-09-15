@@ -20,6 +20,11 @@ const envSchema = z.object({
   /** SMTP connection URL, e.g. smtps://user:password@mail.example.org:465. Without it, e-mails are only logged. */
   SMTP_URL: z.string().min(1).optional(),
   MAIL_FROM: z.string().min(3).default('Study Plan <noreply@localhost>'),
+  /** The mailbox the contact form writes to. Replies go straight to the sender through Reply-To. */
+  CONTACT_EMAIL: z.preprocess(
+    (value) => (value === '' ? undefined : value),
+    z.email().default('contact@study-plan.de'),
+  ),
   /** Directory with the built web app. When set, the API serves it as well. */
   WEB_DIST: z.string().min(1).optional(),
   /**
@@ -56,6 +61,7 @@ export interface Config {
   authSecret: string
   smtpUrl: string | undefined
   mailFrom: string
+  contactEmail: string
   webDist: string | undefined
   ipAddressHeaders: string[] | undefined
   /** 0 when reminders are off. */
@@ -95,6 +101,7 @@ export function loadConfig(source: Record<string, string | undefined> = process.
     authSecret: env.BETTER_AUTH_SECRET ?? DEVELOPMENT_SECRET,
     smtpUrl: env.SMTP_URL,
     mailFrom: env.MAIL_FROM,
+    contactEmail: env.CONTACT_EMAIL,
     webDist: env.WEB_DIST,
     ipAddressHeaders: env.IP_ADDRESS_HEADER?.split(',').map((header) => header.trim().toLowerCase()),
     reminderIntervalMinutes: env.REMINDER_INTERVAL_MINUTES,

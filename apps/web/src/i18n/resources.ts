@@ -2,6 +2,7 @@ import { admin as deAdmin } from './locales/de/admin.ts'
 import { auth as deAuth } from './locales/de/auth.ts'
 import { board as deBoard } from './locales/de/board.ts'
 import { common as deCommon } from './locales/de/common.ts'
+import { contact as deContact } from './locales/de/contact.ts'
 import { customPreset as deCustomPreset } from './locales/de/customPreset.ts'
 import { dialogs as deDialogs } from './locales/de/dialogs.ts'
 import { issues as deIssues } from './locales/de/issues.ts'
@@ -12,6 +13,7 @@ import { admin as enAdmin } from './locales/en/admin.ts'
 import { auth as enAuth } from './locales/en/auth.ts'
 import { board as enBoard } from './locales/en/board.ts'
 import { common as enCommon } from './locales/en/common.ts'
+import { contact as enContact } from './locales/en/contact.ts'
 import { customPreset as enCustomPreset } from './locales/en/customPreset.ts'
 import { dialogs as enDialogs } from './locales/en/dialogs.ts'
 import { issues as enIssues } from './locales/en/issues.ts'
@@ -35,6 +37,7 @@ export const resources = {
     sharedPlan: deSharedPlan,
     admin: deAdmin,
     legal: deLegal,
+    contact: deContact,
   },
   en: {
     common: enCommon,
@@ -47,6 +50,7 @@ export const resources = {
     sharedPlan: enSharedPlan,
     admin: enAdmin,
     legal: enLegal,
+    contact: enContact,
   },
 }
 

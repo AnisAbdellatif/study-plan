@@ -88,13 +88,31 @@ describe('admin roles in the dashboard', () => {
     const accounts = screen.getByRole('region', { name: 'Konten' })
     await waitFor(() => expect(within(accounts).getByText('studi@example.org')).toBeInTheDocument())
 
+    const studentAdmin = within(rowOf(accounts, 'studi@example.org')).getByRole('checkbox', {
+      name: 'Adminrechte für studi@example.org',
+    })
+    expect(studentAdmin).not.toBeChecked()
+    expect(studentAdmin).toBeEnabled()
     expect(
-      within(rowOf(accounts, 'studi@example.org')).getByRole('button', { name: 'Zum Admin machen' }),
-    ).toBeVisible()
-    expect(
-      within(rowOf(accounts, 'admin@example.org')).getByRole('button', { name: 'Adminrechte entziehen' }),
-    ).toBeVisible()
-    expect(within(rowOf(accounts, 'chef@example.org')).queryAllByRole('button')).toEqual([])
+      within(rowOf(accounts, 'admin@example.org')).getByRole('checkbox', {
+        name: 'Adminrechte für admin@example.org',
+      }),
+    ).toBeChecked()
+    // Admins always have the assistant without a limit; that box can't be changed.
+    const adminChat = within(rowOf(accounts, 'admin@example.org')).getByRole('checkbox', {
+      name: 'Assistent ohne Tageslimit für admin@example.org',
+    })
+    expect(adminChat).toBeChecked()
+    expect(adminChat).toBeDisabled()
+    const chefRow = within(rowOf(accounts, 'chef@example.org'))
+    expect(chefRow.queryAllByRole('button')).toEqual([])
+    for (const box of chefRow.getAllByRole('checkbox')) expect(box).toBeDisabled()
+
+    // Ticking the box asks before granting admin rights.
+    await user.click(studentAdmin)
+    const confirm = await screen.findByRole('alertdialog', { name: 'Adminrechte vergeben?' })
+    await user.click(within(confirm).getByRole('button', { name: 'Abbrechen' }))
+    expect(studentAdmin).not.toBeChecked()
 
     await user.type(within(team).getByLabelText('E-Mail-Adresse'), 'Neu@example.org')
     await user.type(within(team).getByLabelText('Startpasswort'), 'ein-startpasswort')
@@ -115,7 +133,9 @@ describe('admin roles in the dashboard', () => {
     const accounts = await screen.findByRole('region', { name: 'Konten' })
     await waitFor(() => expect(within(accounts).getByText('studi@example.org')).toBeInTheDocument())
     await user.click(
-      within(rowOf(accounts, 'studi@example.org')).getByRole('button', { name: 'Assistent ohne Limit' }),
+      within(rowOf(accounts, 'studi@example.org')).getByRole('checkbox', {
+        name: 'Assistent ohne Tageslimit für studi@example.org',
+      }),
     )
 
     expect(
@@ -135,7 +155,8 @@ describe('admin roles in the dashboard', () => {
     const accounts = await screen.findByRole('region', { name: 'Konten' })
     await waitFor(() => expect(within(accounts).getByText('studi@example.org')).toBeInTheDocument())
     expect(screen.queryByRole('region', { name: 'Admins' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Zum Admin machen' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('checkbox', { name: /^Adminrechte für/ })).not.toBeInTheDocument()
+    expect(within(accounts).queryByRole('columnheader', { name: 'Admin' })).not.toBeInTheDocument()
     expect(within(rowOf(accounts, 'chef@example.org')).getByText('geschützt')).toBeInTheDocument()
     expect(within(rowOf(accounts, 'admin@example.org')).getByText('über die Kontoseite')).toBeInTheDocument()
     expect(

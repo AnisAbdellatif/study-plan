@@ -73,7 +73,7 @@ export const board = {
     unavailable: 'Der Studienassistent ist gerade nicht verfügbar.',
     consentTitle: 'Bevor du startest',
     consentText:
-      'Deine Fragen und die Studiengangsdaten deines Plans (Module, Beschreibungen aus dem Modulkatalog, Regeln der Prüfungsordnung) gehen über OpenRouter an ein Sprachmodell. Deine Noten, Ergebnisse, Prüfungstermine, dein Zielschnitt und deine Kontodaten werden nie übermittelt. Schreib keine persönlichen Daten in deine Fragen.',
+      'Deine Fragen und die Studiengangsdaten deines Plans (Module, Beschreibungen aus dem Modulkatalog, Regeln der Prüfungsordnung) gehen über OpenRouter an ein Sprachmodell. OpenRouter sitzt in den USA, und auch der Anbieter des Modells kann außerhalb der EU sitzen, wo möglicherweise kein Datenschutzniveau wie in der EU besteht. Deine Noten, Ergebnisse, Prüfungstermine, dein Zielschnitt und deine Kontodaten werden nie übermittelt. Schreib keine persönlichen Daten in deine Fragen.',
     privacyLink: 'Mehr dazu in der Datenschutzerklärung',
     consentAccept: 'Verstanden, Assistent nutzen',
     inputLabel: 'Deine Frage',

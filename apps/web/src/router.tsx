@@ -26,6 +26,7 @@ const UnsubscribePage = lazyRouteComponent(authPages, 'UnsubscribePage')
 const ImpressumPage = lazyRouteComponent(() => import('./legal/impressum-page.tsx'), 'ImpressumPage')
 const DatenschutzPage = lazyRouteComponent(() => import('./legal/datenschutz-page.tsx'), 'DatenschutzPage')
 const AdminPage = lazyRouteComponent(() => import('./routes/admin-page.tsx'), 'AdminPage')
+const ContactPage = lazyRouteComponent(() => import('./routes/contact-page.tsx'), 'ContactPage')
 const SharedPlanPage = lazyRouteComponent(() => import('./routes/shared-plan-page.tsx'), 'SharedPlanPage')
 const UpdateProgrammePage = lazyRouteComponent(
   () => import('./routes/update-programme-page.tsx'),
@@ -88,6 +89,11 @@ const datenschutzRoute = createRoute({
   path: '/privacy',
   component: DatenschutzPage,
 })
+const contactRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/contact',
+  component: ContactPage,
+})
 const sharedRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/shared/$token',
@@ -121,6 +127,7 @@ export const routeTree = rootRoute.addChildren([
   sharedRoute,
   unsubscribeRoute,
   adminRoute,
+  contactRoute,
 ])
 
 type RouterOptions = Parameters<typeof createRouter<typeof routeTree>>[0]

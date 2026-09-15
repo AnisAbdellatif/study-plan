@@ -136,6 +136,21 @@ export const chatApi = {
     request<ChatReply>('/api/chat', { method: 'POST', body: JSON.stringify(body) }),
 }
 
+export interface ContactMessage {
+  name?: string
+  email: string
+  message: string
+  locale: 'de' | 'en'
+  /** The hidden field people leave empty. */
+  website?: string
+}
+
+/** The contact form. The server mails the message to the operator; nothing is stored. */
+export const contactApi = {
+  send: (message: ContactMessage): Promise<{ sent: true }> =>
+    request<{ sent: true }>('/api/contact', { method: 'POST', body: JSON.stringify(message) }),
+}
+
 export interface ShareStatus {
   active: boolean
   createdAt: string | null

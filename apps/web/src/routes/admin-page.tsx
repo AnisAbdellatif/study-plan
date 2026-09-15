@@ -178,6 +178,9 @@ function RoleBadge({ role }: { role: UserRole }) {
   )
 }
 
+/** A tap target around a table checkbox: 40px on phones, 32px from sm, like the buttons. */
+const checkboxCellClass = 'inline-flex size-10 cursor-pointer items-center justify-center sm:size-8'
+
 /** Admins and the superadmin always ask the study assistant without the daily limit, see apps/api/src/chat/settings.ts. */
 const isAdminRole = (role: UserRole) => role === 'admin' || role === 'superadmin'
 
@@ -419,7 +422,7 @@ function Accounts({ viewer, selfEmail, version, onChanged }: SectionProps) {
         ) : users.length === 0 ? (
           <p className="p-4 text-sm text-zinc-600 dark:text-zinc-400">{t('accounts.empty')}</p>
         ) : (
-          <table className="w-full min-w-[48rem] text-left text-sm">
+          <table className="w-full min-w-[56rem] text-left text-sm">
             <thead className="text-zinc-600 dark:text-zinc-400">
               <tr>
                 <th className="px-4 py-2 font-medium">{t('accounts.columns.email')}</th>
@@ -427,6 +430,10 @@ function Accounts({ viewer, selfEmail, version, onChanged }: SectionProps) {
                 <th className="px-2 py-2 font-medium">{t('accounts.columns.lastActive')}</th>
                 <th className="px-2 py-2 text-right font-medium">{t('accounts.columns.plans')}</th>
                 <th className="px-2 py-2 text-right font-medium">{t('accounts.columns.links')}</th>
+                <th className="px-2 py-2 text-center font-medium">{t('accounts.columns.unlimitedChat')}</th>
+                {viewer === 'superadmin' ? (
+                  <th className="px-2 py-2 text-center font-medium">{t('accounts.columns.admin')}</th>
+                ) : null}
                 <th className="px-4 py-2 font-medium">{t('accounts.columns.actions')}</th>
               </tr>
             </thead>
@@ -441,9 +448,6 @@ function Accounts({ viewer, selfEmail, version, onChanged }: SectionProps) {
                       <span className="block text-xs text-zinc-600 dark:text-zinc-400">
                         {user.emailVerified ? t('accounts.verified') : t('accounts.unverified')}
                         {user.reminders ? ` · ${t('accounts.remindersOn')}` : ''}
-                        {user.unlimitedChat || isAdminRole(user.role)
-                          ? ` · ${t('accounts.unlimitedChat')}`
-                          : ''}
                         {access === 'self' ? ` · ${t('accounts.self')}` : ''}
                       </span>
                     </td>
@@ -462,6 +466,53 @@ function Accounts({ viewer, selfEmail, version, onChanged }: SectionProps) {
                       ) : null}
                     </td>
                     <td className="px-2 py-2 text-right tabular-nums">{user.activeShares}</td>
+                    <td className="px-2 py-0.5 text-center">
+                      {/* Admins always ask without the limit, so their box is ticked and fixed. */}
+                      <label
+                        className={checkboxCellClass}
+                        title={isAdminRole(user.role) ? t('accounts.adminAlwaysUnlimited') : undefined}
+                      >
+                        <input
+                          type="checkbox"
+                          aria-label={t('accounts.unlimitedChatLabel', { email: user.email })}
+                          className="size-4 accent-indigo-600 disabled:opacity-50"
+                          checked={user.unlimitedChat || isAdminRole(user.role)}
+                          disabled={
+                            access !== 'manage' || isAdminRole(user.role) || busy || chatToggling !== null
+                          }
+                          onChange={() => void toggleUnlimitedChat(user)}
+                        />
+                      </label>
+                    </td>
+                    {viewer === 'superadmin' ? (
+                      <td className="px-2 py-0.5 text-center">
+                        {/* Ticking asks for confirmation first; the box follows the saved role afterwards. */}
+                        <label
+                          className={checkboxCellClass}
+                          title={
+                            access === 'manage' && user.role === 'user' && !user.emailVerified
+                              ? t('accounts.adminNeedsVerified')
+                              : undefined
+                          }
+                        >
+                          <input
+                            type="checkbox"
+                            aria-label={t('accounts.adminLabel', { email: user.email })}
+                            className="size-4 accent-indigo-600 disabled:opacity-50"
+                            checked={isAdminRole(user.role)}
+                            disabled={
+                              access !== 'manage' || busy || (user.role === 'user' && !user.emailVerified)
+                            }
+                            onChange={() =>
+                              request({
+                                user,
+                                action: user.role === 'admin' ? 'revoke_admin' : 'grant_admin',
+                              })
+                            }
+                          />
+                        </label>
+                      </td>
+                    ) : null}
                     <td className="px-4 py-2">
                       {access === 'manage' ? (
                         <div className="flex flex-wrap gap-1">
@@ -484,38 +535,9 @@ function Accounts({ viewer, selfEmail, version, onChanged }: SectionProps) {
                           <ActionButton disabled={busy} onClick={() => setLimitFor(user)}>
                             {t('accounts.actions.planLimit')}
                           </ActionButton>
-                          {/* Admins always ask without the limit, so the switch is only for students. */}
-                          {isAdminRole(user.role) ? null : (
-                            <ActionButton
-                              disabled={busy || chatToggling !== null}
-                              onClick={() => void toggleUnlimitedChat(user)}
-                            >
-                              {t(
-                                user.unlimitedChat
-                                  ? 'accounts.actions.revokeUnlimitedChat'
-                                  : 'accounts.actions.grantUnlimitedChat',
-                              )}
-                            </ActionButton>
-                          )}
                           <ActionButton disabled={busy} onClick={() => request({ user, action: 'sign_out' })}>
                             {t('accounts.actions.signOut')}
                           </ActionButton>
-                          {viewer === 'superadmin' && user.role === 'user' && user.emailVerified ? (
-                            <ActionButton
-                              disabled={busy}
-                              onClick={() => request({ user, action: 'grant_admin' })}
-                            >
-                              {t('accounts.actions.grantAdmin')}
-                            </ActionButton>
-                          ) : null}
-                          {viewer === 'superadmin' && user.role === 'admin' ? (
-                            <ActionButton
-                              disabled={busy}
-                              onClick={() => request({ user, action: 'revoke_admin' })}
-                            >
-                              {t('accounts.actions.revokeAdmin')}
-                            </ActionButton>
-                          ) : null}
                           <ActionButton
                             disabled={busy}
                             danger

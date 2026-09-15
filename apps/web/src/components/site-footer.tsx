@@ -28,6 +28,9 @@ export function SiteFooter({ placement = 'page' }: { placement?: 'page' | 'board
       <Link to="/privacy" className={linkClass}>
         {t('footer.privacy')}
       </Link>
+      <Link to="/contact" className={linkClass}>
+        {t('footer.contact')}
+      </Link>
     </Tag>
   )
 }
