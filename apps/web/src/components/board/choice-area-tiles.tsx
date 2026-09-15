@@ -298,8 +298,9 @@ export function ChoiceAreaTiles({
   const standalone = choices.filter((choice) => !grouped.has(choice.area.id))
   const byArea = new Map(choices.map((choice) => [choice.area.id, choice]))
   return (
-    // The column is only as tall as its content (capped at the screen), so a percentage max-height never applies
-    // here. A screen-based cap keeps many areas from pushing the module list out of the column; phones scroll the page.
+    // The column's height comes from the row and the screen, not from a fixed value, so a percentage max-height never
+    // applies here. A screen-based cap keeps many areas from pushing the module list out of the column; phones scroll
+    // the page.
     <div className="shrink-0 px-1 pb-2 sm:max-h-[40dvh] sm:overflow-y-auto print:hidden">
       <p id={headingId} className="px-0.5 text-xs font-medium text-zinc-600 dark:text-zinc-400">
         {t('choices.title')}

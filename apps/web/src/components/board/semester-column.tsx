@@ -245,8 +245,8 @@ export const SemesterColumn = memo(function SemesterColumn({
         // typical plan fits without scrolling; below the minimum width (many semesters) the board scrolls again.
         'print:w-[calc(33.333%-0.5rem)]! print:max-w-none! print:max-h-none print:break-inside-avoid relative flex w-[85vw] sm:max-h-[calc(100dvh-2rem)] max-w-sm shrink-0 snap-start flex-col rounded-xl p-2 transition-colors sm:w-[calc((100%-0.75rem)/2)] md:w-[calc((100%-1.5rem)/3)] xl:w-auto xl:max-w-none xl:min-w-40 xl:basis-0',
         // cn does not merge Tailwind classes, so each column gets exactly one flex-grow value.
-        // The not-planned column is only as tall as its content; semesters stretch so their whole height is a drop zone.
-        isBacklog ? 'sm:self-start xl:flex-[1.2]' : 'xl:flex-1',
+        // Every column, the not-planned one included, stretches to the tallest, so the whole height is a drop zone.
+        isBacklog ? 'xl:flex-[1.2]' : 'xl:flex-1',
         // Likewise exactly one background and ring per state: drop target, current semester, backlog, other semesters.
         isOver
           ? 'bg-indigo-100 ring-2 ring-indigo-500 dark:bg-indigo-900/40 dark:ring-indigo-400'
