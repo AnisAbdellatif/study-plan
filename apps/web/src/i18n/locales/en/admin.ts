@@ -240,6 +240,8 @@ export const admin = {
     saved: 'Saved: {{limit}} plans per account.',
     loadError: "The setting couldn't be loaded.",
     custom: 'own',
+    unlimited: 'unlimited',
+    adminUnlimited: 'Admins have no plan limit.',
     dialogTitle: 'Plan limit for {{email}}',
     dialogDescription: 'Plans in the account: {{used}}',
     useDefault: 'Use the default limit ({{limit}})',

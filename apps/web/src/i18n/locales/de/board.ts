@@ -44,6 +44,8 @@ export const board = {
     switchLabel: 'Plan wechseln, geöffnet ist {{name}}',
     title: 'Deine Pläne',
     usage: '{{used}} von {{limit}} Plänen',
+    usageUnlimited_one: '{{count}} Plan · ohne Limit',
+    usageUnlimited_other: '{{count}} Pläne · ohne Limit',
     loadError: 'Deine Pläne ließen sich nicht laden.',
     updated: 'Geändert {{time}}',
     saveFirst: 'Sichere diesen Plan zuerst im Konto, dann kannst du zwischen deinen Plänen wechseln.',

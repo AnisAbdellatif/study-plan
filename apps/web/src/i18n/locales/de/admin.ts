@@ -240,6 +240,8 @@ export const admin = {
     saved: 'Gespeichert: {{limit}} Pläne pro Konto.',
     loadError: 'Die Einstellung ließ sich nicht laden.',
     custom: 'eigen',
+    unlimited: 'unbegrenzt',
+    adminUnlimited: 'Admins haben kein Planlimit.',
     dialogTitle: 'Planlimit für {{email}}',
     dialogDescription: 'Pläne im Konto: {{used}}',
     useDefault: 'Standardlimit verwenden ({{limit}})',

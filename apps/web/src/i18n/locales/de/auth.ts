@@ -108,6 +108,8 @@ export const auth = {
     plans: {
       title: 'Deine Pläne',
       usage: '{{used}} von {{limit}} Plänen belegt.',
+      usageUnlimited_one: '{{count}} Plan angelegt. Als Admin hast du kein Limit.',
+      usageUnlimited_other: '{{count}} Pläne angelegt. Als Admin hast du kein Limit.',
       loadError: 'Deine Pläne ließen sich nicht laden.',
       empty: 'Noch kein Plan im Konto.',
       open: 'in diesem Browser geöffnet',

@@ -42,7 +42,8 @@ export function PlanSwitcher({ plan }: { plan: Plan }) {
   if (!user) return null
   const activeId = sync.linkedPlanId()
   const loaded = typeof overview === 'object' ? overview : null
-  const full = loaded !== null && loaded.plans.length >= loaded.limit
+  const limit = loaded?.limit ?? null
+  const full = loaded !== null && limit !== null && loaded.plans.length >= limit
 
   const load = () => {
     setOverview('loading')
@@ -106,9 +107,11 @@ export function PlanSwitcher({ plan }: { plan: Plan }) {
         <MenuContent align="start">
           <MenuGroup>
             <MenuGroupLabel>
-              {loaded
-                ? t('plans.usage', { used: loaded.plans.length, limit: loaded.limit })
-                : t('plans.title')}
+              {!loaded
+                ? t('plans.title')
+                : limit === null
+                  ? t('plans.usageUnlimited', { count: loaded.plans.length })
+                  : t('plans.usage', { used: loaded.plans.length, limit })}
             </MenuGroupLabel>
             {overview === 'loading' ? (
               <div className="px-3 py-2">
@@ -161,9 +164,9 @@ export function PlanSwitcher({ plan }: { plan: Plan }) {
             <Plus aria-hidden className="size-4" />
             {t('plans.new')}
           </MenuItem>
-          {loaded && full ? (
+          {full && limit !== null ? (
             <p className="max-w-64 px-3 pb-2 text-xs text-zinc-600 dark:text-zinc-400">
-              {t('plans.limitReached', { limit: loaded.limit })}
+              {t('plans.limitReached', { limit })}
             </p>
           ) : null}
         </MenuContent>
