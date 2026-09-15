@@ -213,6 +213,7 @@ export function testMail(to: string, publicUrl: string): OutgoingMail {
 export interface ContactMessage {
   name?: string | undefined
   email: string
+  subject: string
   message: string
   locale: MailLocale
 }
@@ -226,10 +227,11 @@ export function contactMail(to: string, contact: ContactMessage, publicUrl: stri
   const site = originOf(publicUrl).replace(/^https?:\/\//, '')
   return {
     to,
-    subject: `${BRAND_NAME}: Kontaktanfrage von ${contact.name ?? contact.email}`,
+    subject: `[${BRAND_NAME} Kontakt] ${contact.subject}`,
     text: [
       `Nachricht über das Kontaktformular auf ${site} (Sprache der Website: ${contact.locale})`,
       `Von: ${sender}`,
+      `Betreff: ${contact.subject}`,
       '',
       contact.message,
     ].join('\n'),

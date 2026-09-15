@@ -5,6 +5,7 @@ export const contact = {
     'Eine Frage, ein Fehler in einer Studiengangsvorlage oder eine Idee? Schreib uns. Wir antworten an die E-Mail-Adresse, die du angibst.',
   name: 'Name (optional)',
   email: 'Deine E-Mail-Adresse',
+  subject: 'Betreff',
   message: 'Nachricht',
   messageHint: 'Mindestens {{min}} und höchstens {{max}} Zeichen.',
   trap: 'Bitte leer lassen',

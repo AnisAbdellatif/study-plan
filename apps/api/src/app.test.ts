@@ -472,35 +472,46 @@ describe('contact form', () => {
     const sent = await send({
       name: 'Erika Muster',
       email: 'erika@example.org',
+      subject: 'Vorlage Informatik',
       message: 'Die Vorlage für Informatik ist veraltet.',
       locale: 'de',
     })
     expect(sent.status).toBe(202)
     const mail = mailer.sent.at(-1)
-    expect(mail).toMatchObject({ to: 'contact@study-plan.de', headers: { 'Reply-To': 'erika@example.org' } })
+    expect(mail).toMatchObject({
+      to: 'contact@study-plan.de',
+      subject: '[Study Plan Kontakt] Vorlage Informatik',
+      headers: { 'Reply-To': 'erika@example.org' },
+    })
     expect(mail?.text).toContain('Von: Erika Muster <erika@example.org>')
+    expect(mail?.text).toContain('Betreff: Vorlage Informatik')
     expect(mail?.text).toContain('Die Vorlage für Informatik ist veraltet.')
     expect(mail?.html).toBeUndefined()
 
     // Whoever fills the hidden field gets the same answer, but nothing is sent.
     const trapped = await send({
       email: 'bot@example.org',
+      subject: 'Offer',
       message: 'Cheap watches, click here!',
       website: 'x',
     })
     expect(trapped.status).toBe(202)
     expect(mailer.sent).toHaveLength(before + 1)
 
+    const valid = { email: 'erika@example.org', subject: 'Frage', message: 'Hallo, eine Frage.' }
     for (const invalid of [
-      { email: 'not-an-address', message: 'Hallo, eine Frage.' },
-      { email: 'erika@example.org', message: 'kurz' },
-      { name: 'Evil\r\nBcc: x@example.org', email: 'erika@example.org', message: 'Hallo, eine Frage.' },
+      { ...valid, email: 'not-an-address' },
+      { ...valid, message: 'kurz' },
+      { ...valid, subject: '' },
+      { email: valid.email, message: valid.message },
+      { ...valid, subject: 'Frage\r\nBcc: x@example.org' },
+      { ...valid, name: 'Evil\r\nBcc: x@example.org' },
     ]) {
       expect((await send(invalid)).status).toBe(400)
     }
 
     // Five accepted requests per client in ten minutes; two are used already.
-    const again = { email: 'erika@example.org', message: 'Noch eine Nachricht.' }
+    const again = { email: 'erika@example.org', subject: 'Nachtrag', message: 'Noch eine Nachricht.' }
     for (let index = 0; index < 3; index += 1) expect((await send(again)).status).toBe(202)
     expect((await send(again)).status).toBe(429)
   })

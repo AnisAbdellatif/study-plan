@@ -50,6 +50,7 @@ describe('contact page', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Kontakt' })).toBeInTheDocument()
     await user.type(screen.getByLabelText('Name (optional)'), 'Erika')
     await user.type(screen.getByLabelText('Deine E-Mail-Adresse'), 'erika@example.org')
+    await user.type(screen.getByLabelText('Betreff'), 'Vorlage Informatik')
     await user.type(screen.getByLabelText('Nachricht'), 'Die Vorlage für Informatik ist veraltet.')
     await user.click(screen.getByRole('button', { name: 'Nachricht senden' }))
 
@@ -61,6 +62,7 @@ describe('contact page', () => {
       {
         name: 'Erika',
         email: 'erika@example.org',
+        subject: 'Vorlage Informatik',
         message: 'Die Vorlage für Informatik ist veraltet.',
         locale: 'de',
       },
@@ -71,6 +73,7 @@ describe('contact page', () => {
     mockApi(() => respond({ error: 'too_many_requests' }, 429))
     const user = renderAt('/contact')
     await user.type(await screen.findByLabelText('Deine E-Mail-Adresse'), 'erika@example.org')
+    await user.type(screen.getByLabelText('Betreff'), 'Frage')
     await user.type(screen.getByLabelText('Nachricht'), 'Noch eine Frage zum Planer.')
     await user.click(screen.getByRole('button', { name: 'Nachricht senden' }))
 

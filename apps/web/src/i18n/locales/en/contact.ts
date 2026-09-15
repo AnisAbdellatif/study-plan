@@ -8,6 +8,7 @@ export const contact = {
     'A question, a mistake in a programme template or an idea? Write to us. We reply to the email address you enter.',
   name: 'Name (optional)',
   email: 'Your email address',
+  subject: 'Subject',
   message: 'Message',
   messageHint: 'At least {{min}} and at most {{max}} characters.',
   trap: 'Please leave empty',

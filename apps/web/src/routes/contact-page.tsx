@@ -24,11 +24,13 @@ export function ContactPage() {
   const { user } = useAccountSync()
   const nameId = useId()
   const emailId = useId()
+  const subjectId = useId()
   const messageId = useId()
   const messageHintId = useId()
   const trapId = useId()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
+  const [subject, setSubject] = useState('')
   const [message, setMessage] = useState('')
   const [trap, setTrap] = useState('')
   const [pending, setPending] = useState(false)
@@ -47,6 +49,7 @@ export function ContactPage() {
       await contactApi.send({
         name: name.trim() || undefined,
         email: email.trim(),
+        subject: subject.trim(),
         message: message.trim(),
         locale: currentLocale(),
         website: trap || undefined,
@@ -119,6 +122,20 @@ export function ContactPage() {
               maxLength={254}
               value={email}
               onChange={(event) => setEmail(event.target.value)}
+              className={`${inputClass} h-10`}
+            />
+          </div>
+          <div>
+            <label htmlFor={subjectId} className="block text-sm font-medium">
+              {t('subject')}
+            </label>
+            <input
+              id={subjectId}
+              type="text"
+              required
+              maxLength={150}
+              value={subject}
+              onChange={(event) => setSubject(event.target.value)}
               className={`${inputClass} h-10`}
             />
           </div>

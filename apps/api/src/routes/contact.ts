@@ -18,6 +18,13 @@ const bodySchema = z.object({
     .optional()
     .transform((value) => value || undefined),
   email: z.email().max(254),
+  // The mail subject is built from it, so no line breaks either.
+  subject: z
+    .string()
+    .trim()
+    .min(1)
+    .max(150)
+    .regex(/^[^\r\n]*$/),
   message: z.string().trim().min(CONTACT_MESSAGE_MIN).max(CONTACT_MESSAGE_MAX),
   locale: z.enum(['de', 'en']).default('de'),
   /** A field people never see. Whoever fills it gets the normal answer, and nothing is sent. */

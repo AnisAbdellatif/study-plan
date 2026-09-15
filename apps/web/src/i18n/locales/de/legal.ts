@@ -104,7 +104,7 @@ export const legal = {
     },
     contact: {
       heading: '8. Kontaktformular',
-      what: 'Über das <form>Kontaktformular</form> kannst du uns eine Nachricht schicken. Wir übermitteln deine E-Mail-Adresse, deinen Namen, falls du ihn angibst, deine Nachricht und die Sprache der Website per E-Mail an unser Postfach, damit wir dir antworten können. Der Versand erfolgt über den unter 7. genannten E-Mail-Dienst.',
+      what: 'Über das <form>Kontaktformular</form> kannst du uns eine Nachricht schicken. Wir übermitteln deine E-Mail-Adresse, deinen Namen, falls du ihn angibst, den Betreff, deine Nachricht und die Sprache der Website per E-Mail an unser Postfach, damit wir dir antworten können. Der Versand erfolgt über den unter 7. genannten E-Mail-Dienst.',
       storage:
         'In der Anwendung speichern wir die Nachricht nicht. Die E-Mail in unserem Postfach und unsere Antwort löschen wir, sobald dein Anliegen erledigt ist, es sei denn, gesetzliche Aufbewahrungspflichten stehen dem entgegen.',
       basis:

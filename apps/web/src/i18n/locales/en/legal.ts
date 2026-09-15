@@ -102,7 +102,7 @@ export const legal = {
     },
     contact: {
       heading: '8. Contact form',
-      what: 'You can send us a message using the <form>contact form</form>. We email your email address, your name if you enter it, your message and the language of the website to our mailbox so that we can reply. It is sent via the email service named in section 7.',
+      what: 'You can send us a message using the <form>contact form</form>. We email your email address, your name if you enter it, the subject, your message and the language of the website to our mailbox so that we can reply. It is sent via the email service named in section 7.',
       storage:
         'We don’t store the message in the app. We delete the email in our mailbox and our reply once your request has been dealt with, unless statutory retention obligations prevent this.',
       basis:

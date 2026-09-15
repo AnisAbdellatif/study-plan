@@ -139,6 +139,7 @@ export const chatApi = {
 export interface ContactMessage {
   name?: string
   email: string
+  subject: string
   message: string
   locale: 'de' | 'en'
   /** The hidden field people leave empty. */
