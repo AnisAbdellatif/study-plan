@@ -8,6 +8,7 @@ import { dialogs as deDialogs } from './locales/de/dialogs.ts'
 import { issues as deIssues } from './locales/de/issues.ts'
 import { landing as deLanding } from './locales/de/landing.ts'
 import { legal as deLegal } from './locales/de/legal.ts'
+import { print as dePrint } from './locales/de/print.ts'
 import { sharedPlan as deSharedPlan } from './locales/de/sharedPlan.ts'
 import { start as deStart } from './locales/de/start.ts'
 import { admin as enAdmin } from './locales/en/admin.ts'
@@ -20,6 +21,7 @@ import { dialogs as enDialogs } from './locales/en/dialogs.ts'
 import { issues as enIssues } from './locales/en/issues.ts'
 import { landing as enLanding } from './locales/en/landing.ts'
 import { legal as enLegal } from './locales/en/legal.ts'
+import { print as enPrint } from './locales/en/print.ts'
 import { sharedPlan as enSharedPlan } from './locales/en/sharedPlan.ts'
 import { start as enStart } from './locales/en/start.ts'
 
@@ -41,6 +43,7 @@ export const resources = {
     legal: deLegal,
     contact: deContact,
     landing: deLanding,
+    print: dePrint,
   },
   en: {
     common: enCommon,
@@ -55,6 +58,7 @@ export const resources = {
     legal: enLegal,
     contact: enContact,
     landing: enLanding,
+    print: enPrint,
   },
 }
 

@@ -25,6 +25,9 @@ export function SiteFooter({ placement = 'page' }: { placement?: 'page' | 'board
         placement === 'page' && onBoard && 'max-sm:hidden',
       )}
     >
+      <Link to="/about" className={linkClass}>
+        {t('footer.about')}
+      </Link>
       <Link to="/legal-notice" className={linkClass}>
         {t('footer.legalNotice')}
       </Link>

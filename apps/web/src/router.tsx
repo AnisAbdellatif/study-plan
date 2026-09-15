@@ -29,6 +29,7 @@ const ImpressumPage = lazyRouteComponent(() => import('./legal/impressum-page.ts
 const DatenschutzPage = lazyRouteComponent(() => import('./legal/datenschutz-page.tsx'), 'DatenschutzPage')
 const AdminPage = lazyRouteComponent(() => import('./routes/admin-page.tsx'), 'AdminPage')
 const ContactPage = lazyRouteComponent(() => import('./routes/contact-page.tsx'), 'ContactPage')
+const PrintPage = lazyRouteComponent(() => import('./routes/print-page.tsx'), 'PrintPage')
 const SharedPlanPage = lazyRouteComponent(() => import('./routes/shared-plan-page.tsx'), 'SharedPlanPage')
 const UpdateProgrammePage = lazyRouteComponent(
   () => import('./routes/update-programme-page.tsx'),
@@ -61,6 +62,7 @@ const startRoute = createRoute({
   component: StartPage,
 })
 const aboutRoute = createRoute({ getParentRoute: () => rootRoute, path: '/about', component: LandingPage })
+const printRoute = createRoute({ getParentRoute: () => rootRoute, path: '/print', component: PrintPage })
 const updateProgrammeRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/plan/update',
@@ -137,6 +139,7 @@ export const routeTree = rootRoute.addChildren([
   adminRoute,
   contactRoute,
   aboutRoute,
+  printRoute,
 ])
 
 type RouterOptions = Parameters<typeof createRouter<typeof routeTree>>[0]

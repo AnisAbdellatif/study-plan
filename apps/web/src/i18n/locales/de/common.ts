@@ -8,6 +8,7 @@ export const common = {
     en: 'English',
   },
   footer: {
+    about: 'Über Study Plan',
     legalNotice: 'Impressum',
     privacy: 'Datenschutz',
     contact: 'Kontakt',

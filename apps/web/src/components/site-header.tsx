@@ -6,11 +6,11 @@ import { ThemeToggle } from './theme-toggle.tsx'
 
 /**
  * Top bar with the language dropdown and the account menu. The board and the landing page (at / and /about) have
- * their own header with both built in.
+ * their own header with both built in; the print page only shows its toolbar and the sheet.
  */
 export function SiteHeader() {
   const matchRoute = useMatchRoute()
-  if (matchRoute({ to: '/' }) || matchRoute({ to: '/about' })) return null
+  if (matchRoute({ to: '/' }) || matchRoute({ to: '/about' }) || matchRoute({ to: '/print' })) return null
   return (
     <header className="mx-auto flex w-full max-w-[240rem] items-center justify-end gap-1 px-4 pt-3 sm:px-6 print:hidden">
       <AdminButton />

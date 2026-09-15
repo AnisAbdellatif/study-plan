@@ -392,12 +392,14 @@ describe('board menu actions', () => {
     expect(dialog).toHaveTextContent('Zum Teilen brauchst du ein Konto')
   })
 
-  it('opens the print dialog', async () => {
+  it('opens the print page instead of printing the board right away', async () => {
     const print = vi.spyOn(window, 'print').mockImplementation(() => {})
-    const { user } = renderApp({ plan: makePlan() })
+    const { user, router } = renderApp({ plan: makePlan() })
     await user.click(await screen.findByRole('button', { name: 'Weitere Aktionen' }))
     await user.click(await screen.findByRole('menuitem', { name: 'Drucken oder als PDF speichern' }))
-    expect(print).toHaveBeenCalledOnce()
+    expect(await screen.findByRole('button', { name: 'Drucken' })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/print')
+    expect(print).not.toHaveBeenCalled()
   })
 })
 

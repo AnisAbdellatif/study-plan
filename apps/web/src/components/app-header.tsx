@@ -95,7 +95,7 @@ export function AppHeader({ plan }: { plan: Plan }) {
               </div>
               <MenuItem onClick={() => setImportOpen(true)}>{t('header.importGrades')}</MenuItem>
               <MenuItem onClick={() => setShareOpen(true)}>{t('header.sharePlan')}</MenuItem>
-              <MenuItem onClick={() => window.print()}>{t('header.print')}</MenuItem>
+              <MenuItem onClick={() => void navigate({ to: '/print' })}>{t('header.print')}</MenuItem>
               <MenuItem onClick={() => void navigate({ to: '/plan/update' })}>
                 {t('header.updateProgramme')}
               </MenuItem>
