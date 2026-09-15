@@ -130,6 +130,21 @@ export const presetAreaSchema = z.object({
 })
 export type PresetArea = z.infer<typeof presetAreaSchema>
 
+/**
+ * Areas of which the student takes exactly one, e.g. the Nebenfach. Until the student picks one, every module of
+ * these areas is an option and their credit requirements don't apply. Afterwards only the picked area counts, and
+ * its compulsory modules become compulsory for the student.
+ */
+export const presetAreaChoiceSchema = z.object({
+  id: slugSchema,
+  /** What the student picks, e.g. "Nebenfach". */
+  name: z.string().min(1),
+  areaIds: z.array(slugSchema).min(2),
+  /** True when the student may also take none of the areas. */
+  optional: z.boolean().optional(),
+})
+export type PresetAreaChoice = z.infer<typeof presetAreaChoiceSchema>
+
 function* walkAggregation(node: AggregationNode): Generator<{ node: AggregationNode; code?: string }> {
   yield { node }
   for (const child of node.children) {
@@ -174,6 +189,8 @@ export const presetSchema = z
     gradeRules: gradeRulesSchema,
     modules: z.array(presetModuleSchema).min(1),
     areas: z.array(presetAreaSchema),
+    /** Groups of areas the student picks one of, e.g. the Nebenfach. */
+    areaChoices: z.array(presetAreaChoiceSchema).optional(),
   })
   .superRefine((preset, ctx) => {
     const modules = new Map<string, PresetModule>()
@@ -236,6 +253,38 @@ export const presetSchema = z
         }
       }
     })
+
+    const areaIds = new Set(preset.areas.map((area) => area.id))
+    const choiceIds = new Set<string>()
+    const choiceOfArea = new Map<string, string>()
+    for (const [index, choice] of (preset.areaChoices ?? []).entries()) {
+      if (choiceIds.has(choice.id)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['areaChoices', index, 'id'],
+          message: `Duplicate area choice "${choice.id}"`,
+        })
+      }
+      choiceIds.add(choice.id)
+      for (const areaId of choice.areaIds) {
+        const other = choiceOfArea.get(areaId)
+        if (!areaIds.has(areaId)) {
+          ctx.addIssue({
+            code: 'custom',
+            path: ['areaChoices', index, 'areaIds'],
+            message: `Unknown area "${areaId}"`,
+          })
+        } else if (other !== undefined) {
+          ctx.addIssue({
+            code: 'custom',
+            path: ['areaChoices', index, 'areaIds'],
+            message: `Area "${areaId}" is already part of area choice "${other}"`,
+          })
+        } else {
+          choiceOfArea.set(areaId, choice.id)
+        }
+      }
+    }
 
     const nodeIds = new Set<string>()
     const aggregated = new Set<string>()

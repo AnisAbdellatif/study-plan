@@ -1,5 +1,6 @@
 import {
   addTerms,
+  areaChoiceStatuses,
   choiceAreas,
   choiceOptionCodes,
   formatTerm,
@@ -77,6 +78,12 @@ export function SemesterBoard({ plan, summary, currentIndex, actions, notesByCod
   }, [])
 
   const choices = useMemo(() => choiceAreas(plan), [plan])
+  // Keyed by the two fields only, so the backlog column keeps its props while other parts of the plan change.
+  const { areaChoices: planAreaChoices, chosenAreas } = plan
+  const areaChoices = useMemo(
+    () => areaChoiceStatuses({ areaChoices: planAreaChoices, chosenAreas }),
+    [planAreaChoices, chosenAreas],
+  )
 
   // Every edit builds new column models and issue lists. Reusing the previous objects when their content is
   // unchanged lets the memoised columns and cards skip rendering, so an edit only redraws what it touched.
@@ -270,6 +277,7 @@ export function SemesterBoard({ plan, summary, currentIndex, actions, notesByCod
             key={column.id ?? 'backlog'}
             column={column}
             choices={column.id === null ? choices : undefined}
+            areaChoices={column.id === null ? areaChoices : undefined}
             passThreshold={plan.rules.passThreshold}
             creditLabel={plan.preset.creditLabel}
             showCode={plan.preset.codesAreOfficial ?? true}

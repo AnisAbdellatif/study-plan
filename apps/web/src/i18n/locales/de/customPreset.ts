@@ -74,6 +74,8 @@ export const customPreset = {
     areas: 'Bereiche',
     areaMin: '{{name}}: mindestens {{min}} {{label}}',
     areaRange: '{{name}}: {{min}} bis {{max}} {{label}}',
+    areaChoice: 'Eins davon wählen: {{areas}}',
+    areaChoiceOptional: 'Höchstens eins davon wählen: {{areas}}',
     rounding: 'Endnote',
     examRules: 'Prüfungen',
     withdrawal_one: 'Rücktritt bis {{count}} Tag vor der Prüfung',

@@ -77,6 +77,8 @@ export const customPreset = {
     areas: 'Areas',
     areaMin: '{{name}}: at least {{min}} {{label}}',
     areaRange: '{{name}}: {{min}} to {{max}} {{label}}',
+    areaChoice: 'Pick one of: {{areas}}',
+    areaChoiceOptional: 'Pick at most one of: {{areas}}',
     rounding: 'Final grade',
     examRules: 'Exams',
     withdrawal_one: 'Withdrawal up to {{count}} day before the exam',

@@ -1,6 +1,7 @@
 import { isModulePassed } from '../engine/progress.ts'
 import { toHalves } from '../engine/units.ts'
 import { type Prerequisite, prerequisiteCodes } from '../schema/preset.ts'
+import { inactiveAreaIds } from './area-choices.ts'
 import { attemptStatus } from './attempts.ts'
 import { placeholderCredits } from './placeholders.ts'
 import type { Plan } from './plan.ts'
@@ -78,6 +79,16 @@ export type PlanIssue =
   | { kind: 'leave_semester_modules'; severity: 'info'; semesterId: string; codes: string[] }
   | { kind: 'area_below_minimum'; severity: 'info'; areaId: string; planned: number; minCredits: number }
   | { kind: 'area_above_maximum'; severity: 'warning'; areaId: string; planned: number; maxCredits: number }
+  /** A required area choice, e.g. the Nebenfach, has no pick yet, so its compulsory modules aren't open work yet. */
+  | { kind: 'area_choice_missing'; severity: 'info'; choiceId: string }
+  | {
+      kind: 'area_choice_conflict'
+      severity: 'warning'
+      choiceId: string
+      /** Areas of the choice with planned or passed modules besides the picked one, or all of them when none is. */
+      areaIds: string[]
+      chosenAreaId?: string
+    }
 
 /**
  * Checks placement rules. Modules that are already passed are never flagged: what happened is a fact,
@@ -237,6 +248,7 @@ export function validatePlan(plan: Plan, options: ValidationOptions = {}): PlanI
     if (codes.length > 1) issues.push({ kind: 'alternatives_conflict', severity: 'warning', group, codes })
   }
 
+  const plannedByArea = new Map<string, number>()
   for (const area of plan.areas) {
     let halves = 0
     for (const code of area.moduleCodes) {
@@ -246,7 +258,14 @@ export function validatePlan(plan: Plan, options: ValidationOptions = {}): PlanI
     for (const placeholder of plan.placeholders ?? []) {
       if (placeholder.areaId === area.id) halves += toHalves(estimates.get(placeholder.id) ?? 0)
     }
-    const planned = halves / 2
+    plannedByArea.set(area.id, halves / 2)
+  }
+
+  const inactive = inactiveAreaIds(plan)
+  for (const area of plan.areas) {
+    // Areas of a choice the student didn't pick have no requirements; the choice issues below cover them.
+    if (inactive.has(area.id)) continue
+    const planned = plannedByArea.get(area.id) ?? 0
     if (planned < area.minCredits) {
       issues.push({
         kind: 'area_below_minimum',
@@ -263,6 +282,28 @@ export function validatePlan(plan: Plan, options: ValidationOptions = {}): PlanI
         planned,
         maxCredits: area.maxCredits,
       })
+    }
+  }
+
+  for (const choice of plan.areaChoices ?? []) {
+    const chosenAreaId = plan.chosenAreas?.[choice.id]
+    const used = choice.areaIds.filter((areaId) => (plannedByArea.get(areaId) ?? 0) > 0)
+    const conflicting =
+      chosenAreaId === undefined
+        ? used.length > 1
+          ? used
+          : []
+        : used.filter((areaId) => areaId !== chosenAreaId)
+    if (conflicting.length > 0) {
+      issues.push({
+        kind: 'area_choice_conflict',
+        severity: 'warning',
+        choiceId: choice.id,
+        areaIds: conflicting,
+        ...(chosenAreaId === undefined ? {} : { chosenAreaId }),
+      })
+    } else if (chosenAreaId === undefined && !choice.optional) {
+      issues.push({ kind: 'area_choice_missing', severity: 'info', choiceId: choice.id })
     }
   }
 

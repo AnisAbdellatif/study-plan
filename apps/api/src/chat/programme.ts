@@ -1,4 +1,4 @@
-import type { GradeRules, Plan, PlanModule, PresetArea } from '@study-plan/shared'
+import type { GradeRules, Plan, PlanModule, PresetArea, PresetAreaChoice } from '@study-plan/shared'
 
 /** A module as the chat may see it: programme facts only. */
 export type ChatModule = Pick<
@@ -37,6 +37,8 @@ export interface ChatProgramme {
   }
   gradeRules: GradeRules
   areas: PresetArea[]
+  /** Groups of areas a student picks one of, e.g. the Nebenfach. Never which one this student picked. */
+  areaChoices?: PresetAreaChoice[]
   modules: ChatModule[]
 }
 
@@ -97,6 +99,13 @@ export function programmeForChat(plan: Plan): ChatProgramme {
       ...area,
       moduleCodes: area.moduleCodes.filter((code) => codes.has(code)),
     })),
+    ...(plan.areaChoices
+      ? {
+          areaChoices: plan.areaChoices.map((choice) =>
+            defined({ id: choice.id, name: choice.name, areaIds: choice.areaIds, optional: choice.optional }),
+          ),
+        }
+      : {}),
     modules,
   }
 }

@@ -22,6 +22,7 @@ export function describeIssues(plan: Plan, issues: readonly PlanIssue[]): Descri
   const nameOf = (code: string) => names.get(code) ?? code
   const graded = (code: string) => plan.modules.find((module) => module.code === code)?.grading === 'graded'
   const areaName = (id: string) => plan.areas.find((area) => area.id === id)?.name ?? id
+  const choiceName = (id: string) => plan.areaChoices?.find((choice) => choice.id === id)?.name ?? id
   const credits = (value: number) => `${formatCredits(value)} ${plan.preset.creditLabel}`
   const prerequisite = (item: Prerequisite) =>
     typeof item === 'string' ? nameOf(item) : item.anyOf.map(nameOf).join(t('issues:or'))
@@ -196,6 +197,20 @@ export function describeIssues(plan: Plan, issues: readonly PlanIssue[]): Descri
           }),
         )
         break
+      case 'area_choice_missing':
+        add(issue.severity, t('issues:areaChoiceMissing', { choice: choiceName(issue.choiceId) }))
+        break
+      case 'area_choice_conflict': {
+        const areas = issue.areaIds.map(areaName).join(', ')
+        const choice = choiceName(issue.choiceId)
+        add(
+          issue.severity,
+          issue.chosenAreaId === undefined
+            ? t('issues:areaChoiceConflictUnchosen', { choice, areas })
+            : t('issues:areaChoiceConflict', { choice, chosen: areaName(issue.chosenAreaId), areas }),
+        )
+        break
+      }
     }
   }
 

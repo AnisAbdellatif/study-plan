@@ -1,4 +1,11 @@
-import type { ChoiceArea, Plan, PlanModule, PlanSemester, SemesterLoad } from '@study-plan/shared'
+import type {
+  AreaChoiceStatus,
+  ChoiceArea,
+  Plan,
+  PlanModule,
+  PlanSemester,
+  SemesterLoad,
+} from '@study-plan/shared'
 import {
   ArrowLeft,
   ArrowLeftToLine,
@@ -165,6 +172,8 @@ export interface SemesterColumnProps {
   column: ColumnModel
   /** Choice areas, shown as tiles in the backlog only. */
   choices?: readonly ChoiceArea[]
+  /** Area choices such as the Nebenfach, shown with the tiles in the backlog only. */
+  areaChoices?: readonly AreaChoiceStatus[]
   passThreshold: number
   creditLabel: string
   showCode: boolean
@@ -178,11 +187,13 @@ export interface SemesterColumnProps {
 }
 
 const NO_CHOICES: readonly ChoiceArea[] = []
+const NO_AREA_CHOICES: readonly AreaChoiceStatus[] = []
 
 /** Memoised: the board keeps a column's props identical while nothing in it changed. */
 export const SemesterColumn = memo(function SemesterColumn({
   column,
   choices = NO_CHOICES,
+  areaChoices = NO_AREA_CHOICES,
   passThreshold,
   creditLabel,
   showCode,
@@ -330,9 +341,10 @@ export const SemesterColumn = memo(function SemesterColumn({
         </p>
       </header>
 
-      {isBacklog && choices.length > 0 ? (
+      {isBacklog && (choices.length > 0 || areaChoices.length > 0) ? (
         <ChoiceAreaTiles
           choices={choices}
+          areaChoices={areaChoices}
           creditLabel={creditLabel}
           destinations={semesterDestinations}
           actions={actions}
