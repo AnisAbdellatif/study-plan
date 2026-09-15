@@ -10,7 +10,7 @@ export const start = {
   dismiss: 'Dismiss',
   tryExample: 'Try it with an example',
   exampleNote:
-    'The example is a made-up computer science programme that isn’t based on any real examination regulations. Your plan starts in the current semester.',
+    'The example is a made-up computer science programme that isn’t based on any real examination regulations. Your plan starts in the current or next winter semester.',
   startTerm: 'Start of studies',
   winter: 'Winter semester',
   summer: 'Summer semester',

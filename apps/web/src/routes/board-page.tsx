@@ -49,6 +49,7 @@ import { PlanInsights } from '../components/board/plan-insights.tsx'
 import { PlanOverview } from '../components/board/plan-overview.tsx'
 import { columnTitle, placeholderAreaName, SemesterBoard } from '../components/board/semester-board.tsx'
 import { SummaryPanel } from '../components/board/summary-panel.tsx'
+import { SiteFooter } from '../components/site-footer.tsx'
 import { StorageNotice } from '../components/storage-notice.tsx'
 import { StudyAssistant } from '../components/study-assistant.tsx'
 import { Button } from '../components/ui/button.tsx'
@@ -348,7 +349,8 @@ function Board({ plan }: { plan: Plan }) {
   }
 
   return (
-    // On phones main fills the screen, so the bottom bar sits at the bottom edge even on short pages.
+    // On phones main fills the screen, so the bottom bar sits at the bottom edge even on short pages. The legal links
+    // live inside main there (above the bar), so nothing below main can push the bar up.
     <main className="mx-auto max-w-[240rem] space-y-4 px-4 pt-5 max-sm:flex max-sm:min-h-dvh max-sm:flex-col sm:px-6 sm:pb-5">
       <AppHeader plan={plan} />
       <div className="space-y-4 empty:hidden print:hidden">
@@ -422,10 +424,13 @@ function Board({ plan }: { plan: Plan }) {
           <StudyAssistant onOpenModule={setDetailsCode} layout="page" />
         </section>
       ) : null}
+      <div className="mt-auto sm:hidden print:hidden">
+        <SiteFooter placement="board" />
+      </div>
       <nav
         aria-label={t('mobileNav.label')}
-        // Sticky inside main: it stays at the bottom of the screen and never covers the footer.
-        className="sticky bottom-0 z-30 -mx-4 mt-auto border-t border-zinc-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur sm:hidden print:hidden dark:border-zinc-800 dark:bg-zinc-900/95"
+        // Sticky inside main: it stays at the bottom of the screen and never covers the legal links.
+        className="sticky bottom-0 z-30 -mx-4 border-t border-zinc-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur sm:hidden print:hidden dark:border-zinc-800 dark:bg-zinc-900/95"
       >
         <div className="grid grid-cols-4">
           {MOBILE_TABS.map(({ id, icon: Icon }) => {

@@ -27,12 +27,13 @@ export function StartTermFields({ value, onChange, standardSemesters }: StartTer
   return (
     <fieldset>
       <legend className="text-sm font-medium">{t('startTerm')}</legend>
-      <div className="mt-1 grid grid-cols-[1fr_auto] gap-3">
+      {/* Phones stack the year under the seasons, so "Sommersemester" never wraps inside its segment. */}
+      <div className="mt-1 grid gap-2 sm:grid-cols-[1fr_auto] sm:gap-3">
         <div className="flex rounded-lg p-1 ring-1 ring-zinc-300 ring-inset dark:ring-zinc-700">
           {(['winter', 'summer'] as const).map((season) => (
             <label
               key={season}
-              className="flex h-8 flex-1 cursor-pointer items-center justify-center rounded-md text-sm has-[:checked]:bg-indigo-600 has-[:checked]:text-white has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-indigo-500"
+              className="flex h-8 flex-1 cursor-pointer items-center justify-center rounded-md px-2 text-sm whitespace-nowrap has-[:checked]:bg-indigo-600 has-[:checked]:text-white has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-indigo-500"
             >
               <input
                 type="radio"

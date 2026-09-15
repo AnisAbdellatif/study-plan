@@ -94,7 +94,15 @@ export function StartPage() {
   const run = (action: Pending) => {
     const now = new Date()
     if (action === 'example') {
-      open(createPlanFromPreset(demoPreset, { id: newId(), startTerm: termAt(now), now }))
+      // The example's curriculum begins in winter, so it starts in the current or the next winter semester.
+      const current = termAt(now)
+      open(
+        createPlanFromPreset(demoPreset, {
+          id: newId(),
+          startTerm: { season: 'winter', year: current.year },
+          now,
+        }),
+      )
       return
     }
     if (action === 'preset') {

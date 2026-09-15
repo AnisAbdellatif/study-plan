@@ -7,7 +7,7 @@ export const start = {
   dismiss: 'Ausblenden',
   tryExample: 'Mit Beispiel ausprobieren',
   exampleNote:
-    'Das Beispiel ist ein frei erfundener Informatik-Studiengang, der auf keiner echten Prüfungsordnung basiert. Dein Plan beginnt damit im aktuellen Semester.',
+    'Das Beispiel ist ein frei erfundener Informatik-Studiengang, der auf keiner echten Prüfungsordnung basiert. Dein Plan beginnt damit im aktuellen oder nächsten Wintersemester.',
   startTerm: 'Studienbeginn',
   winter: 'Wintersemester',
   summer: 'Sommersemester',
