@@ -80,10 +80,11 @@ export function SummaryPanel({ plan, summary }: { plan: Plan; summary: PlanSumma
   return (
     <aside
       aria-label={t('summary.overview')}
-      // From lg the average, progress and the calculation stack in a narrow first column, so the areas get the whole
-      // remaining width. The DOM order stays the phone order. In print the three data cards share one compact row
-      // again (the placements are reset) and the calculation card is left out, leaving the page to the overview.
-      className="grid grid-cols-2 gap-3 lg:grid-cols-[minmax(0,16rem)_minmax(0,1fr)] lg:grid-rows-[auto_auto_1fr] print:grid-cols-[minmax(0,10rem)_minmax(0,13rem)_minmax(0,1fr)] print:grid-rows-none print:gap-2"
+      // From lg three columns: average and progress stacked in a narrow first column (two equal rows, so both cards
+      // are the same height), the areas in the wide middle, the calculation on the right. The DOM order stays the
+      // phone order. In print the three data cards share one compact row again (the placements are reset) and the
+      // calculation card is left out.
+      className="grid grid-cols-2 gap-3 lg:grid-cols-[minmax(0,16rem)_minmax(0,1fr)_minmax(0,16rem)] lg:grid-rows-2 print:grid-cols-[minmax(0,10rem)_minmax(0,13rem)_minmax(0,1fr)] print:grid-rows-none print:gap-2"
     >
       <section className="lg:col-start-1 lg:row-start-1 print:col-start-auto print:row-start-auto rounded-xl bg-linear-to-br from-indigo-50 to-white p-4 shadow-sm ring-1 ring-indigo-200/70 dark:from-indigo-950/60 dark:to-zinc-900 dark:ring-indigo-900/60 print:p-2.5 print:shadow-none">
         <CardHeading icon={GraduationCap}>{t('summary.currentAverage')}</CardHeading>
@@ -133,7 +134,7 @@ export function SummaryPanel({ plan, summary }: { plan: Plan; summary: PlanSumma
       <section
         className={cn(
           cardClass,
-          'col-span-2 lg:col-span-1 lg:col-start-2 lg:row-span-3 lg:row-start-1 print:col-span-1 print:col-start-auto print:row-span-1 print:row-start-auto print:p-2.5 print:shadow-none',
+          'col-span-2 lg:col-span-1 lg:col-start-2 lg:row-span-2 lg:row-start-1 print:col-span-1 print:col-start-auto print:row-span-1 print:row-start-auto print:p-2.5 print:shadow-none',
         )}
       >
         <div className="flex items-center justify-between gap-2">
@@ -194,7 +195,7 @@ export function SummaryPanel({ plan, summary }: { plan: Plan; summary: PlanSumma
       <section
         className={cn(
           cardClass,
-          'col-span-2 flex flex-col lg:col-span-1 lg:col-start-1 lg:row-start-3 print:hidden',
+          'col-span-2 flex flex-col lg:col-span-1 lg:col-start-3 lg:row-span-2 lg:row-start-1 print:hidden',
         )}
       >
         <CardHeading icon={Calculator}>{t('summary.howCalculated')}</CardHeading>
