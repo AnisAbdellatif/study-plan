@@ -120,7 +120,12 @@ function Overview({ stats }: { stats: AdminStats }) {
                       {row.universityName}
                     </span>
                   </td>
-                  <td className="py-1.5 pr-4">{row.poVersion}</td>
+                  <td className="py-1.5 pr-4">
+                    {/* Some regulation names are a whole paragraph; three lines are enough to tell them apart. */}
+                    <span className="line-clamp-3" title={row.poVersion}>
+                      {row.poVersion}
+                    </span>
+                  </td>
                   <td className="py-1.5 text-right tabular-nums">{formatNumber(row.plans)}</td>
                 </tr>
               ))}

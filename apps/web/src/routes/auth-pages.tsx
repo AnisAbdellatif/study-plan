@@ -9,7 +9,7 @@ import { ConfirmDialog } from '../components/ui/dialog.tsx'
 import { LoadingText, Spinner } from '../components/ui/spinner.tsx'
 import { useSignOut } from '../components/use-sign-out.ts'
 import i18n, { currentLocale } from '../i18n/index.ts'
-import { adminApi, notificationApi, type PlanOverview, type PlanSummary, planApi } from '../lib/api.ts'
+import { notificationApi, type PlanOverview, type PlanSummary, planApi } from '../lib/api.ts'
 import { appGradeKeyring } from '../lib/app-grade-keyring.ts'
 import { authClient } from '../lib/auth-client.ts'
 import { downloadFile } from '../lib/files.ts'
@@ -666,31 +666,6 @@ function AccountPlans() {
   )
 }
 
-function AdminLink() {
-  const { t } = useTranslation('auth')
-  const [allowed, setAllowed] = useState(false)
-  useEffect(() => {
-    let active = true
-    adminApi
-      .me()
-      .then(() => {
-        if (active) setAllowed(true)
-      })
-      .catch(() => {})
-    return () => {
-      active = false
-    }
-  }, [])
-  if (!allowed) return null
-  return (
-    <p className="text-sm">
-      <Link to="/admin" className={linkClass}>
-        {t('account.adminLink')}
-      </Link>
-    </p>
-  )
-}
-
 export function UnsubscribePage() {
   const { t } = useTranslation('auth')
   const search = useSearch({ strict: false }) as { token?: unknown }
@@ -844,7 +819,6 @@ export function AccountPage() {
       <AccountPlans />
       <ChangePasswordSection email={user.email} />
       <ReminderSettings />
-      <AdminLink />
 
       <section className={cardClass} aria-labelledby="konto-daten">
         <h2 id="konto-daten" className="font-semibold">

@@ -145,7 +145,11 @@ export function AppHeader({ plan }: { plan: Plan }) {
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
           <h1 className="text-lg font-semibold break-words sm:truncate sm:text-xl">{plan.name}</h1>
-          <p className="text-sm text-zinc-600 sm:truncate dark:text-zinc-400">
+          {/* Regulation names can be a whole paragraph; phones show two lines, wider screens one. */}
+          <p
+            title={`${plan.preset.universityName} · ${plan.preset.poVersion}`}
+            className="text-sm text-zinc-600 max-sm:line-clamp-2 sm:truncate dark:text-zinc-400"
+          >
             {plan.preset.universityName} · {plan.preset.poVersion}
           </p>
         </div>
