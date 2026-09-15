@@ -42,12 +42,16 @@ async function openCardMenu(user: ReturnType<typeof userEvent.setup>, moduleName
 }
 
 describe('onboarding', () => {
-  it('sends visitors without a plan to the programme flow and creates a plan from the example', async () => {
+  it('shows visitors without a plan the landing page and creates a plan from the example', async () => {
     const { user, store, router } = renderApp()
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Dein Studium, klar geplant.' }),
+    ).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/')
+
+    await user.click(screen.getByRole('link', { name: 'Loslegen' }))
     expect(await screen.findByRole('heading', { name: 'Studienplan anlegen' })).toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/start')
-    expect(screen.getByRole('heading', { name: '1. Studiengang beschreiben' })).toBeInTheDocument()
-    expect(screen.getByText(/Ein Sprachmodell deiner Wahl liest deine Prüfungsordnung/)).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Mit Beispiel ausprobieren' }))
 

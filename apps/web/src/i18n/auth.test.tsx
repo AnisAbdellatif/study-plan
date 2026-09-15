@@ -31,7 +31,7 @@ describe('account, start and shared pages in English', () => {
   afterEach(() => vi.restoreAllMocks())
 
   it('shows the start page', async () => {
-    renderApp('/start')
+    renderApp('/start?method=llm')
     expect(await screen.findByRole('heading', { name: 'Create your study plan' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: '1. Describe your programme' })).toBeInTheDocument()
     expect(screen.getByLabelText('University')).toBeInTheDocument()

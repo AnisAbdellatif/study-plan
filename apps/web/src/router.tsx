@@ -12,6 +12,8 @@ import { SiteFooter } from './components/site-footer.tsx'
 import { SiteHeader } from './components/site-header.tsx'
 import { validateAdminSearch } from './routes/admin-tabs.ts'
 import { BoardPage } from './routes/board-page.tsx'
+import { LandingPage } from './routes/landing-page.tsx'
+import { validateStartSearch } from './routes/start-methods.ts'
 import { StartPage } from './routes/start-page.tsx'
 
 // The board and the start page are where almost every visit begins, so they ship in the main bundle. Every other
@@ -52,7 +54,13 @@ const rootRoute = createRootRoute({
 })
 
 const boardRoute = createRoute({ getParentRoute: () => rootRoute, path: '/', component: BoardPage })
-const startRoute = createRoute({ getParentRoute: () => rootRoute, path: '/start', component: StartPage })
+const startRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/start',
+  validateSearch: validateStartSearch,
+  component: StartPage,
+})
+const aboutRoute = createRoute({ getParentRoute: () => rootRoute, path: '/about', component: LandingPage })
 const updateProgrammeRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/plan/update',
@@ -128,6 +136,7 @@ export const routeTree = rootRoute.addChildren([
   unsubscribeRoute,
   adminRoute,
   contactRoute,
+  aboutRoute,
 ])
 
 type RouterOptions = Parameters<typeof createRouter<typeof routeTree>>[0]

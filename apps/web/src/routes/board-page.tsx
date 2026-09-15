@@ -33,7 +33,6 @@ import {
   updateCustomModule,
   validatePlan,
 } from '@study-plan/shared'
-import { Navigate } from '@tanstack/react-router'
 import { ChartNoAxesColumn, LayoutGrid, ListChecks, MessageCircle } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -64,6 +63,7 @@ import { useMediaQuery } from '../lib/use-media-query.ts'
 import { usePrinting } from '../lib/use-printing.ts'
 import { useStableHandlers } from '../lib/use-stable-handlers.ts'
 import { useGuestState, useGuestStore } from '../store/guest-store.ts'
+import { LandingPage } from './landing-page.tsx'
 
 /** How far ahead the deadlines card looks. The calendar export always contains every deadline. */
 const DEADLINE_HORIZON_DAYS = 120
@@ -99,7 +99,8 @@ type MobileTab = (typeof MOBILE_TABS)[number]['id']
 
 export function BoardPage() {
   const { plan } = useGuestState()
-  if (!plan) return <Navigate to="/start" replace />
+  // Visitors without a plan get the introduction; creating one starts at /start.
+  if (!plan) return <LandingPage />
   return <Board plan={plan} />
 }
 

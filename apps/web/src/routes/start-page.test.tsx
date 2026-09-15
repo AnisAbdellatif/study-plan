@@ -10,7 +10,8 @@ import { DRAFT_KEY } from './start-page.tsx'
 
 const originalClipboard = Object.getOwnPropertyDescriptor(navigator, 'clipboard')
 
-function renderApp(path = '/start') {
+/** Most tests here walk the language model steps, which live in their own tab. */
+function renderApp(path = '/start?method=llm') {
   const store = createGuestStore(window.localStorage)
   const router = createAppRouter(createMemoryHistory({ initialEntries: [path] }))
   const user = userEvent.setup()
@@ -63,11 +64,21 @@ afterEach(() => {
 })
 
 describe('programme flow on the start page', () => {
-  it('is where visitors without a plan land', async () => {
-    renderApp('/')
+  it('opens on the templates and switches between the three ways in tabs', async () => {
+    const { user } = renderApp('/start')
     expect(await screen.findByRole('heading', { level: 1, name: 'Studienplan anlegen' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: '1. Studiengang beschreiben' })).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Zurück zu deinem Plan' })).not.toBeInTheDocument()
+    const tabs = screen.getByRole('tablist', { name: 'So legst du deinen Studiengang an' })
+    expect(within(tabs).getByRole('tab', { name: 'Vorlage' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('region', { name: 'Studiengang auswählen' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: '1. Studiengang beschreiben' })).not.toBeInTheDocument()
+
+    await user.click(within(tabs).getByRole('tab', { name: 'Mit KI' }))
+    expect(await screen.findByRole('heading', { name: '1. Studiengang beschreiben' })).toBeInTheDocument()
+    expect(screen.getByRole('list', { name: 'Fortschritt' })).toBeInTheDocument()
+
+    await user.click(within(tabs).getByRole('tab', { name: 'Datei' }))
+    expect(await screen.findByRole('region', { name: 'Studiengang aus Datei laden' })).toBeInTheDocument()
   })
 
   it('generates and copies the prompt', async () => {
@@ -147,7 +158,7 @@ describe('programme flow on the start page', () => {
   })
 
   it('creates a plan straight from a programme file, without entering university and programme', async () => {
-    const { user, store } = renderApp()
+    const { user, store } = renderApp('/start?method=file')
     const section = await screen.findByRole('region', { name: 'Studiengang aus Datei laden' })
     expect(
       within(section).getByText(/Hochschule, Studiengang und Abschluss stehen in der Datei/),
@@ -158,7 +169,8 @@ describe('programme flow on the start page', () => {
 
     expect(await within(section).findByText('Geladen: programme.json')).toBeInTheDocument()
     expect(within(section).getByText('Die Antwort passt')).toBeInTheDocument()
-    expect(screen.getByLabelText('Hochschule')).toHaveValue('')
+    // The language model steps stay untouched in their own tab.
+    expect(screen.queryByLabelText('Hochschule')).not.toBeInTheDocument()
 
     await user.click(within(section).getByRole('button', { name: 'Plan anlegen' }))
     expect(await screen.findByRole('heading', { name: '1. Semester' })).toBeInTheDocument()
@@ -169,7 +181,7 @@ describe('programme flow on the start page', () => {
   })
 
   it('reports an invalid programme file in place', async () => {
-    const { user } = renderApp()
+    const { user } = renderApp('/start?method=file')
     const section = await screen.findByRole('region', { name: 'Studiengang aus Datei laden' })
     const file = new File(['{"modules": []}'], 'kaputt.json', { type: 'application/json' })
     await user.upload(within(section).getByLabelText('Studiengangsdatei (JSON) auswählen'), file)
@@ -190,12 +202,13 @@ describe('programme flow on the start page', () => {
 
   it('shows English headings', async () => {
     await i18n.changeLanguage('en')
-    const { user } = renderApp()
+    const { user } = renderApp('/start')
     expect(
       await screen.findByRole('heading', { level: 1, name: 'Create your study plan' }),
     ).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Choose your programme' })).toBeInTheDocument()
-    await user.type(screen.getByLabelText('University'), 'Example University')
+    await user.click(screen.getByRole('tab', { name: 'With AI' }))
+    await user.type(await screen.findByLabelText('University'), 'Example University')
     await user.type(screen.getByLabelText('Degree programme'), 'Computer Science')
     await user.click(screen.getByRole('button', { name: 'Create prompt' }))
     expect(screen.getByRole('heading', { name: '1. Describe your programme' })).toBeInTheDocument()

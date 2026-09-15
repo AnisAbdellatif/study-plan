@@ -120,7 +120,7 @@ describe('choosing a preset on the start page', () => {
     expect(await within(section).findByText('Die Antwort passt')).toBeInTheDocument()
     expect(
       within(section).getByText(
-        'Dein Studiengang ist nicht dabei? Lade eine Studiengangsdatei oder erstelle sie mit einem Sprachmodell.',
+        'Dein Studiengang ist nicht dabei? Lade eine Studiengangsdatei oder erstelle sie mit einem Sprachmodell, beides in den Reitern oben.',
       ),
     ).toBeInTheDocument()
   })
@@ -150,11 +150,13 @@ describe('choosing a preset on the start page', () => {
 
   it('keeps the other options working when the list cannot be loaded', async () => {
     mockPresets(() => respond({ error: 'internal_error' }, 500))
-    renderStart()
+    const { user } = renderStart()
     expect(
       await screen.findByText(/Die Studiengänge konnten gerade nicht geladen werden/),
     ).toBeInTheDocument()
-    expect(screen.getByRole('region', { name: 'Studiengang aus Datei laden' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Prompt erstellen' })).toBeInTheDocument()
+    await user.click(screen.getByRole('tab', { name: 'Datei' }))
+    expect(await screen.findByRole('region', { name: 'Studiengang aus Datei laden' })).toBeInTheDocument()
+    await user.click(screen.getByRole('tab', { name: 'Mit KI' }))
+    expect(await screen.findByRole('button', { name: 'Prompt erstellen' })).toBeInTheDocument()
   })
 })
