@@ -143,9 +143,9 @@ export function SummaryPanel({ plan, summary }: { plan: Plan; summary: PlanSumma
           <CardHeading icon={Layers}>{t('summary.areas')}</CardHeading>
           <span className="text-xs text-zinc-500">{t('summary.areaLegend')}</span>
         </div>
-        {/* Two columns of areas in print keep this card as short as the other two. The negative margin puts the
-            scrollbar into the card's padding. */}
-        <ul className="-mr-2 mt-2 min-h-0 flex-1 space-y-2.5 overflow-y-auto pr-2 max-lg:max-h-72 print:mt-1 print:grid print:max-h-none print:grid-cols-2 print:gap-x-4 print:gap-y-1 print:space-y-0 print:overflow-visible">
+        {/* As many columns of areas as fit the card's width, each at least 15rem. Two columns in print keep this card
+            as short as the other two. The negative margin puts the scrollbar into the card's padding. */}
+        <ul className="-mr-2 mt-2 grid min-h-0 flex-1 grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] content-start gap-x-6 gap-y-2.5 overflow-y-auto pr-2 max-lg:max-h-72 print:mt-1 print:max-h-none print:grid-cols-2 print:gap-x-4 print:gap-y-1 print:overflow-visible">
           {summary.areas.map((area) => {
             const planned = area.plannedCredits + area.placeholderCredits
             const hasRange = area.maxCredits !== undefined && area.maxCredits !== area.minCredits
