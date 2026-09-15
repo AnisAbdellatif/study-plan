@@ -84,7 +84,9 @@ function mockApi() {
 function renderAdmin() {
   render(
     <GuestStoreContext.Provider value={createGuestStore(window.localStorage)}>
-      <RouterProvider router={createAppRouter(createMemoryHistory({ initialEntries: ['/admin'] }))} />
+      <RouterProvider
+        router={createAppRouter(createMemoryHistory({ initialEntries: ['/admin?tab=presets'] }))}
+      />
     </GuestStoreContext.Provider>,
   )
   return userEvent.setup()
@@ -156,7 +158,8 @@ describe('presets in the admin dashboard', () => {
     expect(await within(section).findByText(`Vorlage ${label} gelöscht.`)).toBeInTheDocument()
     expect(await within(section).findByText(/Noch keine Vorlagen/)).toBeInTheDocument()
 
-    const audit = screen.getByRole('region', { name: 'Protokoll' })
+    await user.click(screen.getByRole('tab', { name: 'Protokoll' }))
+    const audit = await screen.findByRole('region', { name: 'Protokoll' })
     expect(within(audit).getByText('Vorlage ersetzt')).toBeInTheDocument()
     expect(within(audit).getByText(`· Vorlage ${informatik.id}`)).toBeInTheDocument()
   })

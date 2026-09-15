@@ -6,6 +6,7 @@ export const board = {
     sharePlan: 'Plan teilen…',
     print: 'Drucken oder als PDF speichern',
     updateProgramme: 'Studiengangsdaten aktualisieren…',
+    changeStartTerm: 'Studienbeginn ändern…',
     restoreDefault: 'Auf Standardplan zurücksetzen…',
     restoreDefaultTitle: 'Plan auf den Standard zurücksetzen?',
     restoreDefaultDescription:
@@ -72,7 +73,7 @@ export const board = {
     unavailable: 'Der Studienassistent ist gerade nicht verfügbar.',
     consentTitle: 'Bevor du startest',
     consentText:
-      'Deine Fragen und die Studiengangsdaten deines Plans (Module, Beschreibungen aus dem Modulkatalog, Regeln der Prüfungsordnung) gehen über OpenRouter an ein Sprachmodell. Deine Noten, Ergebnisse, Prüfungstermine, dein Zielschnitt und deine Kontodaten werden nie übermittelt. Schreib keine persönlichen Daten in deine Fragen.',
+      'Deine Fragen und die Studiengangsdaten deines Plans (Module, Beschreibungen aus dem Modulkatalog, Regeln der Prüfungsordnung) gehen über OpenRouter an ein Sprachmodell. OpenRouter sitzt in den USA, und auch der Anbieter des Modells kann außerhalb der EU sitzen, wo möglicherweise kein Datenschutzniveau wie in der EU besteht. Deine Noten, Ergebnisse, Prüfungstermine, dein Zielschnitt und deine Kontodaten werden nie übermittelt. Schreib keine persönlichen Daten in deine Fragen.',
     privacyLink: 'Mehr dazu in der Datenschutzerklärung',
     consentAccept: 'Verstanden, Assistent nutzen',
     inputLabel: 'Deine Frage',
@@ -82,6 +83,7 @@ export const board = {
     newConversation: 'Neues Gespräch',
     remaining_one: 'Heute noch {{count}} Nachricht',
     remaining_other: 'Heute noch {{count}} Nachrichten',
+    unlimited: 'Ohne Tageslimit',
     quota: 'Du hast heute alle {{limit}} Nachrichten genutzt. Morgen geht es weiter.',
     failed: 'Das hat nicht geklappt. Bitte versuch es gleich noch einmal.',
     modules: 'Genannte Module',
@@ -415,6 +417,16 @@ export const board = {
     calendarName: '{{name}}: Prüfungstermine',
     calendarExam: 'Prüfung: {{module}}',
     calendarWithdrawal: 'Letzter Tag zur Abmeldung: {{module}}',
+  },
+  startTerm: {
+    title: 'Studienbeginn ändern',
+    description: 'Alle Semester rücken mit ihren Modulen und Noten auf die neuen Semester.',
+    wrongTerms_one:
+      'Danach liegt {{count}} Modul in einem Semester, in dem es nicht angeboten wird. Die Hinweise zeigen, welches.',
+    wrongTerms_other:
+      'Danach liegen {{count}} Module in Semestern, in denen sie nicht angeboten werden. Die Hinweise zeigen, welche.',
+    save: 'Speichern',
+    changed: 'Studienbeginn geändert: {{term}}',
   },
   forecast: {
     title: 'Voraussichtlicher Abschluss',

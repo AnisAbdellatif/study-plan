@@ -3,7 +3,13 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 import { programmeForChat } from '../chat/programme.ts'
 import { runChat } from '../chat/run-chat.ts'
-import { chatMessagesToday, chatSettings, claimChatMessage, refundChatMessage } from '../chat/settings.ts'
+import {
+  chatMessagesToday,
+  chatSettings,
+  claimChatMessage,
+  hasUnlimitedChat,
+  refundChatMessage,
+} from '../chat/settings.ts'
 import { meterLlm, recordChatUsage } from '../chat/usage.ts'
 import type { Database } from '../db/connection.ts'
 import { plan } from '../db/schema.ts'
@@ -42,13 +48,17 @@ export function chatRoutes(db: Database, llm: LlmClient | undefined) {
   const routes = new Hono<AppEnv>()
 
   routes.get('/status', async (c) => {
+    const userId = c.get('user').id
     const settings = await chatSettings(db)
-    const used = await chatMessagesToday(db, c.get('user').id)
+    const unlimited = await hasUnlimitedChat(db, userId)
+    const used = await chatMessagesToday(db, userId)
     c.header('Cache-Control', 'no-store')
     return c.json({
       available: llm !== undefined && settings.enabled,
       dailyLimit: settings.dailyLimit,
-      remaining: Math.max(0, settings.dailyLimit - used),
+      unlimited,
+      // Null when an admin lifted the limit for this account.
+      remaining: unlimited ? null : Math.max(0, settings.dailyLimit - used),
     })
   })
 
@@ -66,7 +76,9 @@ export function chatRoutes(db: Database, llm: LlmClient | undefined) {
       .where(and(eq(plan.id, body.data.planId), eq(plan.userId, userId)))
     if (!row) return c.json({ error: 'not_found' }, 404)
 
-    const used = await claimChatMessage(db, userId, settings.dailyLimit)
+    // Accounts with unlimited messages are still counted, so today's usage stays visible if the limit returns.
+    const unlimited = await hasUnlimitedChat(db, userId)
+    const used = await claimChatMessage(db, userId, unlimited ? null : settings.dailyLimit)
     if (used === null) return c.json({ error: 'chat_quota_exceeded', dailyLimit: settings.dailyLimit }, 429)
 
     const programme = programmeForChat(row.document.plan)
@@ -93,7 +105,7 @@ export function chatRoutes(db: Database, llm: LlmClient | undefined) {
       return c.json({
         reply: answer.reply,
         modules: answer.moduleCodes.map((code) => ({ code, name: names.get(code) ?? code })),
-        remaining: Math.max(0, settings.dailyLimit - used),
+        remaining: unlimited ? null : Math.max(0, settings.dailyLimit - used),
       })
     } catch (error) {
       await record('failed')

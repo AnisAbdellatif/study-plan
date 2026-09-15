@@ -7,6 +7,7 @@ import {
   termAt,
 } from '@study-plan/shared'
 import { Link, useNavigate } from '@tanstack/react-router'
+import { LogIn } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAccountSync } from '../components/account-sync.tsx'
@@ -30,6 +31,9 @@ import { useGuestState, useGuestStore } from '../store/guest-store.ts'
 export const DRAFT_KEY = 'study-plan:custom-preset-draft'
 
 const linkClass = 'font-medium text-indigo-700 underline-offset-4 hover:underline dark:text-indigo-300'
+
+const signInClass =
+  'inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 text-sm font-medium text-white shadow-sm shadow-indigo-600/30 hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 dark:shadow-indigo-950/60'
 
 /** Where the new plan comes from: an admin preset, the LLM steps, a programme file, or the example. */
 type Pending = 'preset' | 'programme' | 'file' | 'example'
@@ -90,7 +94,15 @@ export function StartPage() {
   const run = (action: Pending) => {
     const now = new Date()
     if (action === 'example') {
-      open(createPlanFromPreset(demoPreset, { id: newId(), startTerm: termAt(now), now }))
+      // The example's curriculum begins in winter, so it starts in the current or the next winter semester.
+      const current = termAt(now)
+      open(
+        createPlanFromPreset(demoPreset, {
+          id: newId(),
+          startTerm: { season: 'winter', year: current.year },
+          now,
+        }),
+      )
       return
     }
     if (action === 'preset') {
@@ -113,7 +125,21 @@ export function StartPage() {
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-10">
-      <BrandMark size="lg" className="mb-4" />
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <BrandMark size="lg" />
+        {/* Hidden while the session loads too, so signed-in students never see it flash. */}
+        {user || sessionPending ? null : (
+          <div className="flex items-center gap-3">
+            <span className="hidden text-sm text-zinc-600 sm:inline dark:text-zinc-400">
+              {t('haveAccount')}
+            </span>
+            <Link to="/sign-in" className={signInClass}>
+              <LogIn aria-hidden className="size-4" />
+              {t('signIn')}
+            </Link>
+          </div>
+        )}
+      </div>
       <h1 className="mt-1 text-2xl font-semibold">{t('title')}</h1>
       <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">{t('intro')}</p>
 
@@ -138,19 +164,11 @@ export function StartPage() {
           <ImportPlanButton label={t('import')} variant="ghost" className="-ml-3" />
           <p className={hintClass}>{t('importNote')}</p>
         </div>
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          {/* Hidden while the session loads too, so signed-in students never see it flash. */}
-          {user || sessionPending ? null : (
-            <Link to="/sign-in" className={linkClass}>
-              {t('haveAccount')}
-            </Link>
-          )}
-          {plan ? (
-            <Link to="/" className={linkClass}>
-              {t('backToPlan')}
-            </Link>
-          ) : null}
-        </div>
+        {plan ? (
+          <Link to="/" className={`inline-block ${linkClass}`}>
+            {t('backToPlan')}
+          </Link>
+        ) : null}
       </div>
 
       <PresetPicker preset={chosenPreset} onPresetChange={setChosenPreset}>

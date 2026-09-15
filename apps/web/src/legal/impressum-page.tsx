@@ -1,4 +1,5 @@
-import { useTranslation } from 'react-i18next'
+import { Link } from '@tanstack/react-router'
+import { Trans, useTranslation } from 'react-i18next'
 import { LegalPage, LegalSection, OperatorField } from './legal-page.tsx'
 import { operator } from './operator.ts'
 
@@ -25,6 +26,9 @@ export function ImpressumPage() {
               {t('labels.phone')} {operator.phone}
             </>
           ) : null}
+        </p>
+        <p>
+          <Trans t={t} i18nKey="impressum.contactForm" components={{ form: <Link to="/contact" /> }} />
         </p>
       </LegalSection>
 

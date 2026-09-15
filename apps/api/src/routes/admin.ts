@@ -82,6 +82,7 @@ const chatSettingsSchema = z.object({
 const modelCheckSchema = z.object({ model: chatModelIdSchema })
 /** Null returns the account to the global limit. */
 const userPlanLimitSchema = z.object({ planLimit: planLimitSchema.nullable() })
+const unlimitedChatSchema = z.object({ unlimitedChat: z.boolean() })
 /** Audit target for changes that concern every account rather than one. */
 const SETTINGS_TARGET = 'settings'
 
@@ -210,6 +211,7 @@ export function adminRoutes(
         emailVerified: user.emailVerified,
         role: user.role,
         planLimit: user.planLimit,
+        unlimitedChat: user.unlimitedChat,
         createdAt: user.createdAt,
       })
       .from(user)
@@ -358,6 +360,20 @@ export function adminRoutes(
       .where(eq(user.id, row.id))
     await audit(c, 'set_plan_limit', row.id)
     return c.json({ planLimit: body.data.planLimit })
+  })
+
+  /** Lets one account ask the study assistant without the daily limit, or returns it to the limit. */
+  routes.put('/users/:id/unlimited-chat', async (c) => {
+    const body = unlimitedChatSchema.safeParse(await readJson(c))
+    if (!body.success) return c.json({ error: 'invalid_request' }, 400)
+    const { row, response } = await target(c)
+    if (!row) return response
+    await db
+      .update(user)
+      .set({ unlimitedChat: body.data.unlimitedChat, updatedAt: new Date() })
+      .where(eq(user.id, row.id))
+    await audit(c, 'set_unlimited_chat', row.id)
+    return c.json({ unlimitedChat: body.data.unlimitedChat })
   })
 
   routes.post('/users/:id/verification-email', async (c) => {

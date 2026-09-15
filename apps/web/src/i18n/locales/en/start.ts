@@ -10,7 +10,7 @@ export const start = {
   dismiss: 'Dismiss',
   tryExample: 'Try it with an example',
   exampleNote:
-    'The example is a made-up computer science programme that isn’t based on any real examination regulations. Your plan starts in the current semester.',
+    'The example is a made-up computer science programme that isn’t based on any real examination regulations. Your plan starts in the current or next winter semester.',
   startTerm: 'Start of studies',
   winter: 'Winter semester',
   summer: 'Summer semester',
@@ -49,7 +49,8 @@ export const start = {
     readError: 'The file couldn’t be read.',
   },
   orSteps: 'No programme file yet? Create one with a language model in four steps:',
-  haveAccount: 'Already have an account? Sign in',
+  haveAccount: 'Already have an account?',
+  signIn: 'Sign in',
   backToPlan: 'Back to your plan',
   replace: {
     title: 'Replace your current plan?',

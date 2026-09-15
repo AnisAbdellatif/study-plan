@@ -1,0 +1,1 @@
+ALTER TABLE "user" ADD COLUMN "unlimited_chat" boolean DEFAULT false NOT NULL;

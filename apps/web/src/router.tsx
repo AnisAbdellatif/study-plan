@@ -10,6 +10,7 @@ import { AnnouncerProvider } from './components/announcer.tsx'
 import { LocaleSync } from './components/locale-sync.tsx'
 import { SiteFooter } from './components/site-footer.tsx'
 import { SiteHeader } from './components/site-header.tsx'
+import { validateAdminSearch } from './routes/admin-tabs.ts'
 import { BoardPage } from './routes/board-page.tsx'
 import { StartPage } from './routes/start-page.tsx'
 
@@ -25,6 +26,7 @@ const UnsubscribePage = lazyRouteComponent(authPages, 'UnsubscribePage')
 const ImpressumPage = lazyRouteComponent(() => import('./legal/impressum-page.tsx'), 'ImpressumPage')
 const DatenschutzPage = lazyRouteComponent(() => import('./legal/datenschutz-page.tsx'), 'DatenschutzPage')
 const AdminPage = lazyRouteComponent(() => import('./routes/admin-page.tsx'), 'AdminPage')
+const ContactPage = lazyRouteComponent(() => import('./routes/contact-page.tsx'), 'ContactPage')
 const SharedPlanPage = lazyRouteComponent(() => import('./routes/shared-plan-page.tsx'), 'SharedPlanPage')
 const UpdateProgrammePage = lazyRouteComponent(
   () => import('./routes/update-programme-page.tsx'),
@@ -87,6 +89,11 @@ const datenschutzRoute = createRoute({
   path: '/privacy',
   component: DatenschutzPage,
 })
+const contactRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/contact',
+  component: ContactPage,
+})
 const sharedRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/shared/$token',
@@ -99,7 +106,12 @@ const unsubscribeRoute = createRoute({
   component: UnsubscribePage,
 })
 
-const adminRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin', component: AdminPage })
+const adminRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/admin',
+  validateSearch: validateAdminSearch,
+  component: AdminPage,
+})
 
 export const routeTree = rootRoute.addChildren([
   boardRoute,
@@ -115,6 +127,7 @@ export const routeTree = rootRoute.addChildren([
   sharedRoute,
   unsubscribeRoute,
   adminRoute,
+  contactRoute,
 ])
 
 type RouterOptions = Parameters<typeof createRouter<typeof routeTree>>[0]

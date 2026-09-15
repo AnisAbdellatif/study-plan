@@ -59,7 +59,7 @@ describe('account button', () => {
 
   it('offers to sign in when signed out, except on the sign-in page itself', async () => {
     mocks.signedIn = false
-    renderAt('/start')
+    renderAt('/plan/update')
     expect(await screen.findByRole('link', { name: 'Anmelden' })).toBeInTheDocument()
   })
 

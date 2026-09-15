@@ -13,6 +13,7 @@ export const common = {
   footer: {
     legalNotice: 'Legal notice',
     privacy: 'Privacy',
+    contact: 'Contact',
   },
   actions: {
     cancel: 'Cancel',

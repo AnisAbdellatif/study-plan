@@ -11,6 +11,7 @@ const SECTIONS = [
   'account',
   'sharing',
   'emails',
+  'contact',
   'assistant',
   'abuse',
   'cookies',
@@ -24,6 +25,7 @@ const SUMMARY_ITEMS = [
   'cookie',
   'sharing',
   'assistant',
+  'contact',
   'selfService',
 ] as const
 const ACCOUNT_ITEMS = ['identity', 'password', 'plans', 'reminders', 'language', 'sessions'] as const
@@ -109,11 +111,22 @@ export function DatenschutzPage() {
         </p>
       </LegalSection>
 
+      <LegalSection id="contact" heading={heading('contact')}>
+        <p>
+          <Trans t={t} i18nKey="privacy.contact.what" components={{ form: <Link to="/contact" /> }} />
+        </p>
+        <p>{t('privacy.contact.storage')}</p>
+        <p>{t('privacy.contact.basis')}</p>
+      </LegalSection>
+
       <LegalSection id="assistant" heading={heading('assistant')}>
         <p>{t('privacy.assistant.what')}</p>
+        <p>{t('privacy.assistant.models')}</p>
         <p>{t('privacy.assistant.never')}</p>
         <p>{t('privacy.assistant.storage')}</p>
+        <p>{t('privacy.assistant.statistics')}</p>
         <p>{t('privacy.assistant.basis')}</p>
+        <p>{t('privacy.assistant.transfer')}</p>
       </LegalSection>
 
       <LegalSection id="abuse" heading={heading('abuse')}>
@@ -130,7 +143,7 @@ export function DatenschutzPage() {
           <Trans
             t={t}
             i18nKey="privacy.rights.selfService"
-            components={{ account: <Link to="/account" /> }}
+            components={{ account: <Link to="/account" />, contact: <Link to="/contact" /> }}
           />
         </p>
         <p>{t('privacy.rights.complaint')}</p>

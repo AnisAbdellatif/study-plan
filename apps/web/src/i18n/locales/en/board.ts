@@ -9,6 +9,7 @@ export const board = {
     sharePlan: 'Share plan…',
     print: 'Print or save as PDF',
     updateProgramme: 'Update programme data…',
+    changeStartTerm: 'Change start of studies…',
     restoreDefault: 'Reset to default plan…',
     restoreDefaultTitle: 'Reset the plan to its default?',
     restoreDefaultDescription:
@@ -75,7 +76,7 @@ export const board = {
     unavailable: 'The study assistant is not available right now.',
     consentTitle: 'Before you start',
     consentText:
-      'Your questions and the programme data of your plan (modules, module catalogue descriptions, examination rules) go to a language model through OpenRouter. Your grades, results, exam dates, target average and account details are never sent. Please don’t put personal information in your questions.',
+      'Your questions and the programme data of your plan (modules, module catalogue descriptions, examination rules) go to a language model through OpenRouter. OpenRouter is based in the USA, and the model’s provider may also be outside the EU, where data protection may not match the EU’s. Your grades, results, exam dates, target average and account details are never sent. Please don’t put personal information in your questions.',
     privacyLink: 'More in the privacy policy',
     consentAccept: 'Got it, use the assistant',
     inputLabel: 'Your question',
@@ -85,6 +86,7 @@ export const board = {
     newConversation: 'New conversation',
     remaining_one: '{{count}} message left today',
     remaining_other: '{{count}} messages left today',
+    unlimited: 'No daily limit',
     quota: "You've used all {{limit}} messages for today. You can continue tomorrow.",
     failed: "That didn't work. Please try again in a moment.",
     modules: 'Modules mentioned',
@@ -415,6 +417,16 @@ export const board = {
     calendarName: '{{name}}: exam dates',
     calendarExam: 'Exam: {{module}}',
     calendarWithdrawal: 'Last day to withdraw: {{module}}',
+  },
+  startTerm: {
+    title: 'Change start of studies',
+    description: 'Every semester moves to the new terms together with its modules and grades.',
+    wrongTerms_one:
+      '{{count}} module will then be in a semester that doesn’t offer it. The hints show which.',
+    wrongTerms_other:
+      '{{count}} modules will then be in semesters that don’t offer them. The hints show which.',
+    save: 'Save',
+    changed: 'Start of studies changed: {{term}}',
   },
   forecast: {
     title: 'Expected graduation',

@@ -223,7 +223,8 @@ export function StudyAssistant({
     }
   }
 
-  const exhausted = status.remaining <= 0
+  // Null means an admin lifted the daily limit for this account.
+  const exhausted = status.remaining !== null && status.remaining <= 0
 
   return (
     <div className={cn('flex flex-col gap-3 text-sm', layout === 'panel' && 'min-h-0', className)}>
@@ -231,7 +232,9 @@ export function StudyAssistant({
         {title}
         <div className="flex items-center gap-2">
           <span className="text-xs text-zinc-600 tabular-nums dark:text-zinc-400">
-            {t('assistant.remaining', { count: status.remaining })}
+            {status.remaining === null
+              ? t('assistant.unlimited')
+              : t('assistant.remaining', { count: status.remaining })}
           </span>
           {entries.length > 0 ? (
             <Button size="sm" variant="ghost" disabled={sending} onClick={() => setEntries([])}>

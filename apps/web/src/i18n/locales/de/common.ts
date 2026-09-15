@@ -10,6 +10,7 @@ export const common = {
   footer: {
     legalNotice: 'Impressum',
     privacy: 'Datenschutz',
+    contact: 'Kontakt',
   },
   actions: {
     cancel: 'Abbrechen',

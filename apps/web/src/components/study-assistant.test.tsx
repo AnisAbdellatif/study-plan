@@ -18,11 +18,14 @@ vi.mock('./account-sync.tsx', async (importOriginal) => ({
 const respond = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
 
-function mockApi(answer: () => Response) {
+function mockApi(
+  answer: () => Response,
+  status: object = { available: true, dailyLimit: 20, remaining: 20 },
+) {
   const posted: unknown[] = []
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     const url = String(input)
-    if (url === '/api/chat/status') return respond({ available: true, dailyLimit: 20, remaining: 20 })
+    if (url === '/api/chat/status') return respond(status)
     if (url === '/api/chat' && init?.method === 'POST') {
       posted.push(JSON.parse(String(init.body)))
       return answer()
@@ -122,6 +125,24 @@ describe('study assistant', () => {
     )
     expect(screen.queryByRole('link', { name: 'Trick' })).not.toBeInTheDocument()
     expect(log.querySelector('b, img')).toBeNull()
+  })
+
+  it('shows no countdown for an account without a daily limit', async () => {
+    window.localStorage.setItem(ASSISTANT_CONSENT_KEY, '1')
+    mockApi(() => respond({ reply: 'Ja.', modules: [], remaining: null }), {
+      available: true,
+      dailyLimit: 20,
+      unlimited: true,
+      remaining: null,
+    })
+    const { user } = renderAssistant()
+
+    expect(await screen.findByText('Ohne Tageslimit')).toBeInTheDocument()
+    await user.type(screen.getByLabelText('Deine Frage'), 'Geht das?')
+    await user.click(screen.getByRole('button', { name: 'Senden' }))
+    expect(await screen.findByText('Ja.')).toBeInTheDocument()
+    expect(screen.getByText('Ohne Tageslimit')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Senden' })).toBeInTheDocument()
   })
 
   it('explains a used-up daily limit and keeps the question', async () => {

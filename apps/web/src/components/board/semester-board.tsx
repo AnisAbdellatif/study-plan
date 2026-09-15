@@ -231,7 +231,7 @@ export function SemesterBoard({ plan, summary, currentIndex, actions, notesByCod
       <nav
         aria-label={t('columns.jumpTo')}
         // Stays at the top while a long semester is scrolled, so switching semesters is always one tap away.
-        className="sticky top-0 z-20 -mx-4 flex gap-1.5 overflow-x-auto bg-zinc-50/90 px-4 py-2 backdrop-blur sm:hidden print:hidden dark:bg-zinc-950/90"
+        className="sticky top-0 z-20 -mx-4 flex gap-1.5 overflow-x-auto bg-zinc-50/90 [scrollbar-width:none] px-4 py-2 backdrop-blur sm:hidden print:hidden dark:bg-zinc-950/90"
       >
         {columns.map((column) => {
           const active = visibleId === undefined ? column.isCurrent : visibleId === column.id
@@ -259,10 +259,11 @@ export function SemesterBoard({ plan, summary, currentIndex, actions, notesByCod
           )
         })}
       </nav>
-      {/* A little padding on every side: the scroll area clips, and the current semester's ring sits outside its box. */}
+      {/* A little padding on every side: the scroll area clips, and the current semester's ring sits outside its box.
+          Phones swipe and have the semester buttons, so the scrollbar is only shown from sm. */}
       <div
         ref={scrollerRef}
-        className="-mx-4 flex snap-x snap-mandatory scroll-px-4 items-start gap-3 overflow-x-auto px-4 pt-1 pb-4 sm:-mx-1 sm:scroll-px-1 sm:items-stretch sm:px-1 print:mx-0 print:flex-wrap print:overflow-visible print:px-0 print:pt-0"
+        className="-mx-4 flex snap-x max-sm:[scrollbar-width:none] snap-mandatory scroll-px-4 items-start gap-3 overflow-x-auto px-4 pt-1 pb-4 sm:-mx-1 sm:scroll-px-1 sm:items-stretch sm:px-1 print:mx-0 print:flex-wrap print:overflow-visible print:px-0 print:pt-0"
       >
         {columns.map((column) => (
           <SemesterColumn

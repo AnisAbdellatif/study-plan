@@ -384,6 +384,44 @@ describe('plans', () => {
     expect((await create()).status).toBe(201)
     expect((await create()).status).toBe(409)
 
+    // Unlimited assistant messages are granted and taken back the same way, and show in the list.
+    const unlimitedChat = await call(`/api/admin/users/${studentId}/unlimited-chat`, {
+      method: 'PUT',
+      cookie: admin,
+      body: { unlimitedChat: true },
+    })
+    expect(await json(unlimitedChat)).toEqual({ unlimitedChat: true })
+    expect(
+      (
+        await json<{ users: { unlimitedChat: boolean }[] }>(
+          await call('/api/admin/users?q=limits-student', { cookie: admin }),
+        )
+      ).users[0],
+    ).toMatchObject({ unlimitedChat: true })
+    expect(
+      (
+        await call(`/api/admin/users/${studentId}/unlimited-chat`, {
+          method: 'PUT',
+          cookie: admin,
+          body: { unlimitedChat: 'yes' },
+        })
+      ).status,
+    ).toBe(400)
+    expect(
+      (
+        await call(`/api/admin/users/${studentId}/unlimited-chat`, {
+          method: 'PUT',
+          cookie: student,
+          body: { unlimitedChat: true },
+        })
+      ).status,
+    ).toBe(404)
+    await call(`/api/admin/users/${studentId}/unlimited-chat`, {
+      method: 'PUT',
+      cookie: admin,
+      body: { unlimitedChat: false },
+    })
+
     // Back to the global value: the six plans stay, but no new one fits.
     await call(`/api/admin/users/${studentId}/plan-limit`, {
       method: 'PUT',
@@ -404,8 +442,78 @@ describe('plans', () => {
       expect(invalid.status).toBe(400)
     }
     await call('/api/admin/settings', { method: 'PUT', cookie: admin, body: { maxPlansPerUser: 4 } })
+
+    // Admins ask the assistant without the daily limit by default; students keep it unless it is lifted.
+    expect(await json(await call('/api/chat/status', { cookie: admin }))).toMatchObject({
+      unlimited: true,
+      remaining: null,
+    })
+    expect(await json(await call('/api/chat/status', { cookie: student }))).toMatchObject({
+      unlimited: false,
+      remaining: 20,
+    })
     // Leave no extra admin behind for the admin tests further down.
     await connection.db.update(userTable).set({ role: 'user' }).where(eq(userTable.email, adminEmail))
+  })
+})
+
+describe('contact form', () => {
+  it('mails the message to the contact address with the sender as reply-to, and limits abuse', async () => {
+    // A fresh app, so its rate limiter starts empty.
+    const contactApp = createApp({ config, db: connection.db, auth, mailer })
+    const send = (body: unknown) =>
+      contactApp.request('/api/contact', {
+        method: 'POST',
+        headers: new Headers({ origin: config.publicOrigin, 'content-type': 'application/json' }),
+        body: JSON.stringify(body),
+      })
+    const before = mailer.sent.length
+
+    const sent = await send({
+      name: 'Erika Muster',
+      email: 'erika@example.org',
+      subject: 'Vorlage Informatik',
+      message: 'Die Vorlage für Informatik ist veraltet.',
+      locale: 'de',
+    })
+    expect(sent.status).toBe(202)
+    const mail = mailer.sent.at(-1)
+    expect(mail).toMatchObject({
+      to: 'contact@study-plan.de',
+      subject: '[Study Plan Kontakt] Vorlage Informatik',
+      headers: { 'Reply-To': 'erika@example.org' },
+    })
+    expect(mail?.text).toContain('Von: Erika Muster <erika@example.org>')
+    expect(mail?.text).toContain('Betreff: Vorlage Informatik')
+    expect(mail?.text).toContain('Die Vorlage für Informatik ist veraltet.')
+    expect(mail?.html).toBeUndefined()
+
+    // Whoever fills the hidden field gets the same answer, but nothing is sent.
+    const trapped = await send({
+      email: 'bot@example.org',
+      subject: 'Offer',
+      message: 'Cheap watches, click here!',
+      website: 'x',
+    })
+    expect(trapped.status).toBe(202)
+    expect(mailer.sent).toHaveLength(before + 1)
+
+    const valid = { email: 'erika@example.org', subject: 'Frage', message: 'Hallo, eine Frage.' }
+    for (const invalid of [
+      { ...valid, email: 'not-an-address' },
+      { ...valid, message: 'kurz' },
+      { ...valid, subject: '' },
+      { email: valid.email, message: valid.message },
+      { ...valid, subject: 'Frage\r\nBcc: x@example.org' },
+      { ...valid, name: 'Evil\r\nBcc: x@example.org' },
+    ]) {
+      expect((await send(invalid)).status).toBe(400)
+    }
+
+    // Five accepted requests per client in ten minutes; two are used already.
+    const again = { email: 'erika@example.org', subject: 'Nachtrag', message: 'Noch eine Nachricht.' }
+    for (let index = 0; index < 3; index += 1) expect((await send(again)).status).toBe(202)
+    expect((await send(again)).status).toBe(429)
   })
 })
 
@@ -449,7 +557,12 @@ describe('chat', () => {
     }
 
     expect((await ask({ body: question })).status).toBe(401)
-    expect(await json(await ask({ cookie }))).toEqual({ available: true, dailyLimit: 20, remaining: 20 })
+    expect(await json(await ask({ cookie }))).toEqual({
+      available: true,
+      dailyLimit: 20,
+      unlimited: false,
+      remaining: 20,
+    })
 
     const answered = await ask({ cookie, body: question })
     expect(answered.status).toBe(200)
@@ -486,6 +599,16 @@ describe('chat', () => {
     const limited = await ask({ cookie, body: question })
     expect(limited.status).toBe(429)
     expect(await json(limited)).toEqual({ error: 'chat_quota_exceeded', dailyLimit: 2 })
+
+    // An admin lifts the limit for this account: questions go through and nothing counts down.
+    const chatUser = eq(userTable.email, 'chat@example.org')
+    await connection.db.update(userTable).set({ unlimitedChat: true }).where(chatUser)
+    expect(await json(await ask({ cookie }))).toMatchObject({ unlimited: true, remaining: null })
+    const unlimited = await ask({ cookie, body: question })
+    expect(unlimited.status).toBe(200)
+    expect(await json(unlimited)).toMatchObject({ remaining: null })
+    await connection.db.update(userTable).set({ unlimitedChat: false }).where(chatUser)
+    expect((await ask({ cookie, body: question })).status).toBe(429)
 
     await updateChatSettings(connection.db, { enabled: false, dailyLimit: 20, model: null })
     expect((await ask({ cookie, body: question })).status).toBe(503)

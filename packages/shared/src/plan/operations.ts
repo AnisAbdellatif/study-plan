@@ -1,5 +1,6 @@
 import type { Attempt } from '../engine/compute.ts'
 import { isPlaceholderId, type Plan, type PlanModule, type PlanSemester } from './plan.ts'
+import { type Term, termSchema } from './terms.ts'
 
 /** Thrown when an operation refers to a module or semester the plan does not have. */
 export class PlanError extends Error {
@@ -140,6 +141,16 @@ export function insertSemester(plan: Plan, index: number): Plan {
   const semesters = [...plan.semesters]
   semesters.splice(index, 0, { id: nextSemesterId(plan), kind: 'regular', moduleCodes: [] })
   return { ...plan, semesters }
+}
+
+/**
+ * Changes the term of the first semester. Every semester keeps its modules and moves with it, so a module can end
+ * up in a term that doesn't offer it; validation points that out.
+ */
+export function setStartTerm(plan: Plan, startTerm: Term): Plan {
+  if (!termSchema.safeParse(startTerm).success) throw new PlanError('Invalid start term')
+  if (plan.startTerm.season === startTerm.season && plan.startTerm.year === startTerm.year) return plan
+  return { ...plan, startTerm: { season: startTerm.season, year: startTerm.year } }
 }
 
 /** Marks a semester as regular, part-time, on leave (Urlaubssemester) or abroad. */

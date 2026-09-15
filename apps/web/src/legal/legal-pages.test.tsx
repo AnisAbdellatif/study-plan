@@ -31,8 +31,12 @@ describe('legal pages', () => {
     const contents = await screen.findByRole('navigation', { name: 'Inhalt' })
     const link = within(contents).getByRole('link', { name: '3. Aufruf der Website' })
     expect(link).toHaveAttribute('href', '#website')
-    expect(within(contents).getAllByRole('link')).toHaveLength(12)
-    expect(within(contents).getByRole('link', { name: '8. Studienassistent' })).toHaveAttribute(
+    expect(within(contents).getAllByRole('link')).toHaveLength(13)
+    expect(within(contents).getByRole('link', { name: '8. Kontaktformular' })).toHaveAttribute(
+      'href',
+      '#contact',
+    )
+    expect(within(contents).getByRole('link', { name: '9. Studienassistent' })).toHaveAttribute(
       'href',
       '#assistant',
     )

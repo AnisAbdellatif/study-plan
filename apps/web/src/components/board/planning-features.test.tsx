@@ -42,6 +42,23 @@ describe('planning features on the board', () => {
     expect(await screen.findByText(/ist ein Urlaubssemester, trotzdem ist dort/)).toBeInTheDocument()
   })
 
+  it('changes the start of studies from the header menu and warns about terms that no longer fit', async () => {
+    const plan = makePlan()
+    const { store, user } = renderBoard(plan)
+    await user.click(await screen.findByRole('button', { name: 'Weitere Aktionen' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Studienbeginn ändern…' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Studienbeginn ändern' })
+    expect(within(dialog).getByRole('button', { name: 'Speichern' })).toBeDisabled()
+
+    await user.click(within(dialog).getByRole('radio', { name: /Sommer/ }))
+    expect(within(dialog).getByRole('status')).toHaveTextContent(/nicht angeboten/)
+    await user.click(within(dialog).getByRole('button', { name: 'Speichern' }))
+
+    expect(store.getState().plan?.startTerm).toEqual({ season: 'summer', year: plan.startTerm.year })
+    expect(store.getState().plan?.semesters).toEqual(plan.semesters)
+    expect(screen.queryByRole('dialog', { name: 'Studienbeginn ändern' })).not.toBeInTheDocument()
+  })
+
   it('shows the expected graduation, and no plan suggestion for now', async () => {
     renderBoard(makePlan())
     expect(await screen.findByRole('heading', { name: 'Voraussichtlicher Abschluss' })).toBeInTheDocument()

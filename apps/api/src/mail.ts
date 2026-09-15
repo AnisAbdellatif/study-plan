@@ -210,6 +210,35 @@ export function testMail(to: string, publicUrl: string): OutgoingMail {
   }
 }
 
+export interface ContactMessage {
+  name?: string | undefined
+  email: string
+  subject: string
+  message: string
+  locale: MailLocale
+}
+
+/**
+ * A contact form message for the operator's mailbox, in plain text only so nothing the sender typed is rendered
+ * as HTML. Reply-To is the sender, so answering is a normal reply.
+ */
+export function contactMail(to: string, contact: ContactMessage, publicUrl: string): OutgoingMail {
+  const sender = contact.name ? `${contact.name} <${contact.email}>` : contact.email
+  const site = originOf(publicUrl).replace(/^https?:\/\//, '')
+  return {
+    to,
+    subject: `[${BRAND_NAME} Kontakt] ${contact.subject}`,
+    text: [
+      `Nachricht über das Kontaktformular auf ${site} (Sprache der Website: ${contact.locale})`,
+      `Von: ${sender}`,
+      `Betreff: ${contact.subject}`,
+      '',
+      contact.message,
+    ].join('\n'),
+    headers: { 'Reply-To': contact.email },
+  }
+}
+
 const accountMails = {
   de: {
     verificationSubject: 'Bitte bestätige deine E-Mail-Adresse',

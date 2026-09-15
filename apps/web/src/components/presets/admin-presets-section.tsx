@@ -202,7 +202,11 @@ export function AdminPresetsSection({ onChanged }: { onChanged: () => void }) {
                 <tr key={preset.id} className="border-t border-zinc-200 align-top dark:border-zinc-800">
                   <td className="px-4 py-2 font-medium">{presetTitle(preset)}</td>
                   <td className="px-2 py-2">{preset.universityName}</td>
-                  <td className="px-2 py-2">{preset.poVersion}</td>
+                  <td className="px-2 py-2">
+                    <span className="line-clamp-3 min-w-40" title={preset.poVersion}>
+                      {preset.poVersion}
+                    </span>
+                  </td>
                   <td className="px-2 py-2 tabular-nums">{formatDateTime(preset.updatedAt)}</td>
                   <td className="px-4 py-2">
                     <div className="flex flex-wrap gap-1">

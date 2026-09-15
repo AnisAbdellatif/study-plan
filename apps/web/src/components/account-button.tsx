@@ -22,8 +22,10 @@ export function AccountButton() {
   if (sessionPending) return null
 
   if (!user) {
-    // The sign-in and sign-up pages are already where this button would lead.
-    if (matchRoute({ to: '/sign-in' }) || matchRoute({ to: '/sign-up' })) return null
+    // The sign-in and sign-up pages are already where this button would lead; the start page has its own, larger one.
+    if (matchRoute({ to: '/sign-in' }) || matchRoute({ to: '/sign-up' }) || matchRoute({ to: '/start' })) {
+      return null
+    }
     return (
       <Link to="/sign-in" className={linkClass}>
         <LogIn aria-hidden className="size-4" />

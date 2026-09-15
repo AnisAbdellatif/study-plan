@@ -24,6 +24,8 @@ const account = (id: string, email: string, role: string) => ({
   createdAt: '2026-09-01T10:00:00Z',
   lastActiveAt: null,
   plans: 0,
+  planLimit: null,
+  unlimitedChat: false,
   activeShares: 0,
   reminders: false,
 })
@@ -46,6 +48,8 @@ function mockApi(role: 'admin' | 'superadmin', email: string) {
       return respond({ users: [superadmin, admin] })
     if (url.startsWith('/api/admin/users?')) return respond({ users: [superadmin, admin, student] })
     if (url === '/api/admin/admins' && init?.method === 'POST') return respond({ id: 'n' }, 201)
+    if (url === '/api/admin/users/u/unlimited-chat' && init?.method === 'PUT')
+      return respond(JSON.parse(String(init.body)))
     return respond({ error: 'not_found' }, 404)
   })
 }
@@ -53,7 +57,9 @@ function mockApi(role: 'admin' | 'superadmin', email: string) {
 function renderAdmin() {
   render(
     <GuestStoreContext.Provider value={createGuestStore(window.localStorage)}>
-      <RouterProvider router={createAppRouter(createMemoryHistory({ initialEntries: ['/admin'] }))} />
+      <RouterProvider
+        router={createAppRouter(createMemoryHistory({ initialEntries: ['/admin?tab=accounts'] }))}
+      />
     </GuestStoreContext.Provider>,
   )
   return userEvent.setup()
@@ -82,13 +88,31 @@ describe('admin roles in the dashboard', () => {
     const accounts = screen.getByRole('region', { name: 'Konten' })
     await waitFor(() => expect(within(accounts).getByText('studi@example.org')).toBeInTheDocument())
 
+    const studentAdmin = within(rowOf(accounts, 'studi@example.org')).getByRole('checkbox', {
+      name: 'Adminrechte für studi@example.org',
+    })
+    expect(studentAdmin).not.toBeChecked()
+    expect(studentAdmin).toBeEnabled()
     expect(
-      within(rowOf(accounts, 'studi@example.org')).getByRole('button', { name: 'Zum Admin machen' }),
-    ).toBeVisible()
-    expect(
-      within(rowOf(accounts, 'admin@example.org')).getByRole('button', { name: 'Adminrechte entziehen' }),
-    ).toBeVisible()
-    expect(within(rowOf(accounts, 'chef@example.org')).queryAllByRole('button')).toEqual([])
+      within(rowOf(accounts, 'admin@example.org')).getByRole('checkbox', {
+        name: 'Adminrechte für admin@example.org',
+      }),
+    ).toBeChecked()
+    // Admins always have the assistant without a limit; that box can't be changed.
+    const adminChat = within(rowOf(accounts, 'admin@example.org')).getByRole('checkbox', {
+      name: 'Assistent ohne Tageslimit für admin@example.org',
+    })
+    expect(adminChat).toBeChecked()
+    expect(adminChat).toBeDisabled()
+    const chefRow = within(rowOf(accounts, 'chef@example.org'))
+    expect(chefRow.queryAllByRole('button')).toEqual([])
+    for (const box of chefRow.getAllByRole('checkbox')) expect(box).toBeDisabled()
+
+    // Ticking the box asks before granting admin rights.
+    await user.click(studentAdmin)
+    const confirm = await screen.findByRole('alertdialog', { name: 'Adminrechte vergeben?' })
+    await user.click(within(confirm).getByRole('button', { name: 'Abbrechen' }))
+    expect(studentAdmin).not.toBeChecked()
 
     await user.type(within(team).getByLabelText('E-Mail-Adresse'), 'Neu@example.org')
     await user.type(within(team).getByLabelText('Startpasswort'), 'ein-startpasswort')
@@ -102,6 +126,28 @@ describe('admin roles in the dashboard', () => {
     })
   })
 
+  it('lets an admin lift the assistant’s daily limit for one account', async () => {
+    const fetchMock = mockApi('admin', 'admin@example.org')
+    const user = renderAdmin()
+
+    const accounts = await screen.findByRole('region', { name: 'Konten' })
+    await waitFor(() => expect(within(accounts).getByText('studi@example.org')).toBeInTheDocument())
+    await user.click(
+      within(rowOf(accounts, 'studi@example.org')).getByRole('checkbox', {
+        name: 'Assistent ohne Tageslimit für studi@example.org',
+      }),
+    )
+
+    expect(
+      await within(accounts).findByText(
+        'studi@example.org kann den Assistenten jetzt ohne Tageslimit nutzen.',
+      ),
+    ).toBeInTheDocument()
+    const call = fetchMock.mock.calls.find(([url]) => url === '/api/admin/users/u/unlimited-chat')
+    expect(call?.[1]?.method).toBe('PUT')
+    expect(JSON.parse(String(call?.[1]?.body))).toEqual({ unlimitedChat: true })
+  })
+
   it('hides admin management from regular admins', async () => {
     mockApi('admin', 'admin@example.org')
     renderAdmin()
@@ -109,7 +155,8 @@ describe('admin roles in the dashboard', () => {
     const accounts = await screen.findByRole('region', { name: 'Konten' })
     await waitFor(() => expect(within(accounts).getByText('studi@example.org')).toBeInTheDocument())
     expect(screen.queryByRole('region', { name: 'Admins' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Zum Admin machen' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('checkbox', { name: /^Adminrechte für/ })).not.toBeInTheDocument()
+    expect(within(accounts).queryByRole('columnheader', { name: 'Admin' })).not.toBeInTheDocument()
     expect(within(rowOf(accounts, 'chef@example.org')).getByText('geschützt')).toBeInTheDocument()
     expect(within(rowOf(accounts, 'admin@example.org')).getByText('über die Kontoseite')).toBeInTheDocument()
     expect(

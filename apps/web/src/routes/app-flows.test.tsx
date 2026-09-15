@@ -528,6 +528,9 @@ describe('admin dashboard', () => {
       expect(await screen.findByRole('heading', { name: 'Verwaltung' })).toBeInTheDocument()
       expect(await screen.findByText('10 bestätigt, 3 neu in 30 Tagen')).toBeInTheDocument()
       expect(screen.getByText('PO 2017 in der Fassung ab WS 2026/27')).toBeInTheDocument()
+      // Accounts live in their own tab; the dashboard opens on the overview.
+      expect(screen.queryByText('studi@example.org')).not.toBeInTheDocument()
+      await user.click(screen.getByRole('tab', { name: 'Konten' }))
 
       const row = (await screen.findByText('studi@example.org')).closest('tr')
       if (!row) throw new Error('expected a table row')
