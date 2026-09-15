@@ -3,8 +3,11 @@ import { useId, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { currentLocale } from '../i18n/index.ts'
 
-export const fieldClass =
-  'mt-1 h-10 w-full rounded-lg bg-white px-3 text-sm ring-1 ring-zinc-300 ring-inset focus-visible:outline-2 focus-visible:outline-indigo-500 dark:bg-zinc-950 dark:ring-zinc-700'
+/** A form field without outer spacing, for fields that sit in a row next to other controls. */
+const fieldBaseClass =
+  'h-10 w-full rounded-lg bg-white px-3 text-sm ring-1 ring-zinc-300 ring-inset focus-visible:outline-2 focus-visible:outline-indigo-500 dark:bg-zinc-950 dark:ring-zinc-700'
+/** A form field below its label. */
+export const fieldClass = `mt-1 ${fieldBaseClass}`
 
 export interface StartTermFieldsProps {
   value: Term
@@ -55,7 +58,8 @@ export function StartTermFields({ value, onChange, standardSemesters }: StartTer
             id={yearId}
             value={value.year}
             onChange={(event) => onChange({ ...value, year: Number(event.target.value) })}
-            className={`${fieldClass} mt-0`}
+            // No top margin: a taller select would stretch the season toggle and leave a gap under its pill.
+            className={fieldBaseClass}
           >
             {years.map((year) => (
               <option key={year} value={year}>
