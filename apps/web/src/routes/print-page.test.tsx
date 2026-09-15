@@ -107,4 +107,40 @@ describe('print page', () => {
     expect(screen.getByRole('heading', { level: 3, name: /^Semester 1/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Print' })).toBeInTheDocument()
   })
+
+  it('switches to a landscape overview with the semesters side by side', async () => {
+    const { plan, name } = makePlan()
+    const { router, user } = renderAt('/print', plan)
+    const portrait = await screen.findByRole('radio', { name: 'Hochformat' })
+    expect(portrait).toBeChecked()
+    expect(document.querySelector('style')?.textContent).toContain('A4 portrait')
+
+    await user.click(screen.getByRole('radio', { name: 'Querformat' }))
+    expect(await screen.findByRole('radio', { name: 'Querformat' })).toBeChecked()
+    expect(router.state.location.search).toEqual({ orientation: 'landscape' })
+    const sheet = screen.getByRole('article', { name: 'Studienverlaufsplan' })
+    expect(sheet).toHaveAttribute('data-orientation', 'landscape')
+    expect(document.querySelector('style')?.textContent).toContain('A4 landscape')
+
+    // Every semester is a column with its modules as cards; results stay visible.
+    for (const index of plan.semesters.keys()) {
+      expect(
+        within(sheet).getByRole('heading', { level: 3, name: `${index + 1}. Fachsemester` }),
+      ).toBeInTheDocument()
+    }
+    const card = within(sheet).getByText(name).closest('li')
+    if (!card) throw new Error('expected a card for the graded module')
+    expect(within(card).getByText('1,3')).toBeInTheDocument()
+    expect(within(sheet).getByRole('heading', { name: /^Bereiche/ })).toBeInTheDocument()
+  })
+
+  it('opens straight in landscape from the link', async () => {
+    const { plan } = makePlan()
+    renderAt('/print?orientation=landscape', plan)
+    expect(await screen.findByRole('article', { name: 'Studienverlaufsplan' })).toHaveAttribute(
+      'data-orientation',
+      'landscape',
+    )
+    expect(screen.getByRole('radio', { name: 'Querformat' })).toBeChecked()
+  })
 })

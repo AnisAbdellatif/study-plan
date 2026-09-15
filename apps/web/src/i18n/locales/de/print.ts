@@ -4,7 +4,12 @@ export const print = {
   back: 'Zurück zum Plan',
   print: 'Drucken',
   showGrades: 'Noten anzeigen',
-  tip: 'Im Druckdialog kannst du den Plan auch als PDF speichern. Für farbige Bereichspunkte schalte dort „Hintergrundgrafiken“ ein.',
+  orientation: {
+    label: 'Format',
+    portrait: 'Hochformat',
+    landscape: 'Querformat',
+  },
+  tip: 'Im Druckdialog kannst du den Plan auch als PDF speichern. Für farbige Bereiche schalte dort „Hintergrundgrafiken“ ein. Übernimmt dein Browser das Format nicht, wähle es dort ebenfalls.',
   eyebrow: 'Studienverlaufsplan',
   startTerm: 'Studienbeginn',
   standardSemesters: 'Regelstudienzeit',

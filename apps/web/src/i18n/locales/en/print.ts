@@ -6,7 +6,12 @@ export const print = {
   back: 'Back to your plan',
   print: 'Print',
   showGrades: 'Show grades',
-  tip: 'In the print dialog you can also save the plan as a PDF. For coloured area dots, turn on “Background graphics” there.',
+  orientation: {
+    label: 'Format',
+    portrait: 'Portrait',
+    landscape: 'Landscape',
+  },
+  tip: 'In the print dialog you can also save the plan as a PDF. For coloured areas, turn on “Background graphics” there. If your browser ignores the orientation, choose it there as well.',
   eyebrow: 'Study plan',
   startTerm: 'Start of studies',
   standardSemesters: 'Standard period of study',

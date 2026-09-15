@@ -13,6 +13,7 @@ import { SiteHeader } from './components/site-header.tsx'
 import { validateAdminSearch } from './routes/admin-tabs.ts'
 import { BoardPage } from './routes/board-page.tsx'
 import { LandingPage } from './routes/landing-page.tsx'
+import { validatePrintSearch } from './routes/print-options.ts'
 import { validateStartSearch } from './routes/start-methods.ts'
 import { StartPage } from './routes/start-page.tsx'
 
@@ -62,7 +63,12 @@ const startRoute = createRoute({
   component: StartPage,
 })
 const aboutRoute = createRoute({ getParentRoute: () => rootRoute, path: '/about', component: LandingPage })
-const printRoute = createRoute({ getParentRoute: () => rootRoute, path: '/print', component: PrintPage })
+const printRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/print',
+  validateSearch: validatePrintSearch,
+  component: PrintPage,
+})
 const updateProgrammeRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/plan/update',
