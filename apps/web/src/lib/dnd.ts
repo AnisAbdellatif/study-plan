@@ -10,7 +10,10 @@ import {
   dropTargetForElements,
   monitorForElements,
 } from '@atlaskit/pragmatic-drag-and-drop/element/adapter'
-import { autoScrollForElements } from '@atlaskit/pragmatic-drag-and-drop-auto-scroll/element'
+import {
+  autoScrollForElements,
+  autoScrollWindowForElements,
+} from '@atlaskit/pragmatic-drag-and-drop-auto-scroll/element'
 import {
   attachClosestEdge,
   type Edge,
@@ -301,15 +304,17 @@ export function useModuleDropMonitor(onMove: MoveHandler, onPlaceArea?: PlaceAre
   )
 }
 
-/** Scrolls the board sideways while a card, area tile or semester is dragged near its left or right edge. */
+/**
+ * Scrolls the board sideways while a card, area tile or semester is dragged near its left or right edge, and the
+ * page near the top or bottom of the window, since semesters grow taller than the screen.
+ */
 export function useBoardAutoScroll(ref: RefObject<HTMLElement | null>): void {
   useEffect(() => {
     const element = ref.current
     if (!element) return
-    return autoScrollForElements({
-      element,
-      canScroll: ({ source }) => isBoardDrag(source.data) || source.data.type === SEMESTER,
-    })
+    const canScroll = ({ source }: { source: { data: Record<string | symbol, unknown> } }) =>
+      isBoardDrag(source.data) || source.data.type === SEMESTER
+    return combine(autoScrollForElements({ element, canScroll }), autoScrollWindowForElements({ canScroll }))
   }, [ref])
 }
 

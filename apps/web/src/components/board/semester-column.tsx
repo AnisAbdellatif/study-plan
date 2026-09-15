@@ -243,10 +243,13 @@ export const SemesterColumn = memo(function SemesterColumn({
       className={cn(
         // Phones and tablets show one to three columns and swipe. From xl, all columns share the width so a
         // typical plan fits without scrolling; below the minimum width (many semesters) the board scrolls again.
-        'print:w-[calc(33.333%-0.5rem)]! print:max-w-none! print:max-h-none print:break-inside-avoid relative flex w-[85vw] sm:max-h-[calc(100dvh-2rem)] max-w-sm shrink-0 snap-start flex-col rounded-xl p-2 transition-colors sm:w-[calc((100%-0.75rem)/2)] md:w-[calc((100%-1.5rem)/3)] xl:w-auto xl:max-w-none xl:min-w-40 xl:basis-0',
+        'print:w-[calc(33.333%-0.5rem)]! print:max-w-none! print:max-h-none print:break-inside-avoid relative flex w-[85vw] max-w-sm shrink-0 snap-start flex-col rounded-xl p-2 transition-colors sm:w-[calc((100%-0.75rem)/2)] md:w-[calc((100%-1.5rem)/3)] xl:w-auto xl:max-w-none xl:min-w-40 xl:basis-0',
         // cn does not merge Tailwind classes, so each column gets exactly one flex-grow value.
-        // Every column, the not-planned one included, stretches to the tallest, so the whole height is a drop zone.
-        isBacklog ? 'xl:flex-[1.2]' : 'xl:flex-1',
+        // Semesters grow to show every module. The not-planned column doesn't size the row (contain-size): it stretches
+        // to the tallest semester, at least a screen high, and scrolls its own list, so every column is a full drop zone.
+        isBacklog
+          ? 'sm:min-h-[calc(100dvh-2rem)] sm:contain-size xl:flex-[1.2] print:min-h-0 print:contain-none'
+          : 'xl:flex-1',
         // Likewise exactly one background and ring per state: drop target, current semester, backlog, other semesters.
         isOver
           ? 'bg-indigo-100 ring-2 ring-indigo-500 dark:bg-indigo-900/40 dark:ring-indigo-400'
@@ -341,6 +344,17 @@ export const SemesterColumn = memo(function SemesterColumn({
         </p>
       </header>
 
+      {/* On top, so it stays in reach however many areas and modules follow; the gap below sets it apart from the
+          scrolling area tiles. */}
+      {isBacklog ? (
+        <div className="px-1 pb-3 print:hidden">
+          <Button size="sm" variant="ghost" className="w-full justify-start" onClick={actions.onAddCustom}>
+            <Plus aria-hidden className="size-4" />
+            {t('columns.addCustomModule')}
+          </Button>
+        </div>
+      ) : null}
+
       {isBacklog && (choices.length > 0 || areaChoices.length > 0) ? (
         <ChoiceAreaTiles
           choices={choices}
@@ -350,15 +364,6 @@ export const SemesterColumn = memo(function SemesterColumn({
           actions={actions}
           areas={areas}
         />
-      ) : null}
-
-      {isBacklog ? (
-        <div className="px-1 pb-2 print:hidden">
-          <Button size="sm" variant="ghost" className="w-full justify-start" onClick={actions.onAddCustom}>
-            <Plus aria-hidden className="size-4" />
-            {t('columns.addCustomModule')}
-          </Button>
-        </div>
       ) : null}
 
       {searchable ? (
@@ -409,8 +414,9 @@ export const SemesterColumn = memo(function SemesterColumn({
         ref={listRef}
         className={cn(
           // No overscroll containment: once the list reaches its end, the wheel keeps scrolling the page.
-          '-mx-1 flex flex-1 flex-col gap-2 px-1 py-1 sm:overflow-y-auto print:overflow-visible',
-          isBacklog ? 'min-h-12' : 'min-h-24',
+          '-mx-1 flex flex-1 flex-col gap-2 px-1 py-1 print:overflow-visible',
+          // Only the not-planned list scrolls; semester lists show all their modules.
+          isBacklog ? 'min-h-12 sm:overflow-y-auto' : 'min-h-24',
         )}
       >
         {visible.map((entry) =>
