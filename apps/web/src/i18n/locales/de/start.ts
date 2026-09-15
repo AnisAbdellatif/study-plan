@@ -48,7 +48,8 @@ export const start = {
     readError: 'Die Datei konnte nicht gelesen werden.',
   },
   orSteps: 'Noch keine Studiengangsdatei? Dann erstellst du sie in vier Schritten mit einem Sprachmodell:',
-  haveAccount: 'Schon ein Konto? Anmelden',
+  haveAccount: 'Schon ein Konto?',
+  signIn: 'Anmelden',
   backToPlan: 'Zurück zu deinem Plan',
   replace: {
     title: 'Bestehenden Plan ersetzen?',

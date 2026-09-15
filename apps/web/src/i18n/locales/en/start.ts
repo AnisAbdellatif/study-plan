@@ -49,7 +49,8 @@ export const start = {
     readError: 'The file couldn’t be read.',
   },
   orSteps: 'No programme file yet? Create one with a language model in four steps:',
-  haveAccount: 'Already have an account? Sign in',
+  haveAccount: 'Already have an account?',
+  signIn: 'Sign in',
   backToPlan: 'Back to your plan',
   replace: {
     title: 'Replace your current plan?',

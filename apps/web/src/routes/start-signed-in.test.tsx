@@ -38,7 +38,7 @@ describe('sign-in link on the start page', () => {
     session.signedIn = false
     session.pending = false
     renderStart()
-    expect(await screen.findByRole('link', { name: 'Schon ein Konto? Anmelden' })).toBeInTheDocument()
+    expect(await screen.findByRole('link', { name: 'Anmelden' })).toBeInTheDocument()
   })
 
   it('is hidden once signed in', async () => {
@@ -46,7 +46,7 @@ describe('sign-in link on the start page', () => {
     session.pending = false
     renderStart()
     expect(await screen.findByRole('heading', { level: 1, name: 'Studienplan anlegen' })).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: 'Schon ein Konto? Anmelden' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Anmelden' })).not.toBeInTheDocument()
   })
 
   it('does not flash while the session is loading', async () => {
@@ -54,6 +54,6 @@ describe('sign-in link on the start page', () => {
     session.pending = true
     renderStart()
     expect(await screen.findByRole('heading', { level: 1, name: 'Studienplan anlegen' })).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: 'Schon ein Konto? Anmelden' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Anmelden' })).not.toBeInTheDocument()
   })
 })

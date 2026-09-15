@@ -38,7 +38,7 @@ describe('account, start and shared pages in English', () => {
     expect(screen.getByLabelText('Degree programme')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Create prompt' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Try it with an example' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Already have an account? Sign in' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Sign in' })).toBeInTheDocument()
   })
 
   it('shows the sign-in page', async () => {
