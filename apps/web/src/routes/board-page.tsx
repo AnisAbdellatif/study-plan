@@ -9,8 +9,11 @@ import {
   createIcs,
   creditRequirements,
   graduationForecast,
+  groupModules,
   insertSemester,
   isPlaceholderId,
+  keepFromModuleGroup,
+  leaveModuleGroup,
   localIsoDate,
   moveModule,
   moveSemester,
@@ -270,6 +273,18 @@ function Board({ plan }: { plan: Plan }) {
       const selfStudy = module.selfStudy !== true
       if (apply((current) => setSelfStudy(current, code, selfStudy)))
         announce(t(selfStudy ? 'announce.selfStudyOn' : 'announce.selfStudyOff', { name: module.name }))
+    },
+    onGroup: (code, otherCode) => {
+      if (apply((current) => groupModules(current, code, otherCode)))
+        announce(t('announce.grouped', { name: moduleName(code), other: moduleName(otherCode) }))
+    },
+    onLeaveGroup: (code) => {
+      if (apply((current) => leaveModuleGroup(current, code)))
+        announce(t('announce.groupLeft', { name: moduleName(code) }))
+    },
+    onKeepFromGroup: (code) => {
+      if (apply((current) => keepFromModuleGroup(current, code)))
+        announce(t('announce.groupKept', { name: moduleName(code) }))
     },
     onAddCustom: () => setCustomTarget({ mode: 'create' }),
     onEditCustom: (code) => setCustomTarget({ mode: 'edit', code }),

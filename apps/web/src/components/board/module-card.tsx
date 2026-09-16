@@ -19,6 +19,7 @@ import {
   MenuTrigger,
 } from '../ui/menu.tsx'
 import type { BoardActions } from './board-actions.ts'
+import type { GroupCandidate, ModuleGroupInfo } from './semester-column.tsx'
 
 export interface Destination {
   id: string | null
@@ -41,6 +42,10 @@ export interface ModuleCardProps {
   notes: readonly IssueText[]
   /** Colour of the module's area. */
   tone?: AreaTone
+  /** Set when the module is one of a group of options planned together. */
+  group?: ModuleGroupInfo
+  /** Options in the same semester this module can be grouped with. */
+  groupWith?: readonly GroupCandidate[]
 }
 
 /** A module's current result as a solid badge; also used on shared plans that include grades. */
@@ -82,6 +87,8 @@ export const ModuleCard = memo(function ModuleCard({
   actions,
   notes,
   tone = NEUTRAL_TONE,
+  group,
+  groupWith,
 }: ModuleCardProps) {
   const { onMove, onGrade, onDetails } = actions
   const { t } = useTranslation('board')
@@ -120,6 +127,18 @@ export const ModuleCard = memo(function ModuleCard({
       ) : null}
       <div className="flex items-start gap-1">
         <div className="min-w-0 flex-1">
+          {group ? (
+            // One of several options kept open for the same slot; the whole group counts once.
+            <p className="mb-1 inline-flex max-w-full items-center gap-1 rounded bg-indigo-600 px-1.5 py-0.5 text-[10px] leading-tight font-medium text-white dark:bg-indigo-500">
+              <span className="truncate">
+                {t('card.group', {
+                  size: group.size,
+                  credits: formatCredits(group.credits),
+                  label: creditLabel,
+                })}
+              </span>
+            </p>
+          ) : null}
           <p className="truncate text-[11px] text-zinc-500 dark:text-zinc-400">
             {showCode && !module.custom ? `${module.code} · ` : ''}
             {module.custom ? t('card.custom') : module.category}
@@ -250,6 +269,31 @@ export const ModuleCard = memo(function ModuleCard({
                   {t('card.chooseOther')}
                 </MenuItem>
                 <MenuItem onClick={() => actions.onUnchoose(module.code)}>{t('card.unchoose')}</MenuItem>
+              </>
+            ) : null}
+            {group ? (
+              <>
+                <MenuSeparator />
+                <MenuItem onClick={() => actions.onKeepFromGroup(module.code)}>
+                  {t('card.keepFromGroup')}
+                </MenuItem>
+                <MenuItem onClick={() => actions.onLeaveGroup(module.code)}>{t('card.leaveGroup')}</MenuItem>
+              </>
+            ) : null}
+            {groupWith && groupWith.length > 0 ? (
+              <>
+                <MenuSeparator />
+                <MenuGroup>
+                  <MenuGroupLabel>{t('card.groupWith')}</MenuGroupLabel>
+                  {groupWith.map((candidate) => (
+                    <MenuItem
+                      key={candidate.code}
+                      onClick={() => actions.onGroup(module.code, candidate.code)}
+                    >
+                      {candidate.name}
+                    </MenuItem>
+                  ))}
+                </MenuGroup>
               </>
             ) : null}
             <MenuSeparator />

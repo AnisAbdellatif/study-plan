@@ -3,7 +3,9 @@ import {
   areaChoiceStatuses,
   choiceAreas,
   choiceOptionCodes,
+  countedCreditHalves,
   formatTerm,
+  groupCandidates,
   isPlaceholderId,
   type Plan,
   type PlanSummary,
@@ -17,7 +19,13 @@ import { useBoardAutoScroll } from '../../lib/dnd.ts'
 import type { IssueText } from '../../lib/issues.ts'
 import type { BoardActions } from './board-actions.ts'
 import type { Destination } from './module-card.tsx'
-import { type ColumnEntry, type ColumnModel, SemesterColumn } from './semester-column.tsx'
+import {
+  type ColumnEntry,
+  type ColumnModel,
+  type GroupCandidate,
+  type ModuleGroupInfo,
+  SemesterColumn,
+} from './semester-column.tsx'
 
 export interface SemesterBoardProps {
   plan: Plan
@@ -44,10 +52,19 @@ const NO_NOTES: readonly IssueText[] = []
 const sameNotes = (a: readonly IssueText[], b: readonly IssueText[]): boolean =>
   a.length === b.length && a.every((note, i) => note.text === b[i]?.text && note.severity === b[i]?.severity)
 
+/** Group info and candidates are small plain data, so comparing their JSON is cheap and exact. */
+const sameData = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b)
+
 const sameEntry = (a: ColumnEntry, b: ColumnEntry | undefined): boolean => {
   if (!b || a.kind !== b.kind || a.index !== b.index) return false
   if (a.kind === 'module' && b.kind === 'module')
-    return a.module === b.module && a.chosen === b.chosen && a.notes === b.notes
+    return (
+      a.module === b.module &&
+      a.chosen === b.chosen &&
+      a.notes === b.notes &&
+      sameData(a.group, b.group) &&
+      sameData(a.groupWith, b.groupWith)
+    )
   if (a.kind === 'placeholder' && b.kind === 'placeholder')
     return a.id === b.id && a.areaId === b.areaId && a.areaName === b.areaName && a.credits === b.credits
   return false
@@ -104,6 +121,23 @@ export function SemesterBoard({ plan, summary, currentIndex, actions, notesByCod
     const optionCodes = new Set([...choiceOptionCodes(plan).values()].flat())
     const estimates = placeholderCredits(plan)
     const areaNames = new Map(plan.areas.map((area) => [area.id, area.name]))
+    const counted = countedCreditHalves(plan)
+    const groups = new Map<string, ModuleGroupInfo>()
+    for (const group of plan.moduleGroups ?? []) {
+      const info = {
+        size: group.codes.length,
+        credits: group.codes.reduce((sum, code) => sum + (counted.get(code) ?? 0), 0) / 2,
+      }
+      for (const code of group.codes) groups.set(code, info)
+    }
+    const candidatesFor = (code: string): GroupCandidate[] | undefined => {
+      if (!optionCodes.has(code)) return undefined
+      const found = groupCandidates(plan, code).map((other) => ({
+        code: other,
+        name: byCode.get(other)?.name ?? other,
+      }))
+      return found.length > 0 ? found : undefined
+    }
     const placeholders = new Map(
       (plan.placeholders ?? []).map((placeholder) => [placeholder.id, placeholder]),
     )
@@ -134,6 +168,8 @@ export function SemesterBoard({ plan, summary, currentIndex, actions, notesByCod
                 index,
                 chosen: optionCodes.has(code),
                 notes: stableNotes.get(code) ?? NO_NOTES,
+                group: groups.get(code),
+                groupWith: candidatesFor(code),
               },
             ]
           : []

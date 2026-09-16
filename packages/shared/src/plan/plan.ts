@@ -56,6 +56,16 @@ export type PlanModule = z.infer<typeof planModuleSchema>
 /** Modules that count for the degree: all but the ones the student takes only to learn them. */
 export const countsForDegree = (module: Pick<PlanModule, 'selfStudy'>): boolean => module.selfStudy !== true
 
+/** Takes a module out of its group; a group left with one module is dissolved. */
+export function detachFromGroup<T extends Pick<Plan, 'moduleGroups'>>(plan: T, code: string): T {
+  if (!plan.moduleGroups?.some((group) => group.codes.includes(code))) return plan
+  const groups = plan.moduleGroups
+    .map((group) => ({ ...group, codes: group.codes.filter((member) => member !== code) }))
+    .filter((group) => group.codes.length >= 2)
+  const { moduleGroups: _groups, ...rest } = plan
+  return (groups.length > 0 ? { ...rest, moduleGroups: groups } : rest) as T
+}
+
 export const PLACEHOLDER_PREFIX = 'placeholder-'
 
 /** True for placement entries that stand for a module still to be chosen from an area. */
@@ -67,6 +77,16 @@ export const placeholderSchema = z.object({
   areaId: z.string().min(1),
 })
 export type Placeholder = z.infer<typeof placeholderSchema>
+
+/**
+ * Elective options planned side by side while the student hasn't decided between them yet, e.g. three
+ * Vertiefung modules for one slot. The group counts as one module: see `countedCreditHalves`.
+ */
+export const moduleGroupSchema = z.object({
+  id: z.string().regex(/^group-[a-z0-9-]+$/),
+  codes: z.array(z.string().min(1)).min(2),
+})
+export type ModuleGroup = z.infer<typeof moduleGroupSchema>
 
 /** Category of modules the student added; the UI shows its own label for it. */
 export const CUSTOM_CATEGORY = 'custom'
@@ -123,6 +143,8 @@ export const planSchema = z
     modules: z.array(planModuleSchema),
     /** Placeholders placed in semesters. Missing in plans created before placeholders existed. */
     placeholders: z.array(placeholderSchema).optional(),
+    /** Options planned together while the student hasn't picked one. Missing when there are none. */
+    moduleGroups: z.array(moduleGroupSchema).optional(),
     /** Zielschnitt for the what-if analysis. */
     targetGrade: gradeValueSchema.optional(),
   })
@@ -167,6 +189,20 @@ export const planSchema = z
           path: ['chosenAreas'],
           message: `"${areaId}" is not an area of area choice "${choiceId}"`,
         })
+      }
+    }
+
+    const grouped = new Set<string>()
+    for (const group of plan.moduleGroups ?? []) {
+      for (const code of group.codes) {
+        if (!codes.has(code) || grouped.has(code)) {
+          ctx.addIssue({
+            code: 'custom',
+            path: ['moduleGroups'],
+            message: `Module "${code}" of group "${group.id}" is unknown or already grouped`,
+          })
+        }
+        grouped.add(code)
       }
     }
 
@@ -319,7 +355,8 @@ export interface ResetPlanOptions {
  * of semesters. Results, exam dates and the target grade stay unless `clearResults` is set.
  */
 export function resetPlan(plan: Plan, options: ResetPlanOptions = {}): Plan {
-  const { targetGrade, placeholders: _placeholders, ...withoutTarget } = plan
+  // Groups belong to placements, which a reset replaces.
+  const { targetGrade, placeholders: _placeholders, moduleGroups: _groups, ...withoutTarget } = plan
   const modules = options.clearResults
     ? plan.modules
         .filter((module) => !module.retired)

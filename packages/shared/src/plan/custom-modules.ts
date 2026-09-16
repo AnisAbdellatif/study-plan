@@ -1,7 +1,7 @@
 import type { PresetModule } from '../schema/preset.ts'
 import { creditValueSchema } from '../schema/rules.ts'
 import { findModule, PlanError } from './operations.ts'
-import { CUSTOM_CATEGORY, type Plan, type PlanModule } from './plan.ts'
+import { CUSTOM_CATEGORY, detachFromGroup, type Plan, type PlanModule } from './plan.ts'
 
 export interface CustomModuleInput {
   name: string
@@ -93,7 +93,7 @@ export function removeCustomModule(plan: Plan, code: string): Plan {
   if (!findModule(plan, code).custom) throw new PlanError(`Module "${code}" is not a custom module`)
   const drop = (codes: readonly string[]) => codes.filter((item) => item !== code)
   return {
-    ...plan,
+    ...detachFromGroup(plan, code),
     modules: plan.modules.filter((module) => module.code !== code),
     semesters: plan.semesters.map((semester) => ({ ...semester, moduleCodes: drop(semester.moduleCodes) })),
     backlog: drop(plan.backlog),

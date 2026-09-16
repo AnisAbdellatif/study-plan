@@ -3,6 +3,7 @@ import { toHalves } from '../engine/units.ts'
 import { type Prerequisite, prerequisiteCodes } from '../schema/preset.ts'
 import { inactiveAreaIds } from './area-choices.ts'
 import { attemptStatus } from './attempts.ts'
+import { countedCreditHalves } from './counted-credits.ts'
 import { placeholderCredits } from './placeholders.ts'
 import { countsForDegree, type Plan } from './plan.ts'
 import { addTerms, type Term } from './terms.ts'
@@ -106,6 +107,8 @@ export function validatePlan(plan: Plan, options: ValidationOptions = {}): PlanI
   const issues: PlanIssue[] = []
   const current = options.currentSemesterIndex
   const estimates = placeholderCredits(plan)
+  // Self-study modules count nowhere and a group of undecided options counts once.
+  const counted = countedCreditHalves(plan)
 
   /** Null while the prerequisite can still be passed before the module's semester. */
   const blockReason = (code: string): PrerequisiteBlockReason | null => {
@@ -192,7 +195,7 @@ export function validatePlan(plan: Plan, options: ValidationOptions = {}): PlanI
         let halves = 0
         for (const other of plan.modules) {
           if (other.code !== code && doneBefore(other.code) && countsForDegree(other))
-            halves += toHalves(other.credits)
+            halves += counted.get(other.code) ?? 0
         }
         // Placeholders in earlier semesters stand for modules the student will choose there.
         plan.semesters.slice(0, index).forEach((earlier) => {
@@ -238,11 +241,11 @@ export function validatePlan(plan: Plan, options: ValidationOptions = {}): PlanI
     }
   }
 
-  const counted = new Set([...plan.semesters.flatMap((semester) => semester.moduleCodes), ...passed])
+  const placedOrPassed = new Set([...plan.semesters.flatMap((semester) => semester.moduleCodes), ...passed])
 
   const groups = new Map<string, string[]>()
   for (const module of plan.modules) {
-    if (!module.alternativeGroup || !counted.has(module.code)) continue
+    if (!module.alternativeGroup || !placedOrPassed.has(module.code)) continue
     groups.set(module.alternativeGroup, [...(groups.get(module.alternativeGroup) ?? []), module.code])
   }
   for (const [group, codes] of groups) {
@@ -255,7 +258,7 @@ export function validatePlan(plan: Plan, options: ValidationOptions = {}): PlanI
     for (const code of area.moduleCodes) {
       const module = modules.get(code)
       // A module the student only wants to learn fills no area requirement.
-      if (module && counted.has(code) && countsForDegree(module)) halves += toHalves(module.credits)
+      if (module && placedOrPassed.has(code)) halves += counted.get(code) ?? 0
     }
     for (const placeholder of plan.placeholders ?? []) {
       if (placeholder.areaId === area.id) halves += toHalves(estimates.get(placeholder.id) ?? 0)

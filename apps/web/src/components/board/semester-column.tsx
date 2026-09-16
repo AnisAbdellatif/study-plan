@@ -131,6 +131,18 @@ function SemesterMenu({
   )
 }
 
+/** A module's group as its card shows it. */
+export interface ModuleGroupInfo {
+  size: number
+  /** Credits the whole group counts with. */
+  credits: number
+}
+
+export interface GroupCandidate {
+  code: string
+  name: string
+}
+
 export type ColumnEntry =
   | {
       kind: 'module'
@@ -141,6 +153,10 @@ export type ColumnEntry =
       chosen: boolean
       /** Validation notes for the card; the same array as before while its content is unchanged. */
       notes: readonly IssueText[]
+      /** Set when the module is one of a group of options planned together. */
+      group?: ModuleGroupInfo
+      /** Options in the same semester this module can be grouped with. */
+      groupWith?: readonly GroupCandidate[]
     }
   | {
       kind: 'placeholder'
@@ -440,6 +456,8 @@ export const SemesterColumn = memo(function SemesterColumn({
               columnId={column.id}
               index={entry.index}
               chosen={entry.chosen && column.id !== null}
+              group={entry.group}
+              groupWith={entry.groupWith}
               passThreshold={passThreshold}
               creditLabel={creditLabel}
               showCode={showCode}

@@ -1,6 +1,7 @@
 import { isModulePassed } from '../engine/progress.ts'
 import { toHalves } from '../engine/units.ts'
 import { type Prerequisite, prerequisiteCodes } from '../schema/preset.ts'
+import { countedCreditHalves } from './counted-credits.ts'
 import { placeholderCredits } from './placeholders.ts'
 import { countsForDegree, type Plan } from './plan.ts'
 
@@ -34,6 +35,7 @@ export function creditRequirements(plan: Plan): CreditRequirement[] {
   })
 
   const estimates = placeholderCredits(plan)
+  const counted = countedCreditHalves(plan)
   return plan.modules
     .filter((module) => module.requiresCredits !== undefined && !module.retired && countsForDegree(module))
     .map((module) => {
@@ -42,13 +44,13 @@ export function creditRequirements(plan: Plan): CreditRequirement[] {
       /** Credits of open modules by the semester they are planned in. */
       const plannedBySemester = plan.semesters.map(() => 0)
       for (const other of plan.modules) {
-        // Self-study modules bring no credits, so they never help toward an admission requirement.
+        // Self-study modules bring no credits and a group of options counts once, see countedCreditHalves.
         if (other.code === module.code || !countsForDegree(other)) continue
-        if (passed.has(other.code)) earned += toHalves(other.credits)
+        if (passed.has(other.code)) earned += counted.get(other.code) ?? 0
         else {
           const index = semesterOf.get(other.code)
           if (index !== undefined)
-            plannedBySemester[index] = (plannedBySemester[index] ?? 0) + toHalves(other.credits)
+            plannedBySemester[index] = (plannedBySemester[index] ?? 0) + (counted.get(other.code) ?? 0)
         }
       }
 

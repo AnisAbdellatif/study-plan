@@ -19,6 +19,11 @@ export interface BoardActions {
   onChooseOther: (code: string) => void
   /** Marks a module as one the student only wants to learn, or lets it count again. */
   onToggleSelfStudy: (code: string) => void
+  /** Groups an undecided option with another one in the same semester. */
+  onGroup: (code: string, otherCode: string) => void
+  onLeaveGroup: (code: string) => void
+  /** Keeps this member of a group; the others go back to the unplanned modules. */
+  onKeepFromGroup: (code: string) => void
   onAddCustom: () => void
   onEditCustom: (code: string) => void
   onDeleteCustom: (code: string) => void
