@@ -40,7 +40,7 @@ export type SyncState =
 
 export interface PlanSyncOptions {
   store: GuestStore
-  api: Pick<PlanApi, 'list' | 'get' | 'create' | 'update'>
+  api: Pick<PlanApi, 'list' | 'get' | 'create' | 'update' | 'remove'>
   /** Encrypts grades before they go to the account and decrypts them when a plan comes back. */
   grades: GradeSealer
   storage: StorageLike | null
@@ -206,6 +206,38 @@ export class PlanSync {
     this.#writeLink(null)
     this.#uploadNext = true
     this.#set({ kind: 'no_account_plan' })
+  }
+
+  /**
+   * Deletes the open plan from the account for good and opens the account's next plan, if it has one. Without
+   * one the browser is left empty and the next plan created here becomes an account plan again. Returns the id
+   * of the plan that took its place, or null.
+   */
+  async deleteCurrentPlan(): Promise<string | null> {
+    const userId = this.#userId
+    const planId = this.linkedPlanId()
+    if (!userId || !planId) return null
+    // Pending saves and the link go first: a queued push must not write to the plan that is being deleted.
+    if (this.#timer) clearTimeout(this.#timer)
+    this.#timer = null
+    this.#writeLink(null)
+    this.#set({ kind: 'loading' })
+    try {
+      await this.#options.api.remove(planId)
+      const next = (await this.#options.api.list()).find((summary) => summary.id !== planId)
+      if (this.#userId !== userId) return null
+      if (next) {
+        await this.#loadRemote(next.id, userId)
+        return next.id
+      }
+      this.#uploadNext = true
+      this.#options.store.replacePlan(null)
+      this.#set({ kind: 'no_account_plan' })
+      return null
+    } catch (error) {
+      this.#handle(error, userId)
+      return null
+    }
   }
 
   /** Resolves `choose` by replacing the browser plan with the account plan. */

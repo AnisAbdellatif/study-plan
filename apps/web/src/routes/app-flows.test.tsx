@@ -135,10 +135,10 @@ describe('board', () => {
     expect(screen.getByText('bestanden')).toBeInTheDocument()
   })
 
-  it('starts over after confirmation', async () => {
+  it('deletes the plan after confirmation', async () => {
     const { user, store } = renderApp({ plan: makePlan() })
     await user.click(await screen.findByRole('button', { name: 'Weitere Aktionen' }))
-    await user.click(await screen.findByRole('menuitem', { name: 'Neu beginnen…' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Plan löschen…' }))
     await user.click(await screen.findByRole('button', { name: 'Plan löschen' }))
 
     expect(await screen.findByRole('heading', { name: 'Studienplan anlegen' })).toBeInTheDocument()

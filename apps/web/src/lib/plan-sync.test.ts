@@ -102,6 +102,10 @@ function fakeApi() {
       plans.set(id, next)
       return { status: 'saved', plan: summary(next) }
     },
+    async remove(id: string) {
+      if (offline) throw new TypeError('Failed to fetch')
+      if (!plans.delete(id)) throw new ApiError(404, 'not_found')
+    },
   }
 }
 
@@ -171,6 +175,38 @@ describe('PlanSync', () => {
     await second.sync.keepBrowserPlan()
     expect(second.api.plans.get('plan-1')).toMatchObject({ name: 'Browserplan', revision: 2 })
     expect(second.sync.getState().kind).toBe('synced')
+  })
+
+  it('deletes the open plan and opens the next plan of the account', async () => {
+    const { store, api, sync, storage } = setup()
+    await api.create({ format: 'study-plan.guest', schemaVersion: 1, plan: newPlan('Erster Plan') })
+    await api.create({ format: 'study-plan.guest', schemaVersion: 1, plan: newPlan('Zweiter Plan') })
+    await sync.start('user-1')
+    expect(sync.linkedPlanId()).toBe('plan-2')
+
+    expect(await sync.deleteCurrentPlan()).toBe('plan-1')
+    expect(api.plans.has('plan-2')).toBe(false)
+    expect(store.getState().plan?.name).toBe('Erster Plan')
+    expect(sync.getState().kind).toBe('synced')
+    expect(JSON.parse(storage.data.get(LINK_KEY) ?? '{}')).toMatchObject({ planId: 'plan-1' })
+  })
+
+  it('leaves the browser empty after the last plan and saves the next plan made here', async () => {
+    const { store, api, sync, storage } = setup()
+    store.replacePlan(newPlan('Einziger Plan'))
+    await sync.start('user-1')
+    await sync.uploadLocal()
+
+    expect(await sync.deleteCurrentPlan()).toBeNull()
+    expect(api.plans.size).toBe(0)
+    expect(store.getState().plan).toBeNull()
+    expect(sync.getState()).toEqual({ kind: 'no_account_plan' })
+    expect(storage.data.has(LINK_KEY)).toBe(false)
+
+    store.replacePlan(newPlan('Neuer Plan'))
+    await settle()
+    expect([...api.plans.values()].map((plan) => plan.name)).toEqual(['Neuer Plan'])
+    expect(sync.getState().kind).toBe('synced')
   })
 
   it('lets the server win a conflict and says so', async () => {

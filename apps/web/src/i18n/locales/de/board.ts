@@ -15,11 +15,15 @@ export const board = {
     restoreDefaultConfirm: 'Zurücksetzen',
     restoreDefaultDone: 'Plan auf den Standard zurückgesetzt, Noten behalten',
     restoreDefaultDoneCleared: 'Plan auf den Standard zurückgesetzt, Noten entfernt',
-    startOver: 'Neu beginnen…',
-    resetTitle: 'Plan löschen und neu beginnen?',
-    resetDescription:
+    deletePlan: 'Plan löschen…',
+    deleteTitle: 'Diesen Plan löschen?',
+    deleteDescription:
       'Dein Plan und alle eingetragenen Noten werden aus diesem Browser entfernt. Exportiere ihn vorher, wenn du ihn behalten willst.',
-    resetConfirm: 'Plan löschen',
+    deleteDescriptionAccount:
+      'Der Plan und alle eingetragenen Noten werden endgültig gelöscht, in diesem Browser und in deinem Konto. Exportiere ihn vorher, wenn du ihn behalten willst. Hast du weitere Pläne im Konto, wird der nächste geöffnet.',
+    deleteConfirm: 'Plan löschen',
+    deleteDone: '{{name}} gelöscht',
+    deleteDoneOpened: '{{name}} gelöscht, {{next}} geöffnet',
   },
   mobileNav: {
     label: 'Planansicht',

@@ -18,11 +18,15 @@ export const board = {
     restoreDefaultConfirm: 'Reset',
     restoreDefaultDone: 'Plan reset to its default, grades kept',
     restoreDefaultDoneCleared: 'Plan reset to its default, grades removed',
-    startOver: 'Start over…',
-    resetTitle: 'Delete plan and start over?',
-    resetDescription:
+    deletePlan: 'Delete plan…',
+    deleteTitle: 'Delete this plan?',
+    deleteDescription:
       'Your plan and all grades you entered will be removed from this browser. Export it first if you want to keep it.',
-    resetConfirm: 'Delete plan',
+    deleteDescriptionAccount:
+      'The plan and all grades you entered are deleted for good, in this browser and in your account. Export it first if you want to keep it. If your account holds other plans, the next one opens.',
+    deleteConfirm: 'Delete plan',
+    deleteDone: '{{name}} deleted',
+    deleteDoneOpened: '{{name}} deleted, {{next}} opened',
   },
   mobileNav: {
     label: 'Plan sections',
