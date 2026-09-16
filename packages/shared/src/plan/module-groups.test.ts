@@ -67,11 +67,13 @@ const planned = (): Plan => {
 const grouped = (): Plan => groupModules(groupModules(planned(), 'V1', 'V2'), 'V1', 'V3')
 
 describe('groups of options not decided yet', () => {
-  it('offers only options of the same area in the same semester', () => {
+  it('offers planned options of the same area, in any semester', () => {
     const plan = planned()
     expect(groupCandidates(plan, 'V1')).toEqual(['V2', 'V3'])
     expect(groupCandidates(plan, 'PF')).toEqual([])
-    expect(groupCandidates(moveModule(plan, 'V3', 's3'), 'V1')).toEqual(['V2'])
+    expect(groupCandidates(moveModule(plan, 'V3', 's3'), 'V1')).toEqual(['V2', 'V3'])
+    // An option that is not planned yet can't be grouped.
+    expect(groupCandidates(moveModule(plan, 'V3', null), 'V1')).toEqual(['V2'])
     expect(() => groupModules(plan, 'V1', 'PF')).toThrow('cannot be grouped')
   })
 
@@ -98,12 +100,18 @@ describe('groups of options not decided yet', () => {
     expect(summarizePlan(plan).credits.earned).toBe(5)
   })
 
-  it('lets a member leave by moving it elsewhere or from the group itself', () => {
-    const moved = moveModule(grouped(), 'V3', 's3')
-    expect(moved.moduleGroups).toEqual([{ id: 'group-1', codes: ['V1', 'V2'] }])
+  it('keeps a group across semesters and counts it once, in the semester of its largest member', () => {
+    const spread = moveModule(grouped(), 'V3', 's3')
+    expect(spread.moduleGroups).toEqual([{ id: 'group-1', codes: ['V1', 'V2', 'V3'] }])
+    const summary = summarizePlan(spread)
+    expect(summary.semesters[1]?.credits).toBe(0)
+    expect(summary.semesters[2]?.credits).toBe(6)
+    expect(summary.credits.planned).toBe(16)
+  })
 
-    const reordered = moveModule(grouped(), 'V3', 's2', 0)
-    expect(reordered.moduleGroups?.[0]?.codes).toHaveLength(3)
+  it('lets a member leave by unplanning it or from the group itself', () => {
+    const unplanned = moveModule(grouped(), 'V3', null)
+    expect(unplanned.moduleGroups).toEqual([{ id: 'group-1', codes: ['V1', 'V2'] }])
 
     const left = leaveModuleGroup(leaveModuleGroup(grouped(), 'V3'), 'V2')
     expect(left).not.toHaveProperty('moduleGroups')

@@ -66,4 +66,25 @@ describe('grouping options not decided yet', () => {
     expect(within(fifth).getByRole('heading', { name: second })).toBeInTheDocument()
     expect(within(fifth).queryByText(/Einer von/)).not.toBeInTheDocument()
   })
+
+  it('groups options planned in different semesters and counts them once', async () => {
+    const { plan, first, second } = planWithTwoOptions()
+    const code = (name: string) => plan.modules.find((module) => module.name === name)?.code ?? ''
+    const spread = moveModule(plan, code(second), 's4')
+    const { user, store } = renderBoard(spread)
+    const fourth = await screen.findByRole('region', { name: /^4\. Semester/ })
+    const fifth = screen.getByRole('region', { name: /^5\. Semester/ })
+    const before = summarizePlan(spread)
+
+    await user.click(within(fifth).getByRole('button', { name: `Aktionen für ${first}` }))
+    await user.click(await screen.findByRole('menuitem', { name: second }))
+
+    await waitFor(() => expect(store.getState().plan?.moduleGroups).toHaveLength(1))
+    expect(within(fourth).getByRole('heading', { name: second }).closest('li')).toHaveTextContent(
+      'Einer von 2',
+    )
+    expect(within(fifth).getByRole('heading', { name: first }).closest('li')).toHaveTextContent('Einer von 2')
+    const after = summarizePlan(store.getState().plan ?? spread)
+    expect(after.credits.planned).toBe(before.credits.planned - 5)
+  })
 })

@@ -79,8 +79,8 @@ export const placeholderSchema = z.object({
 export type Placeholder = z.infer<typeof placeholderSchema>
 
 /**
- * Elective options planned side by side while the student hasn't decided between them yet, e.g. three
- * Vertiefung modules for one slot. The group counts as one module: see `countedCreditHalves`.
+ * Elective options planned while the student hasn't decided between them yet, e.g. three Vertiefung modules for
+ * one slot, in the same or in different semesters. The group counts as one module: see `countedCreditHalves`.
  */
 export const moduleGroupSchema = z.object({
   id: z.string().regex(/^group-[a-z0-9-]+$/),

@@ -67,17 +67,8 @@ export function moveModule(
     }),
     backlog: targetSemesterId === null ? insert(without(plan.backlog)) : without(plan.backlog),
   }
-  // A group stands for one semester's choice: a member moved elsewhere leaves it.
-  const group = moved.moduleGroups?.find((item) => item.codes.includes(code))
-  if (!group) return moved
-  const stays =
-    targetSemesterId !== null &&
-    group.codes.some(
-      (other) =>
-        other !== code &&
-        moved.semesters.find((semester) => semester.id === targetSemesterId)?.moduleCodes.includes(other),
-    )
-  return stays ? moved : detachFromGroup(moved, code)
+  // Group members may sit in different semesters; one moved back to the unplanned modules leaves its group.
+  return targetSemesterId === null ? detachFromGroup(moved, code) : moved
 }
 
 /** What a student can enter for a module in guest mode. One field, one attempt. */
