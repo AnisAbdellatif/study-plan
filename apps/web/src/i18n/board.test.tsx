@@ -92,7 +92,7 @@ describe('board in English', () => {
     expect(screen.getByRole('menuitem', { name: 'Print or save as PDF' })).toBeInTheDocument()
     // Adding and removing semesters lives in each semester's own menu now.
     expect(screen.queryByRole('menuitem', { name: 'Add semester' })).not.toBeInTheDocument()
-    expect(screen.getByRole('menuitem', { name: 'Start over…' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Delete plan…' })).toBeInTheDocument()
     await user.keyboard('{Escape}')
 
     await act(() => i18n.changeLanguage('de'))

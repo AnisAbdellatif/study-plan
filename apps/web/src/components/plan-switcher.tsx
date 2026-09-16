@@ -1,14 +1,14 @@
 import type { Plan } from '@study-plan/shared'
 import { useNavigate } from '@tanstack/react-router'
-import { Check, ChevronsUpDown, Pencil, Plus } from 'lucide-react'
+import { Check, ChevronsUpDown, Pencil, Plus, Trash2 } from 'lucide-react'
 import { type FormEvent, useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { type PlanOverview, planApi } from '../lib/api.ts'
+import { type PlanOverview, type PlanSummary, planApi } from '../lib/api.ts'
 import { useGuestStore } from '../store/guest-store.ts'
 import { formatDateTime, useAccountSync } from './account-sync.tsx'
 import { useAnnounce } from './announcer.tsx'
 import { Button } from './ui/button.tsx'
-import { Dialog } from './ui/dialog.tsx'
+import { ConfirmDialog, Dialog } from './ui/dialog.tsx'
 import {
   MenuContent,
   MenuGroup,
@@ -38,6 +38,8 @@ export function PlanSwitcher({ plan }: { plan: Plan }) {
   const [switching, setSwitching] = useState(false)
   const [renaming, setRenaming] = useState(false)
   const [name, setName] = useState(plan.name)
+  /** The plan waiting for the delete confirmation. */
+  const [deleting, setDeleting] = useState<PlanSummary | null>(null)
 
   if (!user) return null
   const activeId = sync.linkedPlanId()
@@ -72,6 +74,37 @@ export function PlanSwitcher({ plan }: { plan: Plan }) {
       await navigate({ to: '/start' })
     } finally {
       setSwitching(false)
+    }
+  }
+
+  /**
+   * Deletes a plan of the account. The open plan goes through the sync, which opens the next plan or leaves the
+   * browser empty for a new one; any other plan is simply removed from the account.
+   */
+  const remove = async (target: PlanSummary) => {
+    if (target.id === activeId) {
+      setSwitching(true)
+      try {
+        const next = await sync.deleteCurrentPlan()
+        if (next === null) {
+          store.replacePlan(null)
+          await navigate({ to: '/start' })
+          announce(t('header.deleteDone', { name: target.name }))
+        } else {
+          announce(
+            t('header.deleteDoneOpened', { name: target.name, next: store.getState().plan?.name ?? '' }),
+          )
+        }
+      } finally {
+        setSwitching(false)
+      }
+      return
+    }
+    try {
+      await planApi.remove(target.id)
+      announce(t('header.deleteDone', { name: target.name }))
+    } catch {
+      announce(t('plans.deleteError'))
     }
   }
 
@@ -123,24 +156,35 @@ export function PlanSwitcher({ plan }: { plan: Plan }) {
               overview.plans.map((item) => {
                 const active = item.id === activeId
                 return (
-                  <MenuItem
-                    key={item.id}
-                    // A plan not saved in the account yet would be lost by switching away from it.
-                    disabled={active || activeId === null}
-                    onClick={() => void open(item.id, item.name)}
-                  >
-                    {active ? (
-                      <Check aria-hidden className="size-4 shrink-0" />
-                    ) : (
-                      <span aria-hidden className="size-4 shrink-0" />
-                    )}
-                    <span className="min-w-0">
-                      <span className="block truncate">{item.name}</span>
-                      <span className="block text-xs text-zinc-500 dark:text-zinc-400">
-                        {t('plans.updated', { time: formatDateTime(item.updatedAt) })}
+                  // Opening and deleting are two menu items side by side, so both work from the keyboard.
+                  <div key={item.id} className="flex items-center gap-1">
+                    <MenuItem
+                      className="min-w-0 flex-1"
+                      // A plan not saved in the account yet would be lost by switching away from it.
+                      disabled={active || activeId === null}
+                      onClick={() => void open(item.id, item.name)}
+                    >
+                      {active ? (
+                        <Check aria-hidden className="size-4 shrink-0" />
+                      ) : (
+                        <span aria-hidden className="size-4 shrink-0" />
+                      )}
+                      <span className="min-w-0">
+                        <span className="block truncate">{item.name}</span>
+                        <span className="block text-xs text-zinc-500 dark:text-zinc-400">
+                          {t('plans.updated', { time: formatDateTime(item.updatedAt) })}
+                        </span>
                       </span>
-                    </span>
-                  </MenuItem>
+                    </MenuItem>
+                    <MenuItem
+                      aria-label={t('plans.deleteLabel', { name: item.name })}
+                      title={t('plans.deleteLabel', { name: item.name })}
+                      className="shrink-0 text-red-700 dark:text-red-400"
+                      onClick={() => setDeleting(item)}
+                    >
+                      <Trash2 aria-hidden className="size-4" />
+                    </MenuItem>
+                  </div>
                 )
               })
             )}
@@ -171,6 +215,21 @@ export function PlanSwitcher({ plan }: { plan: Plan }) {
           ) : null}
         </MenuContent>
       </MenuRoot>
+      <ConfirmDialog
+        open={deleting !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleting(null)
+        }}
+        title={t('plans.deleteTitle', { name: deleting?.name ?? '' })}
+        description={t(
+          deleting?.id === activeId ? 'header.deleteDescriptionAccount' : 'plans.deleteDescription',
+        )}
+        confirmLabel={t('header.deleteConfirm')}
+        destructive
+        onConfirm={() => {
+          if (deleting) void remove(deleting)
+        }}
+      />
       <Dialog open={renaming} onOpenChange={setRenaming} title={t('plans.renameTitle')}>
         <form onSubmit={rename}>
           <label htmlFor={nameId} className="block text-sm font-medium">

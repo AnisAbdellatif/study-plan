@@ -1,7 +1,7 @@
 import { isModulePassed } from '../engine/progress.ts'
 import { toHalves } from '../engine/units.ts'
 import { placeholderCredits } from './placeholders.ts'
-import type { Plan, PlanSemester } from './plan.ts'
+import { countsForDegree, type Plan, type PlanSemester } from './plan.ts'
 import { addTerms, type Term } from './terms.ts'
 
 /** How much of a full-time semester's workload a semester of this kind carries. */
@@ -55,7 +55,10 @@ export function graduationForecast(plan: Plan, options: ForecastOptions = {}): G
   const passed = new Set(
     plan.modules.filter((module) => isModulePassed(module, plan.rules)).map((module) => module.code),
   )
-  const credits = new Map(plan.modules.map((module) => [module.code, toHalves(module.credits)]))
+  // Self-study modules never reach the required credits, so they weigh nothing here.
+  const credits = new Map(
+    plan.modules.map((module) => [module.code, countsForDegree(module) ? toHalves(module.credits) : 0]),
+  )
   const estimates = placeholderCredits(plan)
 
   let earned = 0

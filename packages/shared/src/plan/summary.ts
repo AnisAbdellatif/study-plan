@@ -3,7 +3,7 @@ import { isModulePassed } from '../engine/progress.ts'
 import { toHalves } from '../engine/units.ts'
 import { inactiveAreaIds } from './area-choices.ts'
 import { placeholderCredits } from './placeholders.ts'
-import { type Plan, type PlanSemester, planGradeRules } from './plan.ts'
+import { countsForDegree, type Plan, type PlanSemester, planGradeRules } from './plan.ts'
 import { addTerms, formatTerm, type Term } from './terms.ts'
 
 /** Default per-semester load warning bounds in credits. Presets will be able to override them. */
@@ -52,7 +52,10 @@ const loadFor = (credits: number, kind: PlanSemester['kind']): SemesterLoad => {
 }
 
 export function summarizePlan(plan: Plan): PlanSummary {
-  const creditHalves = new Map(plan.modules.map((m) => [m.code, toHalves(m.credits)]))
+  // Self-study modules count nowhere, so zero credits keep them out of every sum below.
+  const creditHalves = new Map(
+    plan.modules.map((m) => [m.code, countsForDegree(m) ? toHalves(m.credits) : 0]),
+  )
   const passed = new Set(plan.modules.filter((m) => isModulePassed(m, plan.rules)).map((m) => m.code))
   const placed = new Set(plan.semesters.flatMap((s) => s.moduleCodes))
   const sum = (codes: Iterable<string>) => {
@@ -65,7 +68,7 @@ export function summarizePlan(plan: Plan): PlanSummary {
   const inactive = inactiveAreaIds(plan)
 
   return {
-    overall: computeOverall(planGradeRules(plan), plan.modules),
+    overall: computeOverall(planGradeRules(plan), plan.modules.filter(countsForDegree)),
     credits: { earned: sum(passed), planned: sum(placed), required: plan.preset.totalCredits },
     semesters: plan.semesters.map((semester, index) => {
       const term = addTerms(plan.startTerm, index)

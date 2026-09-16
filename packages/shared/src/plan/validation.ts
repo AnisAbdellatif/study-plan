@@ -4,7 +4,7 @@ import { type Prerequisite, prerequisiteCodes } from '../schema/preset.ts'
 import { inactiveAreaIds } from './area-choices.ts'
 import { attemptStatus } from './attempts.ts'
 import { placeholderCredits } from './placeholders.ts'
-import type { Plan } from './plan.ts'
+import { countsForDegree, type Plan } from './plan.ts'
 import { addTerms, type Term } from './terms.ts'
 
 /** Why a planned prerequisite blocks a module: its semester is over without a pass, or no attempt is left. */
@@ -191,7 +191,8 @@ export function validatePlan(plan: Plan, options: ValidationOptions = {}): PlanI
       if (module.requiresCredits !== undefined) {
         let halves = 0
         for (const other of plan.modules) {
-          if (other.code !== code && doneBefore(other.code)) halves += toHalves(other.credits)
+          if (other.code !== code && doneBefore(other.code) && countsForDegree(other))
+            halves += toHalves(other.credits)
         }
         // Placeholders in earlier semesters stand for modules the student will choose there.
         plan.semesters.slice(0, index).forEach((earlier) => {
@@ -253,7 +254,8 @@ export function validatePlan(plan: Plan, options: ValidationOptions = {}): PlanI
     let halves = 0
     for (const code of area.moduleCodes) {
       const module = modules.get(code)
-      if (module && counted.has(code)) halves += toHalves(module.credits)
+      // A module the student only wants to learn fills no area requirement.
+      if (module && counted.has(code) && countsForDegree(module)) halves += toHalves(module.credits)
     }
     for (const placeholder of plan.placeholders ?? []) {
       if (placeholder.areaId === area.id) halves += toHalves(estimates.get(placeholder.id) ?? 0)

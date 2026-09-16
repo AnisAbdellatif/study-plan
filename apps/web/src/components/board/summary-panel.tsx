@@ -1,6 +1,6 @@
 import type { Plan, PlanSummary } from '@study-plan/shared'
 import { Calculator, GraduationCap, Layers, type LucideIcon, TrendingUp } from 'lucide-react'
-import { type ReactNode, useState } from 'react'
+import { type ReactNode, useLayoutEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { type AreaTone, areaTone } from '../../lib/area-colors.ts'
 import { cn } from '../../lib/cn.ts'
@@ -71,11 +71,54 @@ function CreditBar({
   )
 }
 
+/** The narrowest an area column may get. */
+const AREA_MIN_WIDTH_REM = 15
+
+/**
+ * Stores the area list's column count as --area-columns. The areas first fill the list's height: as many rows as
+ * fit, and only as many columns as those rows need (never more than fit the width). Then rows and columns are
+ * evened out, e.g. 8 areas with room for 4 rows become 2 × 4, and with room for 3 rows 3 + 3 + 2.
+ */
+function useBalancedColumns(count: number) {
+  const ref = useRef<HTMLUListElement>(null)
+  useLayoutEffect(() => {
+    const list = ref.current
+    if (!list || typeof ResizeObserver === 'undefined') return
+    const px = (value: string) => Number.parseFloat(value) || 0
+    const update = () => {
+      const item = list.firstElementChild as HTMLElement | null
+      // Hidden (e.g. in a phone tab that isn't open): measured again once it shows.
+      if (!item || item.offsetHeight === 0) return
+      const style = getComputedStyle(list)
+      const rem = px(getComputedStyle(document.documentElement).fontSize) || 16
+      const columnGap = px(style.columnGap)
+      const rowGap = px(style.rowGap)
+      const width = list.clientWidth - px(style.paddingLeft) - px(style.paddingRight)
+      // A capped list grows with its content, so the cap is the room; otherwise the card gives the list its height.
+      const height =
+        (style.maxHeight === 'none' ? list.clientHeight : px(style.maxHeight)) -
+        px(style.paddingTop) -
+        px(style.paddingBottom)
+      const fitColumns = Math.max(1, Math.floor((width + columnGap) / (AREA_MIN_WIDTH_REM * rem + columnGap)))
+      const fitRows = Math.max(1, Math.floor((height + rowGap) / (item.offsetHeight + rowGap)))
+      const columns = Math.min(fitColumns, Math.max(1, Math.ceil(count / fitRows)))
+      const rows = Math.max(1, Math.ceil(count / columns))
+      list.style.setProperty('--area-columns', String(Math.max(1, Math.ceil(count / rows))))
+    }
+    update()
+    const observer = new ResizeObserver(update)
+    observer.observe(list)
+    return () => observer.disconnect()
+  }, [count])
+  return ref
+}
+
 export function SummaryPanel({ plan, summary }: { plan: Plan; summary: PlanSummary }) {
   const { t } = useTranslation('board')
   const { overall, credits } = summary
   const label = plan.preset.creditLabel
   const [calculationOpen, setCalculationOpen] = useState(false)
+  const areaListRef = useBalancedColumns(summary.areas.length)
 
   return (
     <aside
@@ -143,9 +186,12 @@ export function SummaryPanel({ plan, summary }: { plan: Plan; summary: PlanSumma
           <CardHeading icon={Layers}>{t('summary.areas')}</CardHeading>
           <span className="text-xs text-zinc-500">{t('summary.areaLegend')}</span>
         </div>
-        {/* Two columns of areas in print keep this card as short as the other two. The negative margin puts the
-            scrollbar into the card's padding. */}
-        <ul className="-mr-2 mt-2 min-h-0 flex-1 space-y-2.5 overflow-y-auto pr-2 max-lg:max-h-72 print:mt-1 print:grid print:max-h-none print:grid-cols-2 print:gap-x-4 print:gap-y-1 print:space-y-0 print:overflow-visible">
+        {/* Evenly filled columns of areas, see useBalancedColumns. Two columns in print keep this card as short as the
+            other two. The negative margin puts the scrollbar into the card's padding. */}
+        <ul
+          ref={areaListRef}
+          className="-mr-2 mt-2 grid min-h-0 flex-1 grid-cols-[repeat(var(--area-columns,1),minmax(0,1fr))] content-start gap-x-6 gap-y-2.5 overflow-y-auto pr-2 max-lg:max-h-72 print:mt-1 print:max-h-none print:grid-cols-2 print:gap-x-4 print:gap-y-1 print:overflow-visible"
+        >
           {summary.areas.map((area) => {
             const planned = area.plannedCredits + area.placeholderCredits
             const hasRange = area.maxCredits !== undefined && area.maxCredits !== area.minCredits

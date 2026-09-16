@@ -8,6 +8,7 @@ import { currentLocale } from '../i18n/index.ts'
 import { setTheme, useTheme } from '../lib/theme.ts'
 import { useGuestStore } from '../store/guest-store.ts'
 import { AccountButton } from './account-button.tsx'
+import { useAccountSync } from './account-sync.tsx'
 import { AdminButton } from './admin-button.tsx'
 import { useAnnounce } from './announcer.tsx'
 import { ImportGradesDialog } from './board/import-grades-dialog.tsx'
@@ -42,12 +43,26 @@ export function AppHeader({ plan }: { plan: Plan }) {
   const navigate = useNavigate()
   const announce = useAnnounce()
   const exportPlan = useExportPlan()
-  const [confirmReset, setConfirmReset] = useState(false)
+  const { sync, user } = useAccountSync()
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const [restoreOpen, setRestoreOpen] = useState(false)
   const [clearResults, setClearResults] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
   const [startTermOpen, setStartTermOpen] = useState(false)
+
+  /** Deletes the plan here and in the account. Another account plan takes its place when there is one. */
+  const deletePlan = async () => {
+    const name = plan.name
+    const next = user ? await sync.deleteCurrentPlan() : null
+    if (next !== null) {
+      announce(t('header.deleteDoneOpened', { name, next: store.getState().plan?.name ?? '' }))
+      return
+    }
+    store.replacePlan(null)
+    await navigate({ to: '/start' })
+    announce(t('header.deleteDone', { name }))
+  }
 
   return (
     <header className="space-y-3">
@@ -109,8 +124,8 @@ export function AppHeader({ plan }: { plan: Plan }) {
               >
                 {t('header.restoreDefault')}
               </MenuItem>
-              <MenuItem className="text-red-700 dark:text-red-400" onClick={() => setConfirmReset(true)}>
-                {t('header.startOver')}
+              <MenuItem className="text-red-700 dark:text-red-400" onClick={() => setConfirmDelete(true)}>
+                {t('header.deletePlan')}
               </MenuItem>
               <div className="sm:hidden">
                 <MenuSeparator />
@@ -200,16 +215,13 @@ export function AppHeader({ plan }: { plan: Plan }) {
         }}
       />
       <ConfirmDialog
-        open={confirmReset}
-        onOpenChange={setConfirmReset}
-        title={t('header.resetTitle')}
-        description={t('header.resetDescription')}
-        confirmLabel={t('header.resetConfirm')}
+        open={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        title={t('header.deleteTitle')}
+        description={t(user ? 'header.deleteDescriptionAccount' : 'header.deleteDescription')}
+        confirmLabel={t('header.deleteConfirm')}
         destructive
-        onConfirm={() => {
-          store.replacePlan(null)
-          void navigate({ to: '/start' })
-        }}
+        onConfirm={() => void deletePlan()}
       />
     </header>
   )

@@ -129,23 +129,34 @@ export const ModuleCard = memo(function ModuleCard({
             <span className="tabular-nums">
               {formatCredits(module.credits)} {creditLabel}
             </span>
-            {/* Minimal marker; the full sentence is the tooltip and what screen readers hear. */}
-            <span
-              className={cn(
-                'rounded px-1.5 py-0.5 font-medium',
-                module.countsTowardAverage
-                  ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-500/20 dark:text-indigo-200'
-                  : 'bg-white/80 text-zinc-500 dark:bg-zinc-950/50 dark:text-zinc-400',
-              )}
-              title={t(module.countsTowardAverage ? 'card.counts' : 'card.notCounted')}
-            >
-              <span className="sr-only">
-                {t(module.countsTowardAverage ? 'card.counts' : 'card.notCounted')}
+            {/* Minimal marker; the full sentence is the tooltip and what screen readers hear. A module the
+                student only wants to learn counts nowhere, so it gets its own marker instead. */}
+            {module.selfStudy ? (
+              <span
+                className="rounded bg-white/80 px-1.5 py-0.5 font-medium text-zinc-600 dark:bg-zinc-950/50 dark:text-zinc-300"
+                title={t('card.selfStudy')}
+              >
+                <span className="sr-only">{t('card.selfStudy')}</span>
+                <span aria-hidden>{t('card.selfStudyShort')}</span>
               </span>
-              <span aria-hidden>
-                {t(module.countsTowardAverage ? 'card.countsShort' : 'card.notCountedShort')}
+            ) : (
+              <span
+                className={cn(
+                  'rounded px-1.5 py-0.5 font-medium',
+                  module.countsTowardAverage
+                    ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-500/20 dark:text-indigo-200'
+                    : 'bg-white/80 text-zinc-500 dark:bg-zinc-950/50 dark:text-zinc-400',
+                )}
+                title={t(module.countsTowardAverage ? 'card.counts' : 'card.notCounted')}
+              >
+                <span className="sr-only">
+                  {t(module.countsTowardAverage ? 'card.counts' : 'card.notCounted')}
+                </span>
+                <span aria-hidden>
+                  {t(module.countsTowardAverage ? 'card.countsShort' : 'card.notCountedShort')}
+                </span>
               </span>
-            </span>
+            )}
             {module.internship ? <span>· {t('card.internship')}</span> : null}
             {module.recognition ? (
               <span
@@ -241,6 +252,10 @@ export const ModuleCard = memo(function ModuleCard({
                 <MenuItem onClick={() => actions.onUnchoose(module.code)}>{t('card.unchoose')}</MenuItem>
               </>
             ) : null}
+            <MenuSeparator />
+            <MenuItem onClick={() => actions.onToggleSelfStudy(module.code)}>
+              {t(module.selfStudy ? 'card.selfStudyOff' : 'card.selfStudyOn')}
+            </MenuItem>
             <MenuSeparator />
             <MenuGroup>
               <MenuGroupLabel>{t('card.moveTo')}</MenuGroupLabel>

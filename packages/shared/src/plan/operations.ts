@@ -117,6 +117,22 @@ export function setModuleResult(plan: Plan, code: string, entry: ResultEntry): P
   return { ...plan, modules: plan.modules.map((m) => (m.code === code ? { ...m, attempts } : m)) }
 }
 
+/**
+ * Marks a module as one the student only wants to learn, so it counts nowhere, or lets it count again.
+ * Results already entered stay; they simply don't reach the average while the mark is set.
+ */
+export function setSelfStudy(plan: Plan, code: string, selfStudy: boolean): Plan {
+  findModule(plan, code)
+  return {
+    ...plan,
+    modules: plan.modules.map((module) => {
+      if (module.code !== code) return module
+      const { selfStudy: _previous, ...rest } = module
+      return selfStudy ? { ...rest, selfStudy: true as const } : rest
+    }),
+  }
+}
+
 export function addSemester(plan: Plan): Plan {
   return insertSemester(plan, plan.semesters.length)
 }

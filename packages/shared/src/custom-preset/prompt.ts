@@ -212,7 +212,7 @@ The result is long, and long chat answers are often cut off or hard to copy. So 
 - Only include this programme. Ignore other programmes, degrees and PO versions that appear in the same document.
 - Omit optional fields that the documents do not fill, or that only say "-", "n. a." or "keine Angabe". Keep an explicit "keine" (none) where it carries information, e.g. for participation requirements.
 - If a required value cannot be determined, choose the most defensible value and explain it in \`notes\`.
-- In long texts keep paragraphs with "\\n" and write list items as lines starting with "- ".
+- In long texts keep paragraphs with "\\n" and write list items as lines starting with "- ". Never keep the line breaks the PDF puts inside a sentence: one paragraph is one line, however many lines it takes in the document. Only a real paragraph break or a list item starts a new line.
 
 # Top-level fields
 
