@@ -61,6 +61,11 @@ export const board = {
     limitReached:
       'Alle {{limit}} Pläne sind belegt. Lösche einen auf der Kontoseite, um einen neuen anzulegen.',
     switched: '{{name}} geöffnet',
+    deleteLabel: '{{name}} löschen',
+    deleteTitle: '„{{name}}“ löschen?',
+    deleteDescription:
+      'Der Plan und alle darin eingetragenen Noten werden endgültig aus deinem Konto gelöscht. Der geöffnete Plan bleibt, wie er ist.',
+    deleteError: 'Der Plan ließ sich nicht löschen. Versuche es noch einmal.',
   },
   assistant: {
     title: 'Studienassistent',

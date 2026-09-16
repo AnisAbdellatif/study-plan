@@ -63,6 +63,11 @@ export const board = {
     new: 'New plan',
     limitReached: 'All {{limit}} plans are in use. Delete one on the account page to create a new one.',
     switched: '{{name}} opened',
+    deleteLabel: 'Delete {{name}}',
+    deleteTitle: 'Delete “{{name}}”?',
+    deleteDescription:
+      'The plan and all grades entered in it are deleted from your account for good. The open plan stays as it is.',
+    deleteError: "The plan couldn't be deleted. Please try again.",
   },
   assistant: {
     title: 'Study assistant',
