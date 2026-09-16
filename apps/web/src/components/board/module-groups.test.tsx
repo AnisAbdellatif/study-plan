@@ -36,22 +36,31 @@ function renderBoard(plan: Plan) {
   return { store, user: userEvent.setup() }
 }
 
+async function selectFromMenu(user: ReturnType<typeof userEvent.setup>, column: HTMLElement, name: string) {
+  await user.click(within(column).getByRole('button', { name: `Aktionen für ${name}` }))
+  await user.click(await screen.findByRole('menuitem', { name: 'Zum Gruppieren auswählen' }))
+}
+
 describe('grouping options not decided yet', () => {
-  it('groups two options from the card menu, counts them once and keeps the chosen one', async () => {
+  it('selects options, groups them from the bar, counts them once and keeps the chosen one', async () => {
     const { plan, first, second } = planWithTwoOptions()
     const { user, store } = renderBoard(plan)
     const fifth = await screen.findByRole('region', { name: /^5\. Semester/ })
     const credits = summarizePlan(plan).semesters[4]?.credits ?? 0
     expect(fifth).toHaveTextContent(`${credits} LP`)
 
-    await user.click(within(fifth).getByRole('button', { name: `Aktionen für ${first}` }))
-    expect(await screen.findByText('Gruppieren mit (noch nicht entschieden)')).toBeInTheDocument()
-    await user.click(screen.getByRole('menuitem', { name: second }))
+    await selectFromMenu(user, fifth, first)
+    const bar = await screen.findByRole('region', { name: 'Auswahl zum Gruppieren' })
+    expect(bar).toHaveTextContent('1 Modul ausgewählt')
+    expect(within(bar).getByRole('button', { name: 'Gruppieren' })).toBeDisabled()
+
+    await user.click(within(fifth).getByRole('checkbox', { name: `${second} zum Gruppieren auswählen` }))
+    expect(bar).toHaveTextContent('2 Module ausgewählt')
+    await user.click(within(bar).getByRole('button', { name: 'Gruppieren' }))
 
     await waitFor(() => expect(store.getState().plan?.moduleGroups).toHaveLength(1))
-    expect(
-      await screen.findByText(`${second} mit ${first} gruppiert, die Gruppe zählt wie ein Modul`),
-    ).toBeInTheDocument()
+    expect(await screen.findByText('2 Module gruppiert, die Gruppe zählt wie ein Modul')).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Auswahl zum Gruppieren' })).not.toBeInTheDocument()
     for (const name of [first, second]) {
       const card = within(fifth).getByRole('heading', { name }).closest('li')
       expect(card).toHaveTextContent('Einer von 2 · zählt als 5 LP')
@@ -67,7 +76,7 @@ describe('grouping options not decided yet', () => {
     expect(within(fifth).queryByText(/Einer von/)).not.toBeInTheDocument()
   })
 
-  it('groups options planned in different semesters and counts them once', async () => {
+  it('groups options planned in different semesters', async () => {
     const { plan, first, second } = planWithTwoOptions()
     const code = (name: string) => plan.modules.find((module) => module.name === name)?.code ?? ''
     const spread = moveModule(plan, code(second), 's4')
@@ -76,15 +85,35 @@ describe('grouping options not decided yet', () => {
     const fifth = screen.getByRole('region', { name: /^5\. Semester/ })
     const before = summarizePlan(spread)
 
-    await user.click(within(fifth).getByRole('button', { name: `Aktionen für ${first}` }))
-    await user.click(await screen.findByRole('menuitem', { name: second }))
+    await selectFromMenu(user, fifth, first)
+    await user.click(within(fourth).getByRole('checkbox', { name: `${second} zum Gruppieren auswählen` }))
+    await user.click(screen.getByRole('button', { name: 'Gruppieren' }))
 
     await waitFor(() => expect(store.getState().plan?.moduleGroups).toHaveLength(1))
     expect(within(fourth).getByRole('heading', { name: second }).closest('li')).toHaveTextContent(
       'Einer von 2',
     )
     expect(within(fifth).getByRole('heading', { name: first }).closest('li')).toHaveTextContent('Einer von 2')
-    const after = summarizePlan(store.getState().plan ?? spread)
-    expect(after.credits.planned).toBe(before.credits.planned - 5)
+    expect(summarizePlan(store.getState().plan ?? spread).credits.planned).toBe(before.credits.planned - 5)
+  })
+
+  it('only offers options of the same area and cancels with Escape', async () => {
+    const { plan, first, second } = planWithTwoOptions()
+    const { user, store } = renderBoard(plan)
+    const fifth = await screen.findByRole('region', { name: /^5\. Semester/ })
+
+    await selectFromMenu(user, fifth, first)
+    expect(
+      within(fifth).getByRole('checkbox', { name: `${second} zum Gruppieren auswählen` }),
+    ).toBeInTheDocument()
+    // Compulsory modules can't join, so they get no checkbox.
+    expect(within(fifth).getAllByRole('checkbox')).toHaveLength(2)
+
+    await user.keyboard('{Escape}')
+    await waitFor(() =>
+      expect(screen.queryByRole('region', { name: 'Auswahl zum Gruppieren' })).not.toBeInTheDocument(),
+    )
+    expect(within(fifth).queryAllByRole('checkbox')).toHaveLength(0)
+    expect(store.getState().plan).not.toHaveProperty('moduleGroups')
   })
 })

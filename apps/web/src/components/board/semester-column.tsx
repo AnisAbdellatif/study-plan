@@ -138,11 +138,6 @@ export interface ModuleGroupInfo {
   credits: number
 }
 
-export interface GroupCandidate {
-  code: string
-  name: string
-}
-
 export type ColumnEntry =
   | {
       kind: 'module'
@@ -155,8 +150,11 @@ export type ColumnEntry =
       notes: readonly IssueText[]
       /** Set when the module is one of a group of options planned together. */
       group?: ModuleGroupInfo
-      /** Options in the same semester this module can be grouped with. */
-      groupWith?: readonly GroupCandidate[]
+      /** The module can join the current selection for grouping. */
+      selectable: boolean
+      selected: boolean
+      /** A selection for grouping is in progress on the board. */
+      selecting: boolean
     }
   | {
       kind: 'placeholder'
@@ -457,7 +455,9 @@ export const SemesterColumn = memo(function SemesterColumn({
               index={entry.index}
               chosen={entry.chosen && column.id !== null}
               group={entry.group}
-              groupWith={entry.groupWith}
+              selectable={entry.selectable}
+              selected={entry.selected}
+              selecting={entry.selecting}
               passThreshold={passThreshold}
               creditLabel={creditLabel}
               showCode={showCode}

@@ -9,7 +9,8 @@ import {
   createIcs,
   creditRequirements,
   graduationForecast,
-  groupModules,
+  groupableCodes,
+  groupModuleCodes,
   insertSemester,
   isPlaceholderId,
   keepFromModuleGroup,
@@ -39,7 +40,7 @@ import {
   validatePlan,
 } from '@study-plan/shared'
 import { ChartNoAxesColumn, LayoutGrid, ListChecks, MessageCircle } from 'lucide-react'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { AccountSyncBanner } from '../components/account-sync.tsx'
 import { useAnnounce } from '../components/announcer.tsx'
@@ -146,6 +147,8 @@ function Board({ plan }: { plan: Plan }) {
   // One assistant at a time: inline in its tab on phones, in a dialog on wider screens.
   const wide = useMediaQuery('(min-width: 40rem)')
   const [assistantOpen, setAssistantOpen] = useState(false)
+  /** Modules picked for grouping, in the order they were picked. */
+  const [selection, setSelection] = useState<readonly string[]>([])
   const changeView = (next: BoardView) => {
     setView(next)
     storeBoardView(next)
@@ -168,6 +171,21 @@ function Board({ plan }: { plan: Plan }) {
   )
   const allDeadlines = useMemo(() => planDeadlines(plan), [plan])
   const upcoming = useMemo(() => upcomingDeadlines(plan, today, DEADLINE_HORIZON_DAYS), [plan, today])
+
+  // A picked module that was since unplanned, or no longer fits the others, quietly drops out of the selection.
+  const activeSelection = useMemo(() => {
+    const allowed = groupableCodes(plan, selection)
+    return selection.filter((code) => allowed.has(code))
+  }, [plan, selection])
+
+  useEffect(() => {
+    if (selection.length === 0) return
+    const cancel = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setSelection([])
+    }
+    window.addEventListener('keydown', cancel)
+    return () => window.removeEventListener('keydown', cancel)
+  }, [selection.length])
 
   const moduleName = useCallback(
     (code: string) => plan.modules.find((m) => m.code === code)?.name ?? code,
@@ -274,10 +292,10 @@ function Board({ plan }: { plan: Plan }) {
       if (apply((current) => setSelfStudy(current, code, selfStudy)))
         announce(t(selfStudy ? 'announce.selfStudyOn' : 'announce.selfStudyOff', { name: module.name }))
     },
-    onGroup: (code, otherCode) => {
-      if (apply((current) => groupModules(current, code, otherCode)))
-        announce(t('announce.grouped', { name: moduleName(code), other: moduleName(otherCode) }))
-    },
+    onToggleSelect: (code) =>
+      setSelection((current) =>
+        current.includes(code) ? current.filter((item) => item !== code) : [...current, code],
+      ),
     onLeaveGroup: (code) => {
       if (apply((current) => leaveModuleGroup(current, code)))
         announce(t('announce.groupLeft', { name: moduleName(code) }))
@@ -443,6 +461,7 @@ function Board({ plan }: { plan: Plan }) {
               currentIndex={currentIndex}
               actions={actions}
               notesByCode={issues.byModule}
+              selection={activeSelection}
             />
           </div>
         )}
@@ -529,6 +548,38 @@ function Board({ plan }: { plan: Plan }) {
         onSave={saveResult}
         onClose={() => setGradingCode(null)}
       />
+      {activeSelection.length > 0 ? (
+        // Floats above the phone navigation and the assistant button; Esc cancels as well.
+        <section
+          aria-label={t('selection.label')}
+          className="fixed inset-x-4 bottom-24 z-40 mx-auto flex max-w-md flex-wrap items-center gap-2 rounded-xl bg-white p-3 shadow-lg ring-1 ring-zinc-200 sm:bottom-20 print:hidden dark:bg-zinc-900 dark:ring-zinc-800"
+        >
+          {/* Phones give the text its own row and the buttons the next; wider screens keep one row. */}
+          <p className="min-w-0 basis-full text-sm sm:basis-0 sm:flex-1" role="status">
+            <span className="font-medium">{t('selection.count', { count: activeSelection.length })}</span>
+            <span className="block text-xs text-zinc-600 dark:text-zinc-400">
+              {activeSelection.length < 2 ? t('selection.hintMore') : t('selection.hint')}
+            </span>
+          </p>
+          <Button size="sm" className="ml-auto sm:ml-0" onClick={() => setSelection([])}>
+            {t('selection.cancel')}
+          </Button>
+          <Button
+            size="sm"
+            variant="primary"
+            disabled={activeSelection.length < 2}
+            onClick={() => {
+              const count = activeSelection.length
+              if (apply((current) => groupModuleCodes(current, activeSelection))) {
+                announce(t('announce.grouped', { count }))
+                setSelection([])
+              }
+            }}
+          >
+            {t('selection.group')}
+          </Button>
+        </section>
+      ) : null}
       {wide ? (
         <Button
           variant="primary"

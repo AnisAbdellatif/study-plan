@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { type Preset, presetSchema } from '../schema/preset.ts'
 import { countedCreditHalves } from './counted-credits.ts'
-import { groupCandidates, groupModules, keepFromModuleGroup, leaveModuleGroup } from './module-groups.ts'
+import { groupableCodes, groupModuleCodes, keepFromModuleGroup, leaveModuleGroup } from './module-groups.ts'
 import { moveModule, setModuleResult } from './operations.ts'
 import { createPlanFromPreset, type Plan, planSchema, resetPlan } from './plan.ts'
 import { summarizePlan } from './summary.ts'
@@ -64,17 +64,24 @@ const planned = (): Plan => {
   return plan
 }
 
-const grouped = (): Plan => groupModules(groupModules(planned(), 'V1', 'V2'), 'V1', 'V3')
+const grouped = (): Plan => groupModuleCodes(planned(), ['V1', 'V2', 'V3'])
 
 describe('groups of options not decided yet', () => {
-  it('offers planned options of the same area, in any semester', () => {
+  it('lets only planned options of the selected area join a selection', () => {
     const plan = planned()
-    expect(groupCandidates(plan, 'V1')).toEqual(['V2', 'V3'])
-    expect(groupCandidates(plan, 'PF')).toEqual([])
-    expect(groupCandidates(moveModule(plan, 'V3', 's3'), 'V1')).toEqual(['V2', 'V3'])
-    // An option that is not planned yet can't be grouped.
-    expect(groupCandidates(moveModule(plan, 'V3', null), 'V1')).toEqual(['V2'])
-    expect(() => groupModules(plan, 'V1', 'PF')).toThrow('cannot be grouped')
+    expect([...groupableCodes(plan, [])].sort()).toEqual(['V1', 'V2', 'V3'])
+    expect([...groupableCodes(plan, ['V1'])].sort()).toEqual(['V1', 'V2', 'V3'])
+    expect(groupableCodes(plan, ['PF']).size).toBe(0)
+    // Semesters don't matter, but an option that isn't planned can't join.
+    expect([...groupableCodes(moveModule(plan, 'V3', 's3'), ['V1'])].sort()).toEqual(['V1', 'V2', 'V3'])
+    expect([...groupableCodes(moveModule(plan, 'V3', null), ['V1'])].sort()).toEqual(['V1', 'V2'])
+    expect(() => groupModuleCodes(plan, ['V1', 'PF'])).toThrow('Only planned options')
+    expect(() => groupModuleCodes(plan, ['V1'])).toThrow('at least two')
+  })
+
+  it('extends an existing group with newly selected options', () => {
+    const plan = groupModuleCodes(groupModuleCodes(planned(), ['V1', 'V2']), ['V2', 'V3'])
+    expect(plan.moduleGroups).toEqual([{ id: 'group-1', codes: ['V1', 'V2', 'V3'] }])
   })
 
   it('counts the group once, with its largest member, everywhere', () => {
@@ -84,7 +91,6 @@ describe('groups of options not decided yet', () => {
     const plan = grouped()
     expect(plan.moduleGroups).toEqual([{ id: 'group-1', codes: ['V1', 'V2', 'V3'] }])
     expect(planSchema.safeParse(plan).success).toBe(true)
-    expect(groupCandidates(plan, 'V1')).toEqual([])
 
     const summary = summarizePlan(plan)
     expect(summary.semesters[1]?.credits).toBe(6)

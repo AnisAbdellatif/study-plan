@@ -19,7 +19,7 @@ import {
   MenuTrigger,
 } from '../ui/menu.tsx'
 import type { BoardActions } from './board-actions.ts'
-import type { GroupCandidate, ModuleGroupInfo } from './semester-column.tsx'
+import type { ModuleGroupInfo } from './semester-column.tsx'
 
 export interface Destination {
   id: string | null
@@ -44,8 +44,11 @@ export interface ModuleCardProps {
   tone?: AreaTone
   /** Set when the module is one of a group of options planned together. */
   group?: ModuleGroupInfo
-  /** Options in the same semester this module can be grouped with. */
-  groupWith?: readonly GroupCandidate[]
+  /** The module can join the current selection for grouping. */
+  selectable?: boolean
+  selected?: boolean
+  /** A selection for grouping is in progress on the board. */
+  selecting?: boolean
 }
 
 /** A module's current result as a solid badge; also used on shared plans that include grades. */
@@ -88,7 +91,9 @@ export const ModuleCard = memo(function ModuleCard({
   notes,
   tone = NEUTRAL_TONE,
   group,
-  groupWith,
+  selectable = false,
+  selected = false,
+  selecting = false,
 }: ModuleCardProps) {
   const { onMove, onGrade, onDetails } = actions
   const { t } = useTranslation('board')
@@ -103,13 +108,23 @@ export const ModuleCard = memo(function ModuleCard({
         // Menus and buttons on the card handle their own clicks; a drag never ends in a click.
         if ((event.target as HTMLElement).closest('button, a, input, [role="menu"], [role="menuitem"]'))
           return
+        // While selecting, a click picks the card; Ctrl, ⌘ or Shift starts a selection from any card.
+        if (selecting || event.ctrlKey || event.metaKey || event.shiftKey) {
+          if (selectable) actions.onToggleSelect(module.code)
+          if (selecting) return
+        }
+        if (event.ctrlKey || event.metaKey || event.shiftKey) return
         onDetails(module.code)
       }}
       className={cn(
-        'relative cursor-grab rounded-lg border-l-4 p-2.5 shadow-sm ring-1 ring-zinc-900/10 active:cursor-grabbing dark:ring-white/10',
+        'relative cursor-grab rounded-lg border-l-4 p-2.5 shadow-sm active:cursor-grabbing',
+        // Exactly one ring: selected cards stand out, the rest keep the quiet outline.
+        selected
+          ? 'ring-2 ring-indigo-500 dark:ring-indigo-400'
+          : 'ring-1 ring-zinc-900/10 dark:ring-white/10',
         tone.stripe,
         tone.soft,
-        isDragging && 'opacity-40',
+        isDragging ? 'opacity-40' : selecting && !selectable && 'opacity-50',
         notes.some((note) => note.severity === 'error')
           ? 'outline-2 outline-red-500/80 dark:outline-red-500/70'
           : notes.some((note) => note.severity === 'warning') &&
@@ -126,6 +141,15 @@ export const ModuleCard = memo(function ModuleCard({
         />
       ) : null}
       <div className="flex items-start gap-1">
+        {selecting && selectable ? (
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={() => actions.onToggleSelect(module.code)}
+            aria-label={t('card.selectLabel', { name: module.name })}
+            className="mt-0.5 mr-1 size-4 shrink-0 accent-indigo-600 print:hidden"
+          />
+        ) : null}
         <div className="min-w-0 flex-1">
           {group ? (
             // One of several options kept open for the same slot; the whole group counts once.
@@ -280,20 +304,12 @@ export const ModuleCard = memo(function ModuleCard({
                 <MenuItem onClick={() => actions.onLeaveGroup(module.code)}>{t('card.leaveGroup')}</MenuItem>
               </>
             ) : null}
-            {groupWith && groupWith.length > 0 ? (
+            {selectable || selected ? (
               <>
                 <MenuSeparator />
-                <MenuGroup>
-                  <MenuGroupLabel>{t('card.groupWith')}</MenuGroupLabel>
-                  {groupWith.map((candidate) => (
-                    <MenuItem
-                      key={candidate.code}
-                      onClick={() => actions.onGroup(module.code, candidate.code)}
-                    >
-                      {candidate.name}
-                    </MenuItem>
-                  ))}
-                </MenuGroup>
+                <MenuItem onClick={() => actions.onToggleSelect(module.code)}>
+                  {t(selected ? 'card.unselect' : 'card.select')}
+                </MenuItem>
               </>
             ) : null}
             <MenuSeparator />

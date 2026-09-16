@@ -12,17 +12,33 @@ const semesterOf = (plan: Plan, code: string): string | null =>
 export const moduleGroupOf = (plan: Pick<Plan, 'moduleGroups'>, code: string): ModuleGroup | undefined =>
   groupOf(plan, code)
 
+/** The choice area a planned option belongs to, or null for compulsory and unplanned modules. */
+function optionAreaOf(plan: Plan, code: string, options: ReadonlyMap<string, string[]>): string | null {
+  if (semesterOf(plan, code) === null) return null
+  return [...options].find(([, codes]) => codes.includes(code))?.[0] ?? null
+}
+
 /**
- * Modules a planned option can be grouped with: other options of the same area planned in any semester that are
- * not in another group. Compulsory modules and modules outside the semesters have none.
+ * Modules that may join a selection for grouping: planned options of the selection's area, in any semester.
+ * Modules of one existing group can join too, which extends that group; a second group can't. With nothing
+ * selected yet, every planned option is selectable.
  */
-export function groupCandidates(plan: Plan, code: string): string[] {
-  if (semesterOf(plan, code) === null) return []
-  const area = [...choiceOptionCodes(plan)].find(([, codes]) => codes.includes(code))
-  if (!area) return []
-  return area[1].filter(
-    (other) => other !== code && semesterOf(plan, other) !== null && groupOf(plan, other) === undefined,
-  )
+export function groupableCodes(plan: Plan, selected: readonly string[]): Set<string> {
+  const options = choiceOptionCodes(plan)
+  const area = selected.length > 0 ? optionAreaOf(plan, selected[0] ?? '', options) : null
+  const selectedGroup = selected.map((code) => groupOf(plan, code)?.id).find((id) => id !== undefined)
+  const result = new Set<string>()
+  for (const [areaId, codes] of options) {
+    if (area !== null && areaId !== area) continue
+    for (const code of codes) {
+      if (semesterOf(plan, code) === null) continue
+      const group = groupOf(plan, code)
+      if (group && selectedGroup !== undefined && group.id !== selectedGroup) continue
+      result.add(code)
+    }
+  }
+  if (selected.length > 0 && area === null) result.clear()
+  return result
 }
 
 const newGroupId = (plan: Plan): string => {
@@ -33,20 +49,24 @@ const newGroupId = (plan: Plan): string => {
 }
 
 /**
- * Groups `otherCode` with `code`: into the group `code` already has, or into a new one. Both stay in the
- * semesters they are planned in, so a group can keep open when a module is taken as well as which one.
+ * Groups the selected options. They stay in the semesters they are planned in. When some of them already form
+ * a group, the others join it; otherwise a new group starts.
  */
-export function groupModules(plan: Plan, code: string, otherCode: string): Plan {
-  findModule(plan, code)
-  if (!groupCandidates(plan, code).includes(otherCode)) {
-    throw new PlanError(`Module "${otherCode}" cannot be grouped with "${code}"`)
+export function groupModuleCodes(plan: Plan, codes: readonly string[]): Plan {
+  const unique = [...new Set(codes)]
+  for (const code of unique) findModule(plan, code)
+  const allowed = groupableCodes(plan, unique)
+  if (unique.some((code) => !allowed.has(code))) {
+    throw new PlanError('Only planned options of one area and at most one existing group can be grouped')
   }
-  const own = groupOf(plan, code)
-  const groups = own
+  const existing = unique.map((code) => groupOf(plan, code)).find((group) => group !== undefined)
+  const members = [...new Set([...(existing?.codes ?? []), ...unique])]
+  if (members.length < 2) throw new PlanError('A group needs at least two modules')
+  const groups = existing
     ? (plan.moduleGroups ?? []).map((group) =>
-        group.id === own.id ? { ...group, codes: [...group.codes, otherCode] } : group,
+        group.id === existing.id ? { ...group, codes: members } : group,
       )
-    : [...(plan.moduleGroups ?? []), { id: newGroupId(plan), codes: [code, otherCode] }]
+    : [...(plan.moduleGroups ?? []), { id: newGroupId(plan), codes: members }]
   return { ...plan, moduleGroups: groups }
 }
 
