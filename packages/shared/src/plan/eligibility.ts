@@ -2,7 +2,7 @@ import { isModulePassed } from '../engine/progress.ts'
 import { toHalves } from '../engine/units.ts'
 import { type Prerequisite, prerequisiteCodes } from '../schema/preset.ts'
 import { placeholderCredits } from './placeholders.ts'
-import type { Plan } from './plan.ts'
+import { countsForDegree, type Plan } from './plan.ts'
 
 /** Admission forecast for a module that needs a minimum of earned credits, usually the thesis. */
 export interface CreditRequirement {
@@ -35,14 +35,15 @@ export function creditRequirements(plan: Plan): CreditRequirement[] {
 
   const estimates = placeholderCredits(plan)
   return plan.modules
-    .filter((module) => module.requiresCredits !== undefined && !module.retired)
+    .filter((module) => module.requiresCredits !== undefined && !module.retired && countsForDegree(module))
     .map((module) => {
       const required = toHalves(module.requiresCredits ?? 0)
       let earned = 0
       /** Credits of open modules by the semester they are planned in. */
       const plannedBySemester = plan.semesters.map(() => 0)
       for (const other of plan.modules) {
-        if (other.code === module.code) continue
+        // Self-study modules bring no credits, so they never help toward an admission requirement.
+        if (other.code === module.code || !countsForDegree(other)) continue
         if (passed.has(other.code)) earned += toHalves(other.credits)
         else {
           const index = semesterOf.get(other.code)

@@ -97,6 +97,53 @@ describe('choice area tiles', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('filters the options by the kind of assessment', async () => {
+    // The example's modules carry no exam forms, so the test gives three of them a written exam.
+    const base = makePlan()
+    const options = choiceAreas(base).find((choice) => choice.area.id === AREA)?.available ?? []
+    const written = options.slice(0, 3).map((module) => module.code)
+    const plan: Plan = {
+      ...base,
+      modules: base.modules.map((module) =>
+        options.some((option) => option.code === module.code)
+          ? {
+              ...module,
+              details: {
+                ...module.details,
+                examForms: [written.includes(module.code) ? 'Klausur (90 Min.)' : 'mündliche Prüfung'],
+              },
+            }
+          : module,
+      ),
+    }
+    const { user } = renderBoard(plan)
+    await user.click(await screen.findByRole('button', { name: 'Aktionen für Vertiefung der Informatik' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Optionen ansehen…' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Optionen für Vertiefung der Informatik' })
+    const shown = () =>
+      options
+        .filter((module) => within(dialog).queryByText(module.name, { selector: 'span' }) !== null)
+        .map((module) => module.code)
+
+    expect(within(dialog).getByRole('radio', { name: /^Klausur/ })).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('radio', { name: /^Klausur/ }))
+    expect(shown()).toEqual(written)
+
+    // The two rows narrow down together: written exams offered in the summer.
+    await user.click(within(dialog).getByRole('radio', { name: /^Sommersemester/ }))
+    expect(shown()).toEqual(
+      options
+        .filter(
+          (module) =>
+            written.includes(module.code) && (module.offering === 'summer' || module.offering === 'both'),
+        )
+        .map((module) => module.code),
+    )
+
+    await user.click(within(dialog).getByRole('radio', { name: /^Mündlich/ }))
+    expect(shown().every((code) => !written.includes(code))).toBe(true)
+  })
+
   it('filters the options by the semester they are offered in', async () => {
     const plan = makePlan()
     const available = choiceAreas(plan).find((choice) => choice.area.id === AREA)?.available ?? []

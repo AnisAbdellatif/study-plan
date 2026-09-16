@@ -1,4 +1,13 @@
-import { choiceAreas, formatTerm, type Plan, type PlanModule, type PlanSummary } from '@study-plan/shared'
+import {
+  choiceAreas,
+  EXAM_KINDS,
+  type ExamKind,
+  examKinds,
+  formatTerm,
+  type Plan,
+  type PlanModule,
+  type PlanSummary,
+} from '@study-plan/shared'
 import { Search } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -61,9 +70,61 @@ function OptionFacts({
 const SEASON_FILTERS = ['all', 'summer', 'winter'] as const
 type SeasonFilter = (typeof SEASON_FILTERS)[number]
 
+type ExamFilter = 'all' | ExamKind
+
 /** A module can be taken in a season when it is offered only then or every semester. */
 const offeredIn = (module: PlanModule, filter: SeasonFilter): boolean =>
   filter === 'all' || module.offering === filter || module.offering === 'both'
+
+/** Modules without a recognisable exam form only show under "all"; guessing a kind would mislead. */
+const assessedBy = (module: PlanModule, filter: ExamFilter): boolean =>
+  filter === 'all' || examKinds(module.details?.examForms).includes(filter)
+
+const chipClass =
+  'inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full bg-white px-3 text-sm ring-1 ring-zinc-300 ring-inset has-[:checked]:bg-indigo-600 has-[:checked]:text-white has-[:checked]:ring-indigo-600 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-indigo-500 sm:h-8 dark:bg-zinc-950 dark:ring-zinc-700 dark:has-[:checked]:bg-indigo-500 dark:has-[:checked]:ring-indigo-500'
+
+interface Chip<T extends string> {
+  value: T
+  label: string
+  /** Modules left when this chip is picked; the row is left out when nothing can be narrowed down. */
+  count: number
+}
+
+/** One row of filter chips. Native radios: arrow keys move between them, the label is the visible chip. */
+function FilterChips<T extends string>({
+  legend,
+  chips,
+  selected,
+  onSelect,
+}: {
+  legend: string
+  chips: readonly Chip<T>[]
+  selected: T
+  onSelect: (value: T) => void
+}) {
+  const name = useId()
+  return (
+    <fieldset className="mt-2">
+      <legend className="sr-only">{legend}</legend>
+      <div className="flex flex-wrap gap-1.5">
+        {chips.map((chip) => (
+          <label key={chip.value} className={chipClass}>
+            <input
+              type="radio"
+              name={name}
+              value={chip.value}
+              checked={selected === chip.value}
+              onChange={() => onSelect(chip.value)}
+              className="sr-only"
+            />
+            {chip.label}
+            <span className="text-xs tabular-nums opacity-80">{chip.count}</span>
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  )
+}
 
 function PickerBody({
   options,
@@ -85,9 +146,27 @@ function PickerBody({
   const searchId = useId()
   const [query, setQuery] = useState('')
   const [seasonFilter, setSeasonFilter] = useState<SeasonFilter>('all')
-  const filterName = useId()
+  const [examFilter, setExamFilter] = useState<ExamFilter>('all')
   const matching = options.filter((module) => moduleMatchesQuery(module, query, showCode))
-  const visible = matching.filter((module) => offeredIn(module, seasonFilter))
+  const visible = matching.filter(
+    (module) => offeredIn(module, seasonFilter) && assessedBy(module, examFilter),
+  )
+
+  const seasonChips = SEASON_FILTERS.map((filter) => ({
+    value: filter,
+    label: t(`picker.filters.${filter}`),
+    count: matching.filter((module) => offeredIn(module, filter) && assessedBy(module, examFilter)).length,
+  }))
+  // Only the kinds the area actually offers, so the row stays short; the current pick stays even at zero.
+  const inSeason = matching.filter((module) => offeredIn(module, seasonFilter))
+  const examChips = [
+    { value: 'all' as const, label: t('picker.filters.all'), count: inSeason.length },
+    ...EXAM_KINDS.map((kind) => ({
+      value: kind,
+      label: t(`examKinds.${kind}`),
+      count: inSeason.filter((module) => assessedBy(module, kind)).length,
+    })).filter((chip) => chip.count > 0 || chip.value === examFilter),
+  ]
 
   return (
     <div>
@@ -111,32 +190,21 @@ function PickerBody({
         </div>
       ) : null}
       {options.length > 0 ? (
-        // Native radios: arrow keys move between the filters; the label is the visible chip.
-        <fieldset className="mt-2">
-          <legend className="sr-only">{t('picker.offeringFilter')}</legend>
-          <div className="flex flex-wrap gap-1.5">
-            {SEASON_FILTERS.map((filter) => {
-              const count = matching.filter((module) => offeredIn(module, filter)).length
-              return (
-                <label
-                  key={filter}
-                  className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full bg-white px-3 text-sm ring-1 ring-zinc-300 ring-inset has-[:checked]:bg-indigo-600 has-[:checked]:text-white has-[:checked]:ring-indigo-600 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-indigo-500 sm:h-8 dark:bg-zinc-950 dark:ring-zinc-700 dark:has-[:checked]:bg-indigo-500 dark:has-[:checked]:ring-indigo-500"
-                >
-                  <input
-                    type="radio"
-                    name={filterName}
-                    value={filter}
-                    checked={seasonFilter === filter}
-                    onChange={() => setSeasonFilter(filter)}
-                    className="sr-only"
-                  />
-                  {t(`picker.filters.${filter}`)}
-                  <span className="text-xs tabular-nums opacity-80">{count}</span>
-                </label>
-              )
-            })}
-          </div>
-        </fieldset>
+        <FilterChips
+          legend={t('picker.offeringFilter')}
+          chips={seasonChips}
+          selected={seasonFilter}
+          onSelect={setSeasonFilter}
+        />
+      ) : null}
+      {/* One chip row per question: when is it offered, and how is it assessed. */}
+      {examChips.length > 1 ? (
+        <FilterChips
+          legend={t('picker.examFilter')}
+          chips={examChips}
+          selected={examFilter}
+          onSelect={setExamFilter}
+        />
       ) : null}
       {visible.length > 0 ? (
         <ul aria-label={t('picker.options')} className="mt-3 max-h-[50dvh] space-y-1.5 overflow-y-auto p-0.5">
@@ -162,9 +230,11 @@ function PickerBody({
         <p className="mt-3 rounded-lg border border-dashed border-zinc-300 p-4 text-center text-sm text-zinc-500 dark:border-zinc-700">
           {options.length === 0
             ? t('picker.noneLeft')
-            : seasonFilter !== 'all' && matching.length > 0
-              ? t('picker.noSeasonMatch', { season: t(`picker.filters.${seasonFilter}`) })
-              : t('picker.noMatch', { query: query.trim() })}
+            : matching.length === 0
+              ? t('picker.noMatch', { query: query.trim() })
+              : examFilter !== 'all' && inSeason.length > 0
+                ? t('picker.noExamMatch', { kind: t(`examKinds.${examFilter}`) })
+                : t('picker.noSeasonMatch', { season: t(`picker.filters.${seasonFilter}`) })}
         </p>
       )}
       <div className="mt-5 flex justify-end">

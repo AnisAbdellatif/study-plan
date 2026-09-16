@@ -45,8 +45,16 @@ export const planModuleSchema = presetModuleSchema.extend({
   custom: z.literal(true).optional(),
   /** Set when a preset update removed the module but it stays in the plan because it has a result. */
   retired: z.literal(true).optional(),
+  /**
+   * The student takes this module only to learn it. It counts nowhere: not toward earned or planned credits,
+   * the average, an area's requirements or the credits another module asks for. Set by the student.
+   */
+  selfStudy: z.literal(true).optional(),
 })
 export type PlanModule = z.infer<typeof planModuleSchema>
+
+/** Modules that count for the degree: all but the ones the student takes only to learn them. */
+export const countsForDegree = (module: Pick<PlanModule, 'selfStudy'>): boolean => module.selfStudy !== true
 
 export const PLACEHOLDER_PREFIX = 'placeholder-'
 
@@ -339,7 +347,8 @@ export const customModulesCanCount = (plan: Pick<Plan, 'rules'>): boolean =>
 export function planGradeRules(plan: Pick<Plan, 'rules' | 'modules'>): GradeRules {
   if (!customModulesCanCount(plan)) return plan.rules
   const extra = plan.modules.filter(
-    (module) => module.custom && module.grading === 'graded' && module.countsTowardAverage,
+    (module) =>
+      module.custom && module.grading === 'graded' && module.countsTowardAverage && countsForDegree(module),
   )
   if (extra.length === 0) return plan.rules
   return {

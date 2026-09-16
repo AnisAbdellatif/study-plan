@@ -1,4 +1,5 @@
 import { type Preset, presetSchema } from '../schema/preset.ts'
+import { tidyCatalogText, tidyModuleDetails } from '../schema/text.ts'
 
 /** What the student tells us before generating the prompt. Their names win over what the LLM returns. */
 export interface CustomProgrammeInput {
@@ -134,8 +135,18 @@ export function parseCustomPreset(
       issues: result.error.issues.map((issue) => ({ path: formatPath(issue.path), message: issue.message })),
     }
   }
-  return { success: true, preset: result.data, warnings: presetWarnings(result.data) }
+  const preset = tidyTexts(result.data)
+  return { success: true, preset, warnings: presetWarnings(preset) }
 }
+
+/** Catalog texts as paragraphs, however many of the PDF's line breaks the model kept. */
+const tidyTexts = (preset: Preset): Preset => ({
+  ...preset,
+  ...(preset.notes === undefined ? {} : { notes: tidyCatalogText(preset.notes) }),
+  modules: preset.modules.map((module) =>
+    module.details ? { ...module, details: tidyModuleDetails(module.details) } : module,
+  ),
+})
 
 function presetWarnings(preset: Preset): CustomPresetWarning[] {
   const warnings: CustomPresetWarning[] = []

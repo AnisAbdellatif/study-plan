@@ -17,6 +17,8 @@ export interface BoardActions {
   onUnchoose: (code: string) => void
   /** Turns a chosen module back into a placeholder and opens the picker for it. */
   onChooseOther: (code: string) => void
+  /** Marks a module as one the student only wants to learn, or lets it count again. */
+  onToggleSelfStudy: (code: string) => void
   onAddCustom: () => void
   onEditCustom: (code: string) => void
   onDeleteCustom: (code: string) => void

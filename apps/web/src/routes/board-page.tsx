@@ -26,6 +26,7 @@ import {
   setExamDate,
   setModuleAttempts,
   setRecognition,
+  setSelfStudy,
   setSemesterKind,
   setTargetGrade,
   summarizePlan,
@@ -262,6 +263,13 @@ function Board({ plan }: { plan: Plan }) {
       if (!apply((current) => unchooseModule(current, code, id.slice(PLACEHOLDER_PREFIX.length)))) return
       announce(t('announce.unchosen', { name: moduleName(code) }))
       setPicker({ mode: 'choose', placeholderId: id })
+    },
+    onToggleSelfStudy: (code) => {
+      const module = plan.modules.find((item) => item.code === code)
+      if (!module) return
+      const selfStudy = module.selfStudy !== true
+      if (apply((current) => setSelfStudy(current, code, selfStudy)))
+        announce(t(selfStudy ? 'announce.selfStudyOn' : 'announce.selfStudyOff', { name: module.name }))
     },
     onAddCustom: () => setCustomTarget({ mode: 'create' }),
     onEditCustom: (code) => setCustomTarget({ mode: 'edit', code }),

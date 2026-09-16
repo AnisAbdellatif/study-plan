@@ -98,6 +98,26 @@ describe('module details dialog', () => {
     expect(within(dialog).queryByText(/keine Angaben aus dem Modulkatalog/)).not.toBeInTheDocument()
   })
 
+  it('leads with the description and joins lines the PDF broke', async () => {
+    const { user } = renderBoard(
+      makePlan({
+        ...DETAILS,
+        learningOutcomes: 'Die Studierenden kennen die\nGrundlagen der\nProgrammierung.',
+      }),
+    )
+    const dialog = await openDetails(user, 'Grundlagen der Programmierung')
+
+    expect(
+      within(dialog).getByText('Die Studierenden kennen die Grundlagen der Programmierung.'),
+    ).toBeInTheDocument()
+    const headings = within(dialog)
+      .getAllByRole('heading', { level: 3 })
+      .map((heading) => heading.textContent)
+    expect(headings.slice(0, 3)).toEqual(['Lernziele', 'Inhalt', 'Prüfung'])
+    expect(headings.indexOf('Eckdaten')).toBeGreaterThan(headings.indexOf('Prüfung'))
+    expect(headings.indexOf('Organisation')).toBeGreaterThan(headings.indexOf('Eckdaten'))
+  })
+
   it('renders a non-http website as plain text', async () => {
     const { user } = renderBoard(makePlan({ website: 'javascript:alert(1)' }))
     const dialog = await openDetails(user, 'Grundlagen der Programmierung')
