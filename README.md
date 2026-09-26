@@ -63,7 +63,7 @@ Before publishing:
 
 ## Deployment
 
-The `Dockerfile` builds one image: the API, which also serves the built web app. [Kamal](https://kamal-deploy.org) runs it on a VPS together with PostgreSQL, and [deploy-kit](https://github.com/AnisAbdellatif/deploy-kit) (vendored in `.kamal/kit`, version in `.kamal/kit/VERSION`) adds the checks before a deploy, the smoke tests after it and the rollback. Caddy runs on the host itself, obtains the HTTPS certificates and forwards both domains to kamal-proxy on `127.0.0.1:8080`, which routes by domain to each app and swaps its container with no downtime (`deploy/Caddyfile` is a reference configuration). PostgreSQL publishes no port; only containers on the server reach it.
+The `Dockerfile` builds one image: the API, which also serves the built web app. [Kamal](https://kamal-deploy.org) runs it on a VPS together with PostgreSQL, and [deploy-kit](https://github.com/AnisAbdellatif/deploy-kit) (vendored in `.kamal/kit`, version in `.kamal/kit/VERSION`) adds the checks before a deploy, the smoke tests after it and the rollback. Caddy runs on the host itself, obtains the HTTPS certificates and forwards both domains to kamal-proxy on `127.0.0.1:8080`, which routes by domain to each app and swaps its container with no downtime (`deploy/study-plan.site` holds the site blocks). PostgreSQL publishes no port; only containers on the server reach it.
 
 ```
 Internet ─443─► Caddy (host, TLS) ─► 127.0.0.1:8080 kamal-proxy ─► app ─► PostgreSQL (accessory)
@@ -89,7 +89,7 @@ The dev destination has its own database, secrets and superadmin, and never touc
 
 One-time setup:
 
-1. On the VPS: Docker and Caddy, and a deploy user in the `docker` group with your SSH key (`.kamal/kit/bin/kit host` can set up a fresh server). Create `/opt/study-plan` and `/opt/study-plan-dev`, owned by the deploy user, each with a filled-in `app.env` and `postgres.env` (`deploy/app.env.example`, `deploy/postgres.env.example`; `chmod 600`, no quotes around values). Point both domains at the VPS, put `deploy/Caddyfile` in `/etc/caddy/Caddyfile` and reload Caddy. Open only ports 22, 80 and 443.
+1. On the VPS: Docker and Caddy, and a deploy user in the `docker` group with your SSH key (`.kamal/kit/bin/kit host` can set up a fresh server). Create `/opt/study-plan` and `/opt/study-plan-dev`, owned by the deploy user, each with a filled-in `app.env` and `postgres.env` (`deploy/app.env.example`, `deploy/postgres.env.example`; `chmod 600`, no quotes around values). Point both domains at the VPS, copy `deploy/study-plan.site` to `/etc/caddy/`, add `import study-plan.site` to `/etc/caddy/Caddyfile` and reload Caddy. Open only ports 22, 80 and 443.
 2. In the GitHub repository, under Settings → Secrets and variables → Actions → Variables: the `VITE_OPERATOR_*` variables above, which are compiled into the web app. Nothing else: CI needs no deploy credentials.
 3. On the machine that deploys: copy `.kamal/kit.local.env.example` to `.kamal/kit.local.env` and fill in the server (`SP_HOST`) and a GitHub token with only `read:packages` (`KAMAL_REGISTRY_PASSWORD`; the servers log in to ghcr.io with it). Then `.kamal/kit/bin/kit doctor -d production`.
 4. For each destination, once: `.kamal/kit/bin/kit kamal accessory boot postgres -d <destination>`, then `kit deploy -d <destination>` as above. The first deploy also starts kamal-proxy.
@@ -101,8 +101,8 @@ Moving from the old compose stacks (once per destination; production shown, dev 
 2. Write `app.env` and `postgres.env` from the old `.env`: `DATABASE_URL=postgres://studyplan:<POSTGRES_PASSWORD>@study-plan-postgres:5432/studyplan`, and drop the quotes the old file needed around values with `$`.
 3. Stop the stack but keep its volume: `docker compose down` (without `-v`). The site is down from here until step 5.
 4. Boot the database on the same volume: `.kamal/kit/bin/kit kamal accessory boot postgres -d production`.
-5. Point the domain's `reverse_proxy` in `/etc/caddy/Caddyfile` at `127.0.0.1:8080`, reload Caddy, and deploy: `.kamal/kit/bin/kit deploy -d production`.
-6. When it works: remove the old `compose.yaml` and `.env` from `/opt/study-plan`, and the repository variables and secrets the old deploy job used (`DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_PORT`, `DEPLOY_PATH`, `DEV_DEPLOY_PATH`, `DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS`), and remove its public key from the deploy user's `authorized_keys`.
+5. Point this domain's `reverse_proxy` in `/etc/caddy/Caddyfile` at `127.0.0.1:8080` (only this one: the other destination may still be on compose), reload Caddy, and deploy: `.kamal/kit/bin/kit deploy -d production`.
+6. When it works: once both destinations are moved, replace their two site blocks in `/etc/caddy/Caddyfile` with `import study-plan.site` (`deploy/study-plan.site`, copied to `/etc/caddy/`) and reload Caddy. Then remove the old `compose.yaml` and `.env` from `/opt/study-plan`, and the repository variables and secrets the old deploy job used (`DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_PORT`, `DEPLOY_PATH`, `DEV_DEPLOY_PATH`, `DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS`), and remove its public key from the deploy user's `authorized_keys`.
 
 Day to day:
 

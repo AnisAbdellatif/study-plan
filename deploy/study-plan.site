@@ -1,6 +1,10 @@
-# Reference configuration for Caddy installed on the VPS host (e.g. /etc/caddy/Caddyfile, then
-# `caddy validate --config /etc/caddy/Caddyfile && sudo systemctl reload caddy`). Deploys never copy or reload it;
-# change the host's file by hand. Caddy obtains and renews the TLS certificates automatically.
+# study-plan's sites for the host's Caddy. Copy to /etc/caddy/study-plan.site and import it from
+# /etc/caddy/Caddyfile, next to the other sites there:
+#
+#   import study-plan.site
+#
+# then `caddy validate --config /etc/caddy/Caddyfile && sudo systemctl reload caddy`. Deploys never copy or reload
+# it; change the host's copy by hand. Caddy obtains and renews the TLS certificates automatically.
 # No access log is written, matching the retention stated in the privacy policy; if you add a `log` block,
 # update the policy.
 #
