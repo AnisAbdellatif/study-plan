@@ -1,0 +1,27 @@
+# Dev (kit deploy -d dev, from the dev branch): its own database, sessions and superadmin, never production's.
+# Merged over config/deploy.yml. On the server, /opt/study-plan-dev holds app.env and postgres.env
+# (deploy/app.env.example, deploy/postgres.env.example), with values different from production.
+
+servers:
+  web:
+    options:
+      env-file: /opt/study-plan-dev/app.env
+
+proxy:
+  host: dev.study-plan.de
+
+env:
+  clear:
+    PUBLIC_URL: https://dev.study-plan.de
+    # Off, so test data never e-mails reminders. Set to 60 to test them.
+    REMINDER_INTERVAL_MINUTES: 0
+
+accessories:
+  postgres:
+    # The app's DATABASE_URL points here: postgres://studyplan:<password>@study-plan-dev-postgres:5432/studyplan
+    service: study-plan-dev-postgres
+    options:
+      env-file: /opt/study-plan-dev/postgres.env
+    # The volume the dev compose stack created, so the data carries over as it is.
+    volumes:
+      - study-plan-dev_postgres-data:/var/lib/postgresql

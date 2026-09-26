@@ -11,3 +11,5 @@
 **/*.test.ts
 **/*.test.tsx
 deploy
+.kamal
+config

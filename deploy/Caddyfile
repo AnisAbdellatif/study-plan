@@ -1,19 +1,20 @@
 # Reference configuration for Caddy installed on the VPS host (e.g. /etc/caddy/Caddyfile, then
-# `sudo systemctl reload caddy`). CI does not copy or reload it; change the host's file by hand.
-# Replace the domains with yours. Caddy obtains and renews the TLS certificates automatically.
+# `caddy validate --config /etc/caddy/Caddyfile && sudo systemctl reload caddy`). Deploys never copy or reload it;
+# change the host's file by hand. Caddy obtains and renews the TLS certificates automatically.
 # No access log is written, matching the retention stated in the privacy policy; if you add a `log` block,
 # update the policy.
+#
+# Both domains go to kamal-proxy on loopback (proxy.run in config/deploy.yml), which routes on the Host header
+# Caddy keeps and swaps the app's containers with no downtime.
 
-# Production: deploy/compose.yaml publishes the app on 127.0.0.1:APP_PORT (default 3000).
-plan.example.org {
+study-plan.de {
 	encode zstd gzip
-	reverse_proxy 127.0.0.1:3000
+	reverse_proxy 127.0.0.1:8080
 }
 
-# Dev: deploy/compose.dev.yaml publishes its app on 127.0.0.1:APP_PORT (default 3001). While the dev stack is
-# down, this domain answers 502. Search engines are asked not to index it.
-dev.plan.example.org {
+# Dev: answers 404 from kamal-proxy while nothing is deployed there. Search engines are asked not to index it.
+dev.study-plan.de {
 	encode zstd gzip
 	header X-Robots-Tag "noindex, nofollow"
-	reverse_proxy 127.0.0.1:3001
+	reverse_proxy 127.0.0.1:8080
 }

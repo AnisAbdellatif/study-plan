@@ -9,3 +9,10 @@ coverage/
 
 # Local preview config with machine-specific paths
 .claude/launch.json
+
+# deploy-kit: personal overrides
+.kamal/kit.local.env
+
+# The app's secrets live on the VPS only (deploy/*.env.example)
+app.env
+postgres.env

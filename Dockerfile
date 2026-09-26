@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # One image for the whole app: the API serves the built web app from the same origin.
-# Build: docker build -t study-plan .   Run with PostgreSQL: see deploy/compose.yaml.
+# Build: docker build -t study-plan .   CI builds it for deploys; Kamal runs it with PostgreSQL (config/deploy.yml).
 
 ARG BUN_VERSION=1.4.2
 
