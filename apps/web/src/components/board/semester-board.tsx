@@ -3,7 +3,9 @@ import {
   areaChoiceStatuses,
   choiceAreas,
   choiceOptionCodes,
+  countedCreditHalves,
   formatTerm,
+  groupableCodes,
   isPlaceholderId,
   type Plan,
   type PlanSummary,
@@ -17,7 +19,12 @@ import { useBoardAutoScroll } from '../../lib/dnd.ts'
 import type { IssueText } from '../../lib/issues.ts'
 import type { BoardActions } from './board-actions.ts'
 import type { Destination } from './module-card.tsx'
-import { type ColumnEntry, type ColumnModel, SemesterColumn } from './semester-column.tsx'
+import {
+  type ColumnEntry,
+  type ColumnModel,
+  type ModuleGroupInfo,
+  SemesterColumn,
+} from './semester-column.tsx'
 
 export interface SemesterBoardProps {
   plan: Plan
@@ -25,6 +32,8 @@ export interface SemesterBoardProps {
   currentIndex: number
   actions: BoardActions
   notesByCode: ReadonlyMap<string, readonly IssueText[]>
+  /** Modules selected for grouping. */
+  selection: readonly string[]
 }
 
 export const columnTitle = (plan: Plan, columnId: string | null): string => {
@@ -44,10 +53,21 @@ const NO_NOTES: readonly IssueText[] = []
 const sameNotes = (a: readonly IssueText[], b: readonly IssueText[]): boolean =>
   a.length === b.length && a.every((note, i) => note.text === b[i]?.text && note.severity === b[i]?.severity)
 
+/** Group info and candidates are small plain data, so comparing their JSON is cheap and exact. */
+const sameData = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b)
+
 const sameEntry = (a: ColumnEntry, b: ColumnEntry | undefined): boolean => {
   if (!b || a.kind !== b.kind || a.index !== b.index) return false
   if (a.kind === 'module' && b.kind === 'module')
-    return a.module === b.module && a.chosen === b.chosen && a.notes === b.notes
+    return (
+      a.module === b.module &&
+      a.chosen === b.chosen &&
+      a.notes === b.notes &&
+      sameData(a.group, b.group) &&
+      a.selectable === b.selectable &&
+      a.selected === b.selected &&
+      a.selecting === b.selecting
+    )
   if (a.kind === 'placeholder' && b.kind === 'placeholder')
     return a.id === b.id && a.areaId === b.areaId && a.areaName === b.areaName && a.credits === b.credits
   return false
@@ -66,7 +86,14 @@ const sameColumn = (a: ColumnModel, b: ColumnModel): boolean =>
   a.entries.length === b.entries.length &&
   a.entries.every((entry, i) => sameEntry(entry, b.entries[i]))
 
-export function SemesterBoard({ plan, summary, currentIndex, actions, notesByCode }: SemesterBoardProps) {
+export function SemesterBoard({
+  plan,
+  summary,
+  currentIndex,
+  actions,
+  notesByCode,
+  selection,
+}: SemesterBoardProps) {
   const { t } = useTranslation('board')
   const locale = currentLocale()
   const elements = useRef(new Map<string | null, HTMLElement>())
@@ -104,6 +131,18 @@ export function SemesterBoard({ plan, summary, currentIndex, actions, notesByCod
     const optionCodes = new Set([...choiceOptionCodes(plan).values()].flat())
     const estimates = placeholderCredits(plan)
     const areaNames = new Map(plan.areas.map((area) => [area.id, area.name]))
+    const counted = countedCreditHalves(plan)
+    const groups = new Map<string, ModuleGroupInfo>()
+    for (const group of plan.moduleGroups ?? []) {
+      const info = {
+        size: group.codes.length,
+        credits: group.codes.reduce((sum, code) => sum + (counted.get(code) ?? 0), 0) / 2,
+      }
+      for (const code of group.codes) groups.set(code, info)
+    }
+    const groupable = groupableCodes(plan, selection)
+    const selected = new Set(selection)
+    const selecting = selection.length > 0
     const placeholders = new Map(
       (plan.placeholders ?? []).map((placeholder) => [placeholder.id, placeholder]),
     )
@@ -134,6 +173,10 @@ export function SemesterBoard({ plan, summary, currentIndex, actions, notesByCod
                 index,
                 chosen: optionCodes.has(code),
                 notes: stableNotes.get(code) ?? NO_NOTES,
+                group: groups.get(code),
+                selectable: groupable.has(code),
+                selected: selected.has(code),
+                selecting,
               },
             ]
           : []
@@ -184,7 +227,7 @@ export function SemesterBoard({ plan, summary, currentIndex, actions, notesByCod
     })
     previousColumns.current = new Map(reused.map((column) => [column.id, column]))
     return reused
-  }, [plan, summary, currentIndex, t, locale, stableNotes])
+  }, [plan, summary, currentIndex, t, locale, stableNotes, selection])
 
   // Only a change of the columns' titles changes the move menus; keyed by them so the array stays the same.
   const destinationKey = columns

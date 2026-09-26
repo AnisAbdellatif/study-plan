@@ -1,0 +1,25 @@
+# Production (kit deploy -d production, from main). Merged over config/deploy.yml.
+# On the server, /opt/study-plan holds app.env and postgres.env (deploy/app.env.example, deploy/postgres.env.example).
+
+servers:
+  web:
+    options:
+      env-file: /opt/study-plan/app.env
+
+proxy:
+  host: study-plan.de
+
+env:
+  clear:
+    PUBLIC_URL: https://study-plan.de
+    REMINDER_INTERVAL_MINUTES: 60
+
+accessories:
+  postgres:
+    # The app's DATABASE_URL points here: postgres://studyplan:<password>@study-plan-postgres:5432/studyplan
+    service: study-plan-postgres
+    options:
+      env-file: /opt/study-plan/postgres.env
+    # The volume the compose stack created, so the data carries over as it is.
+    volumes:
+      - study-plan_postgres-data:/var/lib/postgresql

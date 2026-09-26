@@ -1,21 +1,30 @@
 name: CI
 
-# Changes land on dev first and reach main through pull requests. Both branches build an image and deploy:
-# main to production (image tags latest and <sha>), dev to the dev stack (image tags dev and dev-<sha>).
+# Changes land on dev first and reach main through pull requests. CI tests, and for pushes to main and dev builds the
+# image and attests where it came from. It deploys nothing and holds no SSH key or app secret: a person deploys with
+# deploy-kit, which checks this run passed for the exact commit and verifies the image's attestation (README,
+# "Deployment").
 on:
   push:
     branches: [main, dev]
   pull_request:
 
-permissions:
-  contents: read
+permissions: {}
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   bun:
     name: Lint, typecheck, test (Bun)
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: 1.4.2
@@ -29,8 +38,12 @@ jobs:
   node:
     name: Test on Node 24 (runtime fallback)
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: 1.4.2
@@ -60,15 +73,20 @@ jobs:
           --health-retries 10
     env:
       TEST_DATABASE_URL: postgres://test:test@localhost:5432/test
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: 1.4.2
       - run: bun ci
       - run: bunx vitest run --project api
 
-  # Only for pushes to main or dev, and only after all checks passed.
+  # Only for pushes to main or dev, and only after all checks passed. The image is tagged with the full commit SHA,
+  # which is the version Kamal deploys; one image serves both destinations.
   image:
     name: Build and push image
     if: github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'dev')
@@ -76,125 +94,43 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       contents: read
-      packages: write
-    outputs:
-      image: ${{ steps.name.outputs.image }}
-      tag: ${{ steps.name.outputs.tag }}
-      alias: ${{ steps.name.outputs.alias }}
+      packages: write # push to GHCR with the job's own token
+      id-token: write # sign the provenance (Sigstore, keyless)
+      attestations: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - id: name
-        # main: <sha> and latest. dev: dev-<sha> and dev. The stable latest tag never comes from dev.
-        run: |
-          echo "image=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
-          if [ "$GITHUB_REF_NAME" = main ]; then
-            echo "tag=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
-            echo "alias=latest" >> "$GITHUB_OUTPUT"
-          else
-            echo "tag=dev-$GITHUB_SHA" >> "$GITHUB_OUTPUT"
-            echo "alias=dev" >> "$GITHUB_OUTPUT"
-          fi
-      - name: Log in to ghcr.io
-        env:
-          TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: echo "$TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
-      - name: Build and push
-        env:
-          IMAGE: ${{ steps.name.outputs.image }}
-          TAG: ${{ steps.name.outputs.tag }}
-          ALIAS: ${{ steps.name.outputs.alias }}
+        with:
+          persist-credentials: false
+      # GHCR names are lower case. Must match `image:` in config/deploy.yml and KIT_IMAGE in .kamal/kit.env.
+      - run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          push: true
+          # Kamal only runs images labelled with its service: `service:` in config/deploy.yml.
+          labels: service=study-plan
+          tags: ${{ env.IMAGE }}:${{ github.sha }}
+          cache-from: type=registry,ref=${{ env.IMAGE }}:buildcache-${{ github.ref_name }}
+          cache-to: type=registry,ref=${{ env.IMAGE }}:buildcache-${{ github.ref_name }},mode=max
           # Operator details for the legal pages, compiled into the web app. Set them as repository variables.
-          VITE_OPERATOR_NAME: ${{ vars.VITE_OPERATOR_NAME }}
-          VITE_OPERATOR_STREET: ${{ vars.VITE_OPERATOR_STREET }}
-          VITE_OPERATOR_POSTAL_CITY: ${{ vars.VITE_OPERATOR_POSTAL_CITY }}
-          VITE_OPERATOR_EMAIL: ${{ vars.VITE_OPERATOR_EMAIL }}
-          VITE_OPERATOR_PHONE: ${{ vars.VITE_OPERATOR_PHONE }}
-          VITE_HOSTING_PROVIDER: ${{ vars.VITE_HOSTING_PROVIDER }}
-          VITE_MAIL_PROVIDER: ${{ vars.VITE_MAIL_PROVIDER }}
-        run: |
-          docker buildx create --use
-          docker buildx build --push \
-            --build-arg VITE_OPERATOR_NAME --build-arg VITE_OPERATOR_STREET --build-arg VITE_OPERATOR_POSTAL_CITY \
-            --build-arg VITE_OPERATOR_EMAIL --build-arg VITE_OPERATOR_PHONE --build-arg VITE_HOSTING_PROVIDER \
-            --build-arg VITE_MAIL_PROVIDER \
-            --cache-from "type=registry,ref=$IMAGE:buildcache-$ALIAS" \
-            --cache-to "type=registry,ref=$IMAGE:buildcache-$ALIAS,mode=max" \
-            --tag "$IMAGE:$TAG" --tag "$IMAGE:$ALIAS" \
-            .
-
-  # main deploys to DEPLOY_PATH (default /opt/study-plan). dev deploys to DEV_DEPLOY_PATH and is skipped until that
-  # variable is set, so a dev push can never fall back to the production directory.
-  deploy:
-    name: Deploy ${{ github.ref_name == 'main' && 'production' || 'dev' }}
-    if: vars.DEPLOY_HOST != '' && (github.ref_name == 'main' || vars.DEV_DEPLOY_PATH != '')
-    needs: image
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    environment: ${{ github.ref_name == 'main' && 'production' || 'development' }}
-    concurrency:
-      group: deploy-${{ github.ref_name }}
-      cancel-in-progress: false
-    permissions:
-      contents: read
-      packages: read
-    env:
-      DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
-      DEPLOY_USER: ${{ vars.DEPLOY_USER }}
-      DEPLOY_PORT: ${{ vars.DEPLOY_PORT || '22' }}
-      PRODUCTION_PATH: ${{ vars.DEPLOY_PATH || '/opt/study-plan' }}
-      TARGET_PATH: ${{ github.ref_name == 'main' && (vars.DEPLOY_PATH || '/opt/study-plan') || vars.DEV_DEPLOY_PATH }}
-      # Fail instead of waiting for a password or a host key confirmation that nobody can type.
-      SSH_OPTIONS: -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Refuse to deploy dev into the production directory
-        if: github.ref_name != 'main'
-        run: |
-          if [ "${TARGET_PATH%/}" = "${PRODUCTION_PATH%/}" ]; then
-            echo "::error::DEV_DEPLOY_PATH must differ from the production path ($PRODUCTION_PATH)"
-            exit 1
-          fi
-      - name: Set up SSH
-        env:
-          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
-          ENVIRONMENT_NAME: ${{ github.ref_name == 'main' && 'production' || 'development' }}
-        # Secrets stored only in one GitHub environment (e.g. production) arrive empty in the other one.
-        run: |
-          if [ -z "$SSH_KEY" ] || [ -z "$KNOWN_HOSTS" ]; then
-            echo "::error::DEPLOY_SSH_KEY or DEPLOY_KNOWN_HOSTS is empty in the '$ENVIRONMENT_NAME' environment. Add both as repository secrets, or to this environment."
-            exit 1
-          fi
-          install -m 700 -d ~/.ssh
-          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
-          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
-          chmod 600 ~/.ssh/deploy_key ~/.ssh/known_hosts
-      - name: Copy the stack definition
-        run: |
-          if [ "$GITHUB_REF_NAME" = main ]; then
-            scp -i ~/.ssh/deploy_key $SSH_OPTIONS -P "$DEPLOY_PORT" deploy/compose.yaml \
-              "$DEPLOY_USER@$DEPLOY_HOST:$TARGET_PATH/"
-          else
-            scp -i ~/.ssh/deploy_key $SSH_OPTIONS -P "$DEPLOY_PORT" deploy/compose.dev.yaml \
-              "$DEPLOY_USER@$DEPLOY_HOST:$TARGET_PATH/compose.yaml"
-          fi
-      - name: Pull and restart
-        env:
-          IMAGE: ${{ needs.image.outputs.image }}
-          TAG: ${{ needs.image.outputs.tag }}
-          ALIAS: ${{ needs.image.outputs.alias }}
-          TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        # The registry token goes through stdin, never on a command line. It expires when this job ends.
-        # The pulled image is tagged as latest/dev on the VPS, so manual compose commands use it without a pull.
-        run: |
-          echo "$TOKEN" | ssh -i ~/.ssh/deploy_key $SSH_OPTIONS -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
-            "set -eu
-             cd '$TARGET_PATH'
-             docker login ghcr.io --username '$GITHUB_ACTOR' --password-stdin
-             docker pull '$IMAGE:$TAG'
-             docker logout ghcr.io
-             docker tag '$IMAGE:$TAG' '$IMAGE:$ALIAS'
-             export APP_IMAGE='$IMAGE'
-             # HTTPS is handled by Caddy on the host, outside this stack; nothing to reload here.
-             docker compose up --detach --wait --remove-orphans
-             docker image prune --all --force --filter until=336h"
+          build-args: |
+            VITE_OPERATOR_NAME=${{ vars.VITE_OPERATOR_NAME }}
+            VITE_OPERATOR_STREET=${{ vars.VITE_OPERATOR_STREET }}
+            VITE_OPERATOR_POSTAL_CITY=${{ vars.VITE_OPERATOR_POSTAL_CITY }}
+            VITE_OPERATOR_EMAIL=${{ vars.VITE_OPERATOR_EMAIL }}
+            VITE_OPERATOR_PHONE=${{ vars.VITE_OPERATOR_PHONE }}
+            VITE_HOSTING_PROVIDER=${{ vars.VITE_HOSTING_PROVIDER }}
+            VITE_MAIL_PROVIDER=${{ vars.VITE_MAIL_PROVIDER }}
+      # Checked before every deploy (the kit's attestation step): an image this workflow didn't build is refused.
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true

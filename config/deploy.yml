@@ -1,0 +1,89 @@
+# Kamal config for study-plan, deployed with deploy-kit (.kamal/, preset "behind-caddy"): what production and dev
+# share. Each has its own destination, config/deploy.production.yml and config/deploy.dev.yml, and a deploy always
+# names one: `kit deploy -d dev` from the dev branch, `kit deploy -d production` from main (README, "Deployment").
+#
+#   Internet ─443─► the host's Caddy (TLS) ─► 127.0.0.1:8080 kamal-proxy ─► the app ─► PostgreSQL (accessory)
+#
+# The server comes from the environment (.kamal/kit.local.env, git-ignored; the kit exports it): SP_HOST, and
+# SP_SSH_USER / SP_SSH_PORT when they aren't deploy / 22. The app's secrets stay on the server, in an env file per
+# destination that Docker hands to the containers; they never pass through the machine that deploys. Docker reads
+# those files literally: no quotes around values.
+<%
+  host = ENV["SP_HOST"].to_s.strip
+  raise "SP_HOST isn't set: put the server in .kamal/kit.local.env" if host.empty?
+%>
+service: study-plan
+image: anisabdellatif/study-plan
+
+# `kamal deploy` without -d would have no domain and no database: refused.
+require_destination: true
+
+# The destinations add the app's env file; the host is shared.
+servers:
+  web:
+    hosts: [<%= host %>]
+
+proxy:
+  # kamal-proxy routes on the Host header Caddy passes on; each destination sets its domain.
+  # The port the API listens on inside its container (Dockerfile).
+  app_port: 3000
+  # Caddy terminates TLS; kamal-proxy speaks plain HTTP to it.
+  ssl: false
+  # Keep Caddy's X-Forwarded-For: the app reads the visitor's address from its first entry (IP_ADDRESS_HEADER).
+  forward_headers: true
+  # kamal-proxy moves traffic to a new container once this answers 200. The app migrates the database before it
+  # listens, so a deploy with a slow migration needs the longer deploy_timeout below.
+  healthcheck:
+    path: /api/health
+    interval: 3
+    timeout: 3
+  # kamal-proxy itself: ONE container per server, shared by every Kamal app deployed there, so every project on
+  # this server must use this same `run` block. Loopback only: Caddy is the single way in.
+  run:
+    http_port: 8080
+    https_port: 8443
+    bind_ips: [127.0.0.1]
+
+deploy_timeout: 60
+
+env:
+  clear:
+    NODE_ENV: production
+    # Caddy replaces this header with the real client address, and kamal-proxy appends Caddy's to it, so rate
+    # limiting can trust its first entry.
+    IP_ADDRESS_HEADER: x-forwarded-for
+
+# Built, labelled and attested by CI (.github/workflows/ci.yml, job "image") for every push to main and dev, tagged
+# with the commit; a deploy pulls it and never builds (KIT_DEPLOY_SKIP_PUSH in .kamal/kit.env). The image is public;
+# the token only has to be valid (.kamal/secrets-common).
+registry:
+  server: ghcr.io
+  username: anisabdellatif
+  password: [KAMAL_REGISTRY_PASSWORD]
+
+builder:
+  arch: amd64
+
+ssh:
+  user: <%= ENV.fetch("SP_SSH_USER", "deploy") %>
+  port: <%= ENV.fetch("SP_SSH_PORT", "22") %>
+
+# Container logs are rotated at 3 x 10 MB, so they don't grow forever. The app logs no IP addresses and the host's
+# Caddy must write no access log, as the privacy policy states; update the policy if either changes.
+logging:
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
+# One PostgreSQL per destination, on the server only (no published port): the app reaches it by its container name
+# on Kamal's network. Accessories aren't touched by a deploy: `kit kamal accessory boot postgres -d <destination>`
+# once, and again only to change it. Each destination sets its container name, env file and volume.
+accessories:
+  postgres:
+    image: postgres:18-alpine
+    host: <%= host %>
+    env:
+      clear:
+        POSTGRES_USER: studyplan
+        POSTGRES_DB: studyplan

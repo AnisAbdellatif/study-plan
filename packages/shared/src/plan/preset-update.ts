@@ -1,6 +1,6 @@
 import { gradeToTenths } from '../engine/units.ts'
 import type { Preset, PresetModule } from '../schema/preset.ts'
-import { type Plan, type PlanModule, type PresetInfo, presetInfoFrom } from './plan.ts'
+import { detachFromGroup, type Plan, type PlanModule, type PresetInfo, presetInfoFrom } from './plan.ts'
 
 export type ModuleField =
   | 'name'
@@ -192,11 +192,18 @@ export function applyPresetUpdate(plan: Plan, preset: Preset): Plan {
         .map((module) => module.code),
     ],
   }))
+  // Groups keep only the modules the update keeps.
+  const regrouped = plan.modules
+    .filter((module) => !remaining.has(module.code))
+    .reduce<Pick<Plan, 'moduleGroups'>>((groups, module) => detachFromGroup(groups, module.code), {
+      moduleGroups: plan.moduleGroups,
+    })
   const {
     targetGrade,
     placeholders: _placeholders,
     areaChoices: _areaChoices,
     chosenAreas: previousPicks,
+    moduleGroups: _moduleGroups,
     ...rest
   } = plan
   const keepTarget = targetGrade !== undefined && preset.gradeRules.allowedValues.includes(targetGrade)
@@ -215,6 +222,7 @@ export function applyPresetUpdate(plan: Plan, preset: Preset): Plan {
     areas,
     ...(preset.areaChoices ? { areaChoices: structuredClone(preset.areaChoices) } : {}),
     ...(Object.keys(chosenAreas).length > 0 ? { chosenAreas } : {}),
+    ...(regrouped.moduleGroups ? { moduleGroups: regrouped.moduleGroups } : {}),
     ...(placeholders.length > 0 ? { placeholders } : {}),
     semesters: plan.semesters.map((semester) => ({
       ...semester,

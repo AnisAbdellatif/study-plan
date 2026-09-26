@@ -1,5 +1,5 @@
 import type { Attempt } from '../engine/compute.ts'
-import { isPlaceholderId, type Plan, type PlanModule, type PlanSemester } from './plan.ts'
+import { detachFromGroup, isPlaceholderId, type Plan, type PlanModule, type PlanSemester } from './plan.ts'
 import { type Term, termSchema } from './terms.ts'
 
 /** Thrown when an operation refers to a module or semester the plan does not have. */
@@ -59,7 +59,7 @@ export function moveModule(
     return [...codes.slice(0, index), code, ...codes.slice(index)]
   }
 
-  return {
+  const moved: Plan = {
     ...plan,
     semesters: plan.semesters.map((semester) => {
       const codes = without(semester.moduleCodes)
@@ -67,6 +67,8 @@ export function moveModule(
     }),
     backlog: targetSemesterId === null ? insert(without(plan.backlog)) : without(plan.backlog),
   }
+  // Group members may sit in different semesters; one moved back to the unplanned modules leaves its group.
+  return targetSemesterId === null ? detachFromGroup(moved, code) : moved
 }
 
 /** What a student can enter for a module in guest mode. One field, one attempt. */

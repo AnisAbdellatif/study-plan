@@ -2,6 +2,7 @@ import { computeOverall, type OverallResult } from '../engine/compute.ts'
 import { isModulePassed } from '../engine/progress.ts'
 import { toHalves } from '../engine/units.ts'
 import { inactiveAreaIds } from './area-choices.ts'
+import { countedCreditHalves } from './counted-credits.ts'
 import { placeholderCredits } from './placeholders.ts'
 import { countsForDegree, type Plan, type PlanSemester, planGradeRules } from './plan.ts'
 import { addTerms, formatTerm, type Term } from './terms.ts'
@@ -52,10 +53,8 @@ const loadFor = (credits: number, kind: PlanSemester['kind']): SemesterLoad => {
 }
 
 export function summarizePlan(plan: Plan): PlanSummary {
-  // Self-study modules count nowhere, so zero credits keep them out of every sum below.
-  const creditHalves = new Map(
-    plan.modules.map((m) => [m.code, countsForDegree(m) ? toHalves(m.credits) : 0]),
-  )
+  // Self-study modules count nowhere and a group of undecided options counts once; the credits below say so.
+  const creditHalves = countedCreditHalves(plan)
   const passed = new Set(plan.modules.filter((m) => isModulePassed(m, plan.rules)).map((m) => m.code))
   const placed = new Set(plan.semesters.flatMap((s) => s.moduleCodes))
   const sum = (codes: Iterable<string>) => {

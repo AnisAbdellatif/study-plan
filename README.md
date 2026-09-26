@@ -63,30 +63,55 @@ Before publishing:
 
 ## Deployment
 
-The `Dockerfile` builds one image: the API, which also serves the built web app. `deploy/compose.yaml` runs it on a VPS together with PostgreSQL. Caddy runs on the host itself, obtains the HTTPS certificates and forwards each domain to its app, which Compose publishes on `127.0.0.1` only (`deploy/Caddyfile` is a reference configuration). PostgreSQL is only reachable from the app container.
+The `Dockerfile` builds one image: the API, which also serves the built web app. [Kamal](https://kamal-deploy.org) runs it on a VPS together with PostgreSQL, and [deploy-kit](https://github.com/AnisAbdellatif/deploy-kit) (vendored in `.kamal/kit`, version in `.kamal/kit/VERSION`) adds the checks before a deploy, the smoke tests after it and the rollback. Caddy runs on the host itself, obtains the HTTPS certificates and forwards both domains to kamal-proxy on `127.0.0.1:8080`, which routes by domain to each app and swaps its container with no downtime (`deploy/study-plan.site` holds the site blocks). PostgreSQL publishes no port; only containers on the server reach it.
+
+```
+Internet ─443─► Caddy (host, TLS) ─► 127.0.0.1:8080 kamal-proxy ─► app ─► PostgreSQL (accessory)
+```
 
 Branches: changes go to `dev` first and reach `main` through pull requests, usually several at once. Protect `main` in the repository settings (Settings → Branches: require a pull request and the CI checks).
 
-Every push to `main` or `dev` runs the checks. When they pass, CI builds the image and pushes it to `ghcr.io/<owner>/<repository>`, copies the stack definition to the VPS over SSH, pulls the image and restarts with `docker compose up --wait`. A failing health check fails the deploy.
+CI tests every push. For pushes to `main` and `dev`, once the checks pass, it builds the image, pushes it as `ghcr.io/anisabdellatif/study-plan:<commit sha>` and signs a build attestation. CI deploys nothing and holds no SSH key or app secret. A person deploys:
 
-| Branch | Image tags | VPS directory | Stack | Address |
-|---|---|---|---|---|
-| `main` | `latest`, `<sha>` | `DEPLOY_PATH` (`/opt/study-plan`) | `deploy/compose.yaml`: app, PostgreSQL; `127.0.0.1:3000` | `DOMAIN` |
-| `dev` | `dev`, `dev-<sha>` | `DEV_DEPLOY_PATH` (e.g. `/opt/study-plan-dev`) | `deploy/compose.dev.yaml`: app, PostgreSQL; `127.0.0.1:3001` | dev domain |
+```bash
+git switch dev && .kamal/kit/bin/kit deploy -d dev
+git switch main && git pull && .kamal/kit/bin/kit deploy -d production
+```
 
-The dev stack has its own database, `.env` and superadmin, and never touches the production image tags or containers. Both stacks publish their app on a different loopback port (`APP_PORT` in each `.env`), and the host's Caddy forwards each domain to its port; the dev domain answers 502 while the dev stack is down. CI never touches the host's Caddy configuration. Dev deploys are skipped until `DEV_DEPLOY_PATH` is set.
+Before anything changes on the server, `kit deploy` checks that the deploy isn't frozen, that the checkout is on the destination's branch, clean and pushed, that CI passed for this exact commit (it waits up to 15 minutes for a run still going), and that the image was built and attested by this repository's CI workflow. Production also asks you to type its name. Kamal then pulls the image and starts the new container, and kamal-proxy moves traffic once `/api/health` answers. The app migrates the database on start, while the old container still serves. Finally the smoke tests check the public URLs through Caddy, and a failure rolls back to the previous version. A gate that refuses says how to go past it once, on purpose (`KIT_SKIP=<step> KIT_SKIP_REASON="…"`).
+
+| Destination | Branch | Kamal config | Secrets on the VPS | Database | Address |
+|---|---|---|---|---|---|
+| `production` | `main` | `config/deploy.yml` + `config/deploy.production.yml` | `/opt/study-plan/app.env`, `postgres.env` | `study-plan-postgres` | study-plan.de |
+| `dev` | `dev` | `config/deploy.yml` + `config/deploy.dev.yml` | `/opt/study-plan-dev/app.env`, `postgres.env` | `study-plan-dev-postgres` | dev.study-plan.de |
+
+The dev destination has its own database, secrets and superadmin, and never touches production's containers. The kit's settings are in `.kamal/kit.env`; Kamal's run in the kit's image (`KIT_RUNNER=docker`), so the machine that deploys needs only bash, git, Docker and a logged-in `gh`.
 
 One-time setup:
 
-1. On the VPS: install Docker with the compose plugin and Caddy, create a deploy user in the `docker` group, create the directory (default `/opt/study-plan`) and put a filled-in copy of `deploy/.env.example` there as `.env`. Adapt `deploy/Caddyfile` to your domains in `/etc/caddy/Caddyfile` and run `sudo systemctl reload caddy`. Point the domain at the VPS and open ports 80 and 443.
-2. In the GitHub repository, under Settings → Secrets and variables → Actions:
-   - Variables: `DEPLOY_HOST`, `DEPLOY_USER`, optional `DEPLOY_PORT` (22) and `DEPLOY_PATH` (`/opt/study-plan`), plus the `VITE_OPERATOR_*` variables above, which are compiled into the web app.
-   - Secrets: `DEPLOY_SSH_KEY` (a private key whose public key is in the deploy user's `authorized_keys`) and `DEPLOY_KNOWN_HOSTS` (output of `ssh-keyscan -p <port> <host>`).
-   The deploy job is skipped until `DEPLOY_HOST` is set; the image is still built.
-3. After the first deploy, sign in with `SUPERADMIN_EMAIL` and change the password.
-4. For the dev stack: add a DNS record and a site block in the host's Caddyfile for the dev domain, create the directory (e.g. `/opt/study-plan-dev`, owned by the deploy user), put a filled-in copy of `deploy/dev.env.example` there as `.env` with its own passwords and secret, and set the repository variable `DEV_DEPLOY_PATH`. The next push to `dev` deploys it.
+1. On the VPS: Docker and Caddy, and a deploy user in the `docker` group with your SSH key (`.kamal/kit/bin/kit host` can set up a fresh server). Create `/opt/study-plan` and `/opt/study-plan-dev`, owned by the deploy user, each with a filled-in `app.env` and `postgres.env` (`deploy/app.env.example`, `deploy/postgres.env.example`; `chmod 600`, no quotes around values). Point both domains at the VPS, copy `deploy/study-plan.site` to `/etc/caddy/`, add `import study-plan.site` to `/etc/caddy/Caddyfile` and reload Caddy. Open only ports 22, 80 and 443.
+2. In the GitHub repository, under Settings → Secrets and variables → Actions → Variables: the `VITE_OPERATOR_*` variables above, which are compiled into the web app. Nothing else: CI needs no deploy credentials.
+3. On the machine that deploys: copy `.kamal/kit.local.env.example` to `.kamal/kit.local.env` and fill in the server (`SP_HOST`) and a GitHub token with only `read:packages` (`KAMAL_REGISTRY_PASSWORD`; the servers log in to ghcr.io with it). Then `.kamal/kit/bin/kit doctor -d production`.
+4. For each destination, once: `.kamal/kit/bin/kit kamal accessory boot postgres -d <destination>`, then `kit deploy -d <destination>` as above. The first deploy also starts kamal-proxy.
+5. After the first production deploy, sign in with `SUPERADMIN_EMAIL` and change the password.
 
-Each deploy tags the image it pulled as `latest` (or `dev`) on the VPS, so `docker compose up -d` in the stack's directory restarts the deployed version without logging in to the registry. Rolling back: `docker compose pull` is not needed; run `APP_TAG=<older commit sha> docker compose up -d` if that image is still on the VPS (unused images are removed after two weeks), otherwise revert the commit and push. Back up the database with `docker compose exec postgres pg_dump -U studyplan studyplan > backup.sql`.
+Moving from the old compose stacks (once per destination; production shown, dev is the same with `/opt/study-plan-dev` and `study-plan-dev`). The database volume carries over, so no dump and restore is needed, but take a backup anyway:
+
+1. Back up: `cd /opt/study-plan && docker compose exec postgres pg_dump -U studyplan studyplan > backup-$(date +%F).sql`.
+2. Write `app.env` and `postgres.env` from the old `.env`: `DATABASE_URL=postgres://studyplan:<POSTGRES_PASSWORD>@study-plan-postgres:5432/studyplan`, and drop the quotes the old file needed around values with `$`.
+3. Stop the stack but keep its volume: `docker compose down` (without `-v`). The site is down from here until step 5.
+4. Boot the database on the same volume: `.kamal/kit/bin/kit kamal accessory boot postgres -d production`.
+5. Point this domain's `reverse_proxy` in `/etc/caddy/Caddyfile` at `127.0.0.1:8080` (only this one: the other destination may still be on compose), reload Caddy, and deploy: `.kamal/kit/bin/kit deploy -d production`.
+6. When it works: once both destinations are moved, replace their two site blocks in `/etc/caddy/Caddyfile` with `import study-plan.site` (`deploy/study-plan.site`, copied to `/etc/caddy/`) and reload Caddy. Then remove the old `compose.yaml` and `.env` from `/opt/study-plan`, and the repository variables and secrets the old deploy job used (`DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_PORT`, `DEPLOY_PATH`, `DEV_DEPLOY_PATH`, `DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS`), and remove its public key from the deploy user's `authorized_keys`.
+
+Day to day:
+
+- Rolling back: `.kamal/kit/bin/kit kamal rollback <older commit sha> -d production`. Kamal keeps the last few containers on the server.
+- Stopping deploys: `.kamal/kit/bin/kit freeze -d production "reason"`, then `kit unfreeze -d production`.
+- Logs and a shell: `.kamal/kit/bin/kit kamal app logs -d production`, `kit kamal app exec -i -d production sh`.
+- Changed secrets in `app.env`: they take effect with the next deploy, or at once with `kit kamal app boot -d production`.
+- Database backup: `ssh <server> docker exec study-plan-postgres pg_dump -U studyplan studyplan > backup.sql`.
+- Updating deploy-kit: `.kamal/kit/bin/kit update --from https://github.com/AnisAbdellatif/deploy-kit --ref <tag>`, then review and commit the diff in `.kamal/kit`.
 
 Building locally: `docker build -t study-plan .`
 

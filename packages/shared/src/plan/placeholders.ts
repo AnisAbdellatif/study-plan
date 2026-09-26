@@ -1,8 +1,16 @@
 import { toHalves } from '../engine/units.ts'
 import type { PresetArea } from '../schema/preset.ts'
 import { type AreaChoiceState, inactiveAreaIds } from './area-choices.ts'
+import { countedCreditHalves } from './counted-credits.ts'
 import { PlanError, removePlaceholderEntry } from './operations.ts'
-import { isPlaceholderId, PLACEHOLDER_PREFIX, type Placeholder, type Plan, type PlanModule } from './plan.ts'
+import {
+  detachFromGroup,
+  isPlaceholderId,
+  PLACEHOLDER_PREFIX,
+  type Placeholder,
+  type Plan,
+  type PlanModule,
+} from './plan.ts'
 
 export interface ChoiceArea {
   area: PresetArea
@@ -86,6 +94,7 @@ function typicalCredits(options: readonly PlanModule[]): number {
 
 export function choiceAreas(plan: Plan): ChoiceArea[] {
   const optionCodes = choiceOptionCodes(plan)
+  const counted = countedCreditHalves(plan)
   const byCode = new Map(plan.modules.map((module) => [module.code, module]))
   const inSemesters = new Set(plan.semesters.flatMap((semester) => semester.moduleCodes))
   return plan.areas.flatMap((area) => {
@@ -102,7 +111,7 @@ export function choiceAreas(plan: Plan): ChoiceArea[] {
         chosen,
         available: options.filter((module) => !inSemesters.has(module.code)),
         placeholders: (plan.placeholders ?? []).filter((placeholder) => placeholder.areaId === area.id),
-        chosenCredits: chosen.reduce((sum, module) => sum + toHalves(module.credits), 0) / 2,
+        chosenCredits: chosen.reduce((sum, module) => sum + (counted.get(module.code) ?? 0), 0) / 2,
         placeholderCredits: typicalCredits(options),
       },
     ]
@@ -216,7 +225,7 @@ export function unchooseModule(plan: Plan, moduleCode: string, idSuffix?: string
   if (!areaId) throw new PlanError(`Module "${moduleCode}" is not a choice`)
   const id = newPlaceholderId(plan, idSuffix)
   return {
-    ...plan,
+    ...detachFromGroup(plan, moduleCode),
     placeholders: [...(plan.placeholders ?? []), { id, areaId }],
     semesters: plan.semesters.map((item) => ({
       ...item,

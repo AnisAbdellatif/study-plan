@@ -1,0 +1,24 @@
+# study-plan's sites for the host's Caddy. Copy to /etc/caddy/study-plan.site and import it from
+# /etc/caddy/Caddyfile, next to the other sites there:
+#
+#   import study-plan.site
+#
+# then `caddy validate --config /etc/caddy/Caddyfile && sudo systemctl reload caddy`. Deploys never copy or reload
+# it; change the host's copy by hand. Caddy obtains and renews the TLS certificates automatically.
+# No access log is written, matching the retention stated in the privacy policy; if you add a `log` block,
+# update the policy.
+#
+# Both domains go to kamal-proxy on loopback (proxy.run in config/deploy.yml), which routes on the Host header
+# Caddy keeps and swaps the app's containers with no downtime.
+
+study-plan.de {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:8080
+}
+
+# Dev: answers 404 from kamal-proxy while nothing is deployed there. Search engines are asked not to index it.
+dev.study-plan.de {
+	encode zstd gzip
+	header X-Robots-Tag "noindex, nofollow"
+	reverse_proxy 127.0.0.1:8080
+}
