@@ -9,7 +9,8 @@
 # destination that Docker hands to the containers; they never pass through the machine that deploys. Docker reads
 # those files literally: no quotes around values.
 <%
-  host = ENV.fetch("SP_HOST") { raise "SP_HOST isn't set: put the server in .kamal/kit.local.env" }
+  host = ENV["SP_HOST"].to_s.strip
+  raise "SP_HOST isn't set: put the server in .kamal/kit.local.env" if host.empty?
 %>
 service: study-plan
 image: anisabdellatif/study-plan
