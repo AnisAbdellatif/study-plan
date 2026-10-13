@@ -1,6 +1,7 @@
 import { admin as deAdmin } from './locales/de/admin.ts'
 import { auth as deAuth } from './locales/de/auth.ts'
 import { board as deBoard } from './locales/de/board.ts'
+import { calendar as deCalendar } from './locales/de/calendar.ts'
 import { common as deCommon } from './locales/de/common.ts'
 import { contact as deContact } from './locales/de/contact.ts'
 import { customPreset as deCustomPreset } from './locales/de/customPreset.ts'
@@ -14,6 +15,7 @@ import { start as deStart } from './locales/de/start.ts'
 import { admin as enAdmin } from './locales/en/admin.ts'
 import { auth as enAuth } from './locales/en/auth.ts'
 import { board as enBoard } from './locales/en/board.ts'
+import { calendar as enCalendar } from './locales/en/calendar.ts'
 import { common as enCommon } from './locales/en/common.ts'
 import { contact as enContact } from './locales/en/contact.ts'
 import { customPreset as enCustomPreset } from './locales/en/customPreset.ts'
@@ -44,6 +46,7 @@ export const resources = {
     contact: deContact,
     landing: deLanding,
     print: dePrint,
+    calendar: deCalendar,
   },
   en: {
     common: enCommon,
@@ -59,6 +62,7 @@ export const resources = {
     contact: enContact,
     landing: enLanding,
     print: enPrint,
+    calendar: enCalendar,
   },
 }
 

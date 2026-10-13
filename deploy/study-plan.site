@@ -8,10 +8,16 @@
 # No access log is written, matching the retention stated in the privacy policy; if you add a `log` block,
 # update the policy.
 #
-# Both domains go to kamal-proxy on loopback (proxy.run in config/deploy.yml), which routes on the Host header
+# All domains go to kamal-proxy on loopback (proxy.run in config/deploy.yml), which routes on the Host header
 # Caddy keeps and swaps the app's containers with no downtime.
 
 study-plan.de {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:8080
+}
+
+# Calendar feeds (production). The app answers feed URLs only on this host; everything else is a 404.
+ics.study-plan.de {
 	encode zstd gzip
 	reverse_proxy 127.0.0.1:8080
 }

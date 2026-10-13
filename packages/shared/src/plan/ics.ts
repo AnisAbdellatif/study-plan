@@ -8,7 +8,8 @@ export interface IcsOptions {
   summarize: (event: DeadlineEvent) => string
 }
 
-const escapeText = (value: string): string =>
+/** Escapes TEXT values (RFC 5545 3.3.11). */
+export const escapeIcsText = (value: string): string =>
   value.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n')
 
 const compactDate = (isoDate: string): string => isoDate.replaceAll('-', '')
@@ -22,7 +23,7 @@ const utcStamp = (date: Date): string =>
 const encoder = new TextEncoder()
 
 /** RFC 5545 line folding: at most 75 octets per line, continuation lines start with a space. */
-function fold(line: string): string[] {
+export function foldIcsLine(line: string): string[] {
   const parts: string[] = []
   let current = ''
   let size = 0
@@ -49,7 +50,7 @@ export function createIcs(events: readonly DeadlineEvent[], options: IcsOptions)
     'PRODID:-//study-plan//Studienplaner//DE',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
-    `X-WR-CALNAME:${escapeText(options.calendarName)}`,
+    `X-WR-CALNAME:${escapeIcsText(options.calendarName)}`,
   ]
   const stamp = utcStamp(options.now)
   for (const event of events) {
@@ -59,11 +60,11 @@ export function createIcs(events: readonly DeadlineEvent[], options: IcsOptions)
       `DTSTAMP:${stamp}`,
       `DTSTART;VALUE=DATE:${compactDate(event.date)}`,
       `DTEND;VALUE=DATE:${compactDate(addDays(event.date, 1))}`,
-      `SUMMARY:${escapeText(options.summarize(event))}`,
+      `SUMMARY:${escapeIcsText(options.summarize(event))}`,
       'TRANSP:TRANSPARENT',
       'END:VEVENT',
     )
   }
   lines.push('END:VCALENDAR')
-  return `${lines.flatMap(fold).join('\r\n')}\r\n`
+  return `${lines.flatMap(foldIcsLine).join('\r\n')}\r\n`
 }

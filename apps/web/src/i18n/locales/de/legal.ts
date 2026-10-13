@@ -47,6 +47,8 @@ export const legal = {
       noTracking:
         'Es gibt keine Werbung, kein Tracking, keine Analyse-Werkzeuge und keine eingebundenen Inhalte von Drittanbietern wie Schriften oder Skripte.',
       cookie: 'Wir setzen nur ein technisch notwendiges Cookie, und zwar erst, wenn du dich anmeldest.',
+      calendar:
+        'Verbindest du deinen Stud.IP-Stundenplan, speichern wir den Link verschlüsselt und die Termine, um daraus deine Kalender-Abos zu erzeugen.',
       sharing:
         'Teilst du einen Plan per Link, sieht man darüber Semester und Module, aber nie deine Ergebnisse oder Noten.',
       assistant:
@@ -58,7 +60,7 @@ export const legal = {
     website: {
       heading: '3. Aufruf der Website',
       serverLogs:
-        'Beim Aufruf der Seite verarbeitet der Server technisch notwendige Verbindungsdaten wie deine IP-Adresse, den Zeitpunkt und die aufgerufene Adresse, damit die Seite ausgeliefert werden kann (Art. 6 Abs. 1 lit. f DSGVO). Diese Daten werden nur für die Dauer der Verbindung verarbeitet. Wir führen keine Zugriffsprotokolle mit IP-Adressen: Weder der Webserver noch die Anwendung speichern IP-Adressen in Protokollen. Ausnahmen sind nur die unter 5. und 10. beschriebenen Anmeldungen und Zähler zum Schutz vor Missbrauch.',
+        'Beim Aufruf der Seite verarbeitet der Server technisch notwendige Verbindungsdaten wie deine IP-Adresse, den Zeitpunkt und die aufgerufene Adresse, damit die Seite ausgeliefert werden kann (Art. 6 Abs. 1 lit. f DSGVO). Diese Daten werden nur für die Dauer der Verbindung verarbeitet. Wir führen keine Zugriffsprotokolle mit IP-Adressen: Weder der Webserver noch die Anwendung speichern IP-Adressen in Protokollen. Ausnahmen sind nur die unter 5. und 11. beschriebenen Anmeldungen und Zähler zum Schutz vor Missbrauch.',
       appLogs:
         'Die Anwendung protokolliert Anfragen nur mit Methode, Pfad, Statuscode und Dauer, ohne IP-Adressen und ohne Inhalte. Diese technischen Protokolle haben eine feste Maximalgröße; ältere Einträge werden automatisch überschrieben.',
       hosting:
@@ -93,8 +95,20 @@ export const legal = {
       heading: '6. Geteilte Pläne',
       body: 'Wenn du einen Plan teilst, erzeugen wir einen zufälligen Link. Wir speichern davon nur einen Prüfwert (Hash), den Zeitpunkt der Erstellung und ob du ihn deaktiviert hast. Wer den Link kennt, sieht den Namen des Plans, Studiengang, Semester und Module und kann den Plan als eigene Kopie übernehmen. Ergebnisse, Noten, Prüfungstermine, Anerkennungen und Zielschnitt sind nie sichtbar. Du kannst den Link jederzeit deaktivieren; er wird zusammen mit dem Plan oder deinem Konto gelöscht. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO.',
     },
+    calendar: {
+      heading: '7. Stundenplan-Kalender',
+      what: 'Angemeldet kannst du den Kalender-Link aus dem Stud.IP deiner Hochschule hinterlegen. Der Link enthält einen persönlichen Schlüssel. Wir speichern ihn verschlüsselt (AES-256-GCM), zeigen ihn nicht wieder an und rufen damit etwa stündlich deinen Stundenplan bei Stud.IP ab; dabei übermitteln wir nur den Link selbst.',
+      stored:
+        'Wir speichern die abgerufenen Termine (Titel der Veranstaltung, Zeit, Raum und Beschreibung), deine Auswahl, Kurznamen und Farben, deine Kalender mit ihren Namen und die letzten 50 bemerkten Änderungen. Jeder erfolgreiche Abruf ersetzt die Termine des vorherigen.',
+      feeds:
+        'Für jeden Kalender erzeugen wir einen geheimen Abo-Link. Wer ihn kennt, sieht die ausgewählten Termine, aber nicht deinen Namen oder deine E-Mail-Adresse. Abo-Links ruft meist der Server deiner Kalender-App ab (zum Beispiel Google oder Apple); was dieser mit den Terminen macht, regeln dessen Datenschutzbestimmungen. Unsere Protokolle enthalten solche Abrufe ohne den geheimen Teil des Links. Du kannst jeden Link jederzeit durch einen neuen ersetzen.',
+      alerts:
+        'Schaltest du Änderungsmeldungen ein, schicken wir dir eine E-Mail mit Veranstaltung, Zeit und Raum geänderter Termine. Du schaltest sie auf der Kalenderseite oder über den Link in jeder Meldung aus.',
+      deletion:
+        'Entfernst du die Verbindung oder löschst du dein Konto, löschen wir den Link, alle Termine, deine Auswahl und alle Abo-Links. Rechtsgrundlage ist die Erfüllung des Nutzungsvertrags (Art. 6 Abs. 1 lit. b DSGVO).',
+    },
     emails: {
-      heading: '7. E-Mails',
+      heading: '8. E-Mails',
       account:
         'Wir schicken dir E-Mails, die für dein Konto nötig sind: die Bestätigung deiner E-Mail-Adresse und Links zum Zurücksetzen deines Passworts (Art. 6 Abs. 1 lit. b DSGVO).',
       reminders:
@@ -103,15 +117,15 @@ export const legal = {
         'Der Versand aller E-Mails erfolgt über <mail/>, der die Daten in unserem Auftrag verarbeitet (Art. 28 DSGVO).',
     },
     contact: {
-      heading: '8. Kontaktformular',
-      what: 'Über das <form>Kontaktformular</form> kannst du uns eine Nachricht schicken. Wir übermitteln deine E-Mail-Adresse, deinen Namen, falls du ihn angibst, den Betreff, deine Nachricht und die Sprache der Website per E-Mail an unser Postfach, damit wir dir antworten können. Der Versand erfolgt über den unter 7. genannten E-Mail-Dienst.',
+      heading: '9. Kontaktformular',
+      what: 'Über das <form>Kontaktformular</form> kannst du uns eine Nachricht schicken. Wir übermitteln deine E-Mail-Adresse, deinen Namen, falls du ihn angibst, den Betreff, deine Nachricht und die Sprache der Website per E-Mail an unser Postfach, damit wir dir antworten können. Der Versand erfolgt über den unter 8. genannten E-Mail-Dienst.',
       storage:
         'In der Anwendung speichern wir die Nachricht nicht. Die E-Mail in unserem Postfach und unsere Antwort löschen wir, sobald dein Anliegen erledigt ist, es sei denn, gesetzliche Aufbewahrungspflichten stehen dem entgegen.',
       basis:
         'Rechtsgrundlage ist unser berechtigtes Interesse, Anfragen zu beantworten (Art. 6 Abs. 1 lit. f DSGVO); betrifft deine Anfrage dein Konto, ist es die Erfüllung des Nutzungsvertrags (Art. 6 Abs. 1 lit. b DSGVO).',
     },
     assistant: {
-      heading: '9. Studienassistent',
+      heading: '10. Studienassistent',
       what: 'Angemeldete Nutzerinnen und Nutzer können einem Studienassistenten Fragen zu ihrem Studiengang stellen. Dafür schicken wir deine Frage, den bisherigen Verlauf des Gesprächs und die Studiengangsdaten deines Plans (Modulnamen, Leistungspunkte, Angaben aus dem Modulkatalog, Bereiche und Regeln der Prüfungsordnung) an OpenRouter, Inc. (USA). OpenRouter leitet die Anfrage an den Anbieter des Sprachmodells weiter, das die Antwort erzeugt. Um Angaben nachzuschlagen, kann das Modell mehrmals nachfragen; auch dabei bekommt es nur diese Studiengangsdaten.',
       models:
         'Welches Sprachmodell antwortet, legen wir in der Verwaltung fest. Je nach Modell verarbeitet ein anderer Anbieter die Anfrage, der seinen Sitz auch außerhalb der EU haben kann. Wir lassen Anfragen nur an Anbieter weiterleiten, die sie nach den Angaben von OpenRouter weder speichern noch zum Training verwenden.',
@@ -127,15 +141,15 @@ export const legal = {
         'OpenRouter hat seinen Sitz in den USA, und auch die Anbieter der Sprachmodelle können außerhalb der EU sitzen. Deine Fragen und die Studiengangsdaten werden dadurch in Drittländer übermittelt, in denen möglicherweise kein Datenschutzniveau wie in der EU besteht; unter Umständen können dort Behörden auf die Daten zugreifen, ohne dass dir wirksame Rechtsbehelfe zur Verfügung stehen. Mit der Bestätigung des Hinweises willigst du ausdrücklich auch in diese Übermittlung ein (Art. 49 Abs. 1 lit. a DSGVO).',
     },
     abuse: {
-      heading: '10. Schutz vor Missbrauch',
+      heading: '11. Schutz vor Missbrauch',
       body: 'Um wiederholte Anmeldeversuche und andere automatisierte Angriffe auf Konten zu begrenzen, speichern wir kurzzeitig einen Zähler je IP-Adresse und aufgerufener Anmeldefunktion. Abrufe geteilter Pläne und Nachrichten über das Kontaktformular begrenzen wir ebenso; dafür werden Zähler je IP-Adresse nur im Arbeitsspeicher gehalten, nach wenigen Minuten verworfen und nicht dauerhaft gespeichert. Rechtsgrundlage ist unser berechtigtes Interesse an einem sicheren Dienst (Art. 6 Abs. 1 lit. f DSGVO).',
     },
     cookies: {
-      heading: '11. Cookies',
+      heading: '12. Cookies',
       body: 'Nach der Anmeldung setzen wir ein Cookie mit deinem Sitzungsschlüssel, damit du angemeldet bleibst. Es ist für die Anmeldung unbedingt erforderlich (§ 25 Abs. 2 Nr. 2 TDDDG) und wird beim Abmelden entfernt. Weitere Cookies verwenden wir nicht.',
     },
     rights: {
-      heading: '12. Deine Rechte',
+      heading: '13. Deine Rechte',
       list: 'Du hast das Recht auf Auskunft (Art. 15 DSGVO), Berichtigung (Art. 16), Löschung (Art. 17), Einschränkung der Verarbeitung (Art. 18) und Datenübertragbarkeit (Art. 20). Gegen Verarbeitungen auf Grundlage berechtigter Interessen kannst du Widerspruch einlegen (Art. 21).',
       selfService:
         'Auskunft und Datenübertragbarkeit bekommst du jederzeit selbst über „Daten herunterladen“, und dein Konto löschst du selbst, beides auf der <account>Kontoseite</account>. Für alles andere schreib an die oben genannte E-Mail-Adresse oder nutze das <contact>Kontaktformular</contact>.',
@@ -143,9 +157,9 @@ export const legal = {
         'Du kannst dich außerdem bei einer Datenschutz-Aufsichtsbehörde beschweren (Art. 77 DSGVO), zum Beispiel bei der für deinen Wohnort zuständigen.',
     },
     misc: {
-      heading: '13. Sonstiges',
+      heading: '14. Sonstiges',
       body: 'Die Nutzung ist freiwillig. Ein Konto brauchst du nur, wenn dein Plan auf mehreren Geräten verfügbar sein soll. Es findet keine automatisierte Entscheidungsfindung und kein Profiling statt.',
     },
-    updated: 'Stand: September 2026',
+    updated: 'Stand: Oktober 2026',
   },
 }

@@ -1,5 +1,5 @@
 import { Link, useMatchRoute, useNavigate } from '@tanstack/react-router'
-import { CloudCheck, CloudOff, LogIn, LogOut, RefreshCw, UserRound } from 'lucide-react'
+import { CalendarDays, CloudCheck, CloudOff, LogIn, LogOut, RefreshCw, UserRound } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { describeSyncState, useAccountSync } from './account-sync.tsx'
@@ -76,6 +76,10 @@ export function AccountButton() {
         <MenuItem onClick={() => void navigate({ to: '/account' })}>
           <UserRound aria-hidden className="size-4" />
           {t('button.manageAccount')}
+        </MenuItem>
+        <MenuItem onClick={() => void navigate({ to: '/calendar' })}>
+          <CalendarDays aria-hidden className="size-4" />
+          {t('button.calendar')}
         </MenuItem>
         <MenuItem onClick={() => void signOut()}>
           <LogOut aria-hidden className="size-4" />

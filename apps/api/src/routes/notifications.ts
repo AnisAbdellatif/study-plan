@@ -6,6 +6,7 @@ import type { Database } from '../db/connection.ts'
 import { notificationSetting } from '../db/schema.ts'
 import { verifyUnsubscribeToken } from '../reminders.ts'
 import type { AppEnv } from '../types.ts'
+import { unsubscribeCalendarAlerts } from './calendar.ts'
 
 const settingsSchema = z.object({ examReminders: z.boolean() })
 
@@ -41,13 +42,18 @@ export function notificationSettingsRoutes(db: Database) {
 }
 
 /**
- * Public: turns reminders off with the token from a reminder e-mail. Mail clients call it as an RFC 8058
+ * Public: turns reminders off with the token from a reminder e-mail, or calendar change alerts with `list=calendar`
+ * and the token from an alert. Mail clients call it as an RFC 8058
  * one-click unsubscribe, and the unsubscribe page in the web app posts to it after asking.
  */
 export function unsubscribeRoutes(db: Database, config: Config) {
   const routes = new Hono<AppEnv>()
 
   routes.post('/unsubscribe', async (c) => {
+    if (c.req.query('list') === 'calendar') {
+      const done = await unsubscribeCalendarAlerts(db, config, c.req.query('token') ?? '')
+      return done ? c.json({ changeAlerts: false }) : c.json({ error: 'invalid_token' }, 400)
+    }
     const userId = verifyUnsubscribeToken(config.authSecret, c.req.query('token') ?? '')
     if (!userId) return c.json({ error: 'invalid_token' }, 400)
     await db

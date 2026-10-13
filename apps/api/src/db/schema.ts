@@ -2,7 +2,14 @@
  * Database schema. The first five tables are the ones Better Auth expects (field names must match its models);
  * `plan` holds each account's plans as validated guest documents.
  */
-import type { GuestDocument, Preset } from '@study-plan/shared'
+import type {
+  CalendarChange,
+  CalendarEvent,
+  CalendarFetchError,
+  CalendarSettings,
+  GuestDocument,
+  Preset,
+} from '@study-plan/shared'
 import { sql } from 'drizzle-orm'
 import {
   bigint,
@@ -213,6 +220,58 @@ export const reminderDelivery = pgTable(
       table.eventDate,
     ),
   ],
+)
+
+/**
+ * A student's university calendar (Stud.IP), at most one per account. The link is stored encrypted, see
+ * calendar/secrets.ts; `events` keeps the last good copy, which the feeds serve while the upstream is unreachable.
+ */
+export const calendarSource = pgTable(
+  'calendar_source',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    /** The link, encrypted. Never sent back to the browser or logged. */
+    encryptedUrl: text('encrypted_url').notNull(),
+    host: text('host').notNull(),
+    status: text('status', { enum: ['pending', 'ok', 'error'] })
+      .notNull()
+      .default('pending'),
+    lastError: text('last_error').$type<CalendarFetchError>(),
+    /** Failed fetches in a row; the sync waits longer between them. */
+    failures: integer('failures').notNull().default(0),
+    lastFetchedAt: timestamp('last_fetched_at', { withTimezone: true }),
+    lastSuccessAt: timestamp('last_success_at', { withTimezone: true }),
+    events: jsonb('events').$type<CalendarEvent[]>().notNull().default([]),
+    settings: jsonb('settings').$type<CalendarSettings>().notNull(),
+    /** The latest changes, newest first, for the calendar page. */
+    changes: jsonb('changes').$type<CalendarChange[]>().notNull().default([]),
+    ...timestamps(),
+  },
+  (table) => [
+    uniqueIndex('calendar_source_user_id_idx').on(table.userId),
+    index('calendar_source_last_fetched_at_idx').on(table.lastFetchedAt),
+  ],
+)
+
+/** A subscribable selection of a source's subjects. Its URL is derived, see calendar/secrets.ts. */
+export const calendarFeed = pgTable(
+  'calendar_feed',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    sourceId: uuid('source_id')
+      .notNull()
+      .references(() => calendarSource.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    /** Null: every subject the student keeps. */
+    subjects: jsonb('subjects').$type<string[] | null>(),
+    /** Raised to make the current URL stop working. */
+    tokenVersion: integer('token_version').notNull().default(1),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('calendar_feed_source_id_idx').on(table.sourceId)],
 )
 
 /**

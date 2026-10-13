@@ -1,11 +1,23 @@
 import { eq } from 'drizzle-orm'
 import { Hono } from 'hono'
+import { decryptSourceUrl } from '../calendar/secrets.ts'
+import type { Config } from '../config.ts'
 import type { Database } from '../db/connection.ts'
-import { notificationSetting, plan, planShare, reminderDelivery, session, user } from '../db/schema.ts'
+import {
+  calendarFeed,
+  calendarSource,
+  notificationSetting,
+  plan,
+  planShare,
+  reminderDelivery,
+  session,
+  user,
+} from '../db/schema.ts'
 import type { AppEnv } from '../types.ts'
+import { feedUrl } from './calendar.ts'
 
 /** Self-service access to one's own data (Art. 15 and Art. 20 DSGVO). Deletion goes through Better Auth. */
-export function accountRoutes(db: Database) {
+export function accountRoutes(db: Database, config: Config) {
   const routes = new Hono<AppEnv>()
 
   routes.get('/export', async (c) => {
@@ -69,6 +81,30 @@ export function accountRoutes(db: Database) {
       .innerJoin(plan, eq(reminderDelivery.planId, plan.id))
       .where(eq(plan.userId, userId))
 
+    const [source] = await db.select().from(calendarSource).where(eq(calendarSource.userId, userId))
+    const feeds = source
+      ? await db.select().from(calendarFeed).where(eq(calendarFeed.sourceId, source.id))
+      : []
+    const calendar = source
+      ? {
+          link: decryptSourceUrl(config.authSecret, source.encryptedUrl),
+          status: source.status,
+          lastError: source.lastError,
+          lastFetchedAt: source.lastFetchedAt,
+          lastSuccessAt: source.lastSuccessAt,
+          createdAt: source.createdAt,
+          settings: source.settings,
+          events: source.events,
+          changes: source.changes,
+          feeds: feeds.map((feed) => ({
+            name: feed.name,
+            subjects: feed.subjects,
+            url: feedUrl(config, feed),
+            createdAt: feed.createdAt,
+          })),
+        }
+      : null
+
     const exportedAt = new Date()
     c.header(
       'Content-Disposition',
@@ -84,6 +120,7 @@ export function accountRoutes(db: Database) {
       shares,
       notifications: notifications ?? { examReminders: false, updatedAt: null },
       reminders,
+      calendar,
     })
   })
 

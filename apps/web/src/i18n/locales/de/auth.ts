@@ -81,6 +81,14 @@ export const auth = {
     submit: 'Erinnerungen ausschalten',
     toAccount: 'Zum Konto',
   },
+  unsubscribeCalendar: {
+    title: 'Änderungsmeldungen ausschalten',
+    done: 'Änderungsmeldungen sind ausgeschaltet. Auf der Kalenderseite kannst du sie jederzeit wieder einschalten.',
+    invalid: 'Der Link ist ungültig. Du kannst die Änderungsmeldungen auf der Kalenderseite ausschalten.',
+    explanation: 'Du bekommst dann keine E-Mails mehr, wenn sich Termine in deinem Stundenplan ändern.',
+    submit: 'Änderungsmeldungen ausschalten',
+    toCalendar: 'Zum Stundenplan-Kalender',
+  },
   account: {
     loadingTitle: 'Konto',
     title: 'Dein Konto',
@@ -149,6 +157,7 @@ export const auth = {
     signIn: 'Anmelden',
     account: 'Konto',
     manageAccount: 'Konto verwalten',
+    calendar: 'Stundenplan-Kalender',
     signOut: 'Abmelden',
   },
   sync: {

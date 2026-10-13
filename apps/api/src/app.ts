@@ -4,6 +4,7 @@ import { csrf } from 'hono/csrf'
 import { createMiddleware } from 'hono/factory'
 import { secureHeaders } from 'hono/secure-headers'
 import type { Auth } from './auth.ts'
+import type { Fetcher } from './calendar/source.ts'
 import type { Config } from './config.ts'
 import type { Database } from './db/connection.ts'
 import type { LlmClient } from './llm/types.ts'
@@ -11,6 +12,7 @@ import type { MonitoredMailer } from './mail.ts'
 import { UNSUBSCRIBE_PATH } from './reminders.ts'
 import { accountRoutes } from './routes/account.ts'
 import { adminRoutes, requireAdmin } from './routes/admin.ts'
+import { calendarFeedRoutes, calendarRoutes } from './routes/calendar.ts'
 import { chatRoutes } from './routes/chat.ts'
 import { contactRoutes } from './routes/contact.ts'
 import { notificationSettingsRoutes, unsubscribeRoutes } from './routes/notifications.ts'
@@ -32,21 +34,35 @@ export interface AppDependencies {
   llm?: LlmClient
   /** Runtime-specific static file handlers for the built web app, see main.ts. */
   staticFiles?: { assets: MiddlewareHandler; index: MiddlewareHandler }
+  /** How calendar links are fetched; tests pass a fake. */
+  calendarFetcher?: Fetcher
 }
 
-export function createApp({ config, db, auth, mailer, llm, staticFiles }: AppDependencies) {
+export function createApp({ config, db, auth, mailer, llm, staticFiles, calendarFetcher }: AppDependencies) {
   const app = new Hono<AppEnv>()
+  const feedBase = new URL(config.calendar.feedUrl)
+  const feedPath = feedBase.pathname.replace(/\/+$/, '')
+  // Production serves feeds from their own host (ics.study-plan.de), which answers nothing else.
+  const feedHost = feedBase.host !== new URL(config.publicUrl).host ? feedBase.host : null
+  const isFeedRequest = (c: Context) =>
+    feedHost ? c.req.header('host') === feedHost : feedPath !== '' && c.req.path.startsWith(`${feedPath}/`)
 
   if (config.env !== 'test') {
     app.use('*', async (c, next) => {
       const started = performance.now()
       await next()
-      // Method, path and status only: no IP addresses, query strings or bodies in the logs.
+      // Method, path and status only: no IP addresses, query strings or bodies in the logs. Feed paths carry
+      // their secret token, so feeds are logged without it.
+      const path = isFeedRequest(c) ? '[calendar feed]' : c.req.path
       console.info(
-        `[api] ${c.req.method} ${c.req.path} ${c.res.status} ${Math.round(performance.now() - started)}ms`,
+        `[api] ${c.req.method} ${path} ${c.res.status} ${Math.round(performance.now() - started)}ms`,
       )
     })
   }
+
+  const feeds = new Hono<AppEnv>().route(feedPath || '/', calendarFeedRoutes(db, config))
+  if (feedHost)
+    app.use('*', async (c, next) => (isFeedRequest(c) ? await feeds.fetch(c.req.raw) : await next()))
 
   app.use(
     '*',
@@ -100,8 +116,11 @@ export function createApp({ config, db, auth, mailer, llm, staticFiles }: AppDep
   app.route('/api/share', publicShareRoutes(db, config))
   app.use('/api/account/*', requireUser)
   app.route('/api/account/notifications', notificationSettingsRoutes(db))
-  app.route('/api/account', accountRoutes(db))
+  app.route('/api/account', accountRoutes(db, config))
   app.route('/api/notifications', unsubscribeRoutes(db, config))
+  app.use('/api/calendar', requireUser)
+  app.use('/api/calendar/*', requireUser)
+  app.route('/api/calendar', calendarRoutes({ db, mailer, config, fetcher: calendarFetcher }))
   app.use('/api/chat', requireUser)
   app.use('/api/chat/*', requireUser)
   app.route('/api/chat', chatRoutes(db, llm))
@@ -120,6 +139,8 @@ export function createApp({ config, db, auth, mailer, llm, staticFiles }: AppDep
   // Public: the contact form, limited per client.
   app.route('/api/contact', contactRoutes(config, mailer))
   app.all('/api/*', (c) => c.json({ error: 'not_found' }, 404))
+  // Public: calendar feeds on the main host, in development and wherever no feed host is set.
+  if (!feedHost && feedPath !== '') app.route(feedPath, calendarFeedRoutes(db, config))
 
   if (staticFiles) {
     app.use('/*', staticFiles.assets)

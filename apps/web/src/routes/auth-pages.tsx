@@ -670,14 +670,16 @@ function AccountPlans() {
 
 export function UnsubscribePage() {
   const { t } = useTranslation('auth')
-  const search = useSearch({ strict: false }) as { token?: unknown }
+  const search = useSearch({ strict: false }) as { token?: unknown; list?: unknown }
   const token = typeof search.token === 'string' ? search.token : ''
+  // Calendar change alerts have their own link; everything else is the exam reminders.
+  const calendar = search.list === 'calendar'
   const [state, setState] = useState<'idle' | 'pending' | 'done' | 'error'>('idle')
 
   const unsubscribe = async () => {
     setState('pending')
     try {
-      await notificationApi.unsubscribe(token)
+      await notificationApi.unsubscribe(token, calendar ? 'calendar' : 'reminders')
       setState('done')
     } catch {
       setState('error')
@@ -685,24 +687,34 @@ export function UnsubscribePage() {
   }
 
   return (
-    <AuthLayout title={t('unsubscribe.title')}>
+    <AuthLayout title={calendar ? t('unsubscribeCalendar.title') : t('unsubscribe.title')}>
       {token === '' ? (
         <Alert>{t('unsubscribe.incomplete')}</Alert>
       ) : state === 'done' ? (
-        <Alert tone="success">{t('unsubscribe.done')}</Alert>
+        <Alert tone="success">{calendar ? t('unsubscribeCalendar.done') : t('unsubscribe.done')}</Alert>
       ) : (
         <div className="mt-6 space-y-4">
-          {state === 'error' ? <Alert>{t('unsubscribe.invalid')}</Alert> : null}
-          <p className="text-sm">{t('unsubscribe.explanation')}</p>
+          {state === 'error' ? (
+            <Alert>{calendar ? t('unsubscribeCalendar.invalid') : t('unsubscribe.invalid')}</Alert>
+          ) : null}
+          <p className="text-sm">
+            {calendar ? t('unsubscribeCalendar.explanation') : t('unsubscribe.explanation')}
+          </p>
           <Button variant="primary" loading={state === 'pending'} onClick={() => void unsubscribe()}>
-            {t('unsubscribe.submit')}
+            {calendar ? t('unsubscribeCalendar.submit') : t('unsubscribe.submit')}
           </Button>
         </div>
       )}
       <p className="mt-6 text-sm">
-        <Link to="/account" className={linkClass}>
-          {t('unsubscribe.toAccount')}
-        </Link>
+        {calendar ? (
+          <Link to="/calendar" className={linkClass}>
+            {t('unsubscribeCalendar.toCalendar')}
+          </Link>
+        ) : (
+          <Link to="/account" className={linkClass}>
+            {t('unsubscribe.toAccount')}
+          </Link>
+        )}
       </p>
     </AuthLayout>
   )
