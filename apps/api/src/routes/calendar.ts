@@ -47,8 +47,11 @@ const FEED_LABELS = {
 
 type FeedRow = typeof calendarFeed.$inferSelect
 
+/** Feeds live under the calendar page's path: /calendar/<feed id>/<token>.ics. */
+export const CALENDAR_FEED_PATH = '/calendar'
+
 export const feedUrl = (config: Config, feed: Pick<FeedRow, 'id' | 'tokenVersion'>): string =>
-  `${config.calendar.feedUrl}/${feed.id}/${feedToken(config.authSecret, feed.id, feed.tokenVersion)}.ics`
+  `${config.publicUrl}${CALENDAR_FEED_PATH}/${feed.id}/${feedToken(config.authSecret, feed.id, feed.tokenVersion)}.ics`
 
 const feedView = (config: Config, feed: FeedRow): CalendarFeedView => ({
   id: feed.id,
@@ -268,12 +271,12 @@ export async function unsubscribeCalendarAlerts(
 
 /**
  * Public: the feeds calendar apps subscribe to, at /<feed id>/<token>.ics. The token is the only protection, so
- * unknown feeds and wrong tokens look the same.
+ * unknown feeds and wrong tokens look the same. Only .ics paths are answered; the rest belongs to the web app.
  */
 export function calendarFeedRoutes(db: Database, config: Config) {
   const routes = new Hono<AppEnv>()
 
-  routes.get('/:id/:file', async (c) => {
+  routes.get('/:id/:file{[^/]+\\.ics}', async (c) => {
     const id = c.req.param('id')
     const token = /^([A-Za-z0-9_-]{10,64})\.ics$/.exec(c.req.param('file'))?.[1]
     const notFound = () => c.text('Not found', 404)
@@ -322,8 +325,6 @@ export function calendarFeedRoutes(db: Database, config: Config) {
     c.header('Content-Disposition', `inline; filename="${row.feed.id}.ics"`)
     return c.body(body)
   })
-
-  routes.all('*', (c) => c.text('Not found', 404))
 
   return routes
 }

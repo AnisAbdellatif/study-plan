@@ -7,8 +7,9 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: true,
-    // The API runs separately in development (apps/api, port 3000). It also serves the calendar feeds under /ics.
-    proxy: { '/api': 'http://localhost:3000', '/ics': 'http://localhost:3000' },
+    // The API runs separately in development (apps/api, port 3000). It also serves the calendar feeds, the .ics
+    // files under /calendar; the calendar page itself stays with the web app.
+    proxy: { '/api': 'http://localhost:3000', '^/calendar/.+\\.ics$': 'http://localhost:3000' },
   },
   preview: { port: 4173, strictPort: true },
   build: {

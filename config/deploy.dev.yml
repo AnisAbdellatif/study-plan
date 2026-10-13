@@ -15,7 +15,6 @@ env:
     PUBLIC_URL: https://dev.study-plan.de
     # Off, so test data never e-mails reminders. Set to 60 to test them.
     REMINDER_INTERVAL_MINUTES: 0
-    # Calendar feeds stay on the dev domain, under https://dev.study-plan.de/ics/.
 
 accessories:
   postgres:

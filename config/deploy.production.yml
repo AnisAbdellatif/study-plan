@@ -7,16 +7,12 @@ servers:
       env-file: /opt/study-plan/app.env
 
 proxy:
-  # ics.study-plan.de serves the calendar feeds only (CALENDAR_FEED_URL below); the app answers nothing else there.
-  hosts:
-    - study-plan.de
-    - ics.study-plan.de
+  host: study-plan.de
 
 env:
   clear:
     PUBLIC_URL: https://study-plan.de
     REMINDER_INTERVAL_MINUTES: 60
-    CALENDAR_FEED_URL: https://ics.study-plan.de
 
 accessories:
   postgres:

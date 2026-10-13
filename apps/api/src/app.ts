@@ -12,7 +12,7 @@ import type { MonitoredMailer } from './mail.ts'
 import { UNSUBSCRIBE_PATH } from './reminders.ts'
 import { accountRoutes } from './routes/account.ts'
 import { adminRoutes, requireAdmin } from './routes/admin.ts'
-import { calendarFeedRoutes, calendarRoutes } from './routes/calendar.ts'
+import { CALENDAR_FEED_PATH, calendarFeedRoutes, calendarRoutes } from './routes/calendar.ts'
 import { chatRoutes } from './routes/chat.ts'
 import { contactRoutes } from './routes/contact.ts'
 import { notificationSettingsRoutes, unsubscribeRoutes } from './routes/notifications.ts'
@@ -40,12 +40,8 @@ export interface AppDependencies {
 
 export function createApp({ config, db, auth, mailer, llm, staticFiles, calendarFetcher }: AppDependencies) {
   const app = new Hono<AppEnv>()
-  const feedBase = new URL(config.calendar.feedUrl)
-  const feedPath = feedBase.pathname.replace(/\/+$/, '')
-  // Production serves feeds from their own host (ics.study-plan.de), which answers nothing else.
-  const feedHost = feedBase.host !== new URL(config.publicUrl).host ? feedBase.host : null
   const isFeedRequest = (c: Context) =>
-    feedHost ? c.req.header('host') === feedHost : feedPath !== '' && c.req.path.startsWith(`${feedPath}/`)
+    c.req.path.startsWith(`${CALENDAR_FEED_PATH}/`) && c.req.path.endsWith('.ics')
 
   if (config.env !== 'test') {
     app.use('*', async (c, next) => {
@@ -59,10 +55,6 @@ export function createApp({ config, db, auth, mailer, llm, staticFiles, calendar
       )
     })
   }
-
-  const feeds = new Hono<AppEnv>().route(feedPath || '/', calendarFeedRoutes(db, config))
-  if (feedHost)
-    app.use('*', async (c, next) => (isFeedRequest(c) ? await feeds.fetch(c.req.raw) : await next()))
 
   app.use(
     '*',
@@ -139,8 +131,8 @@ export function createApp({ config, db, auth, mailer, llm, staticFiles, calendar
   // Public: the contact form, limited per client.
   app.route('/api/contact', contactRoutes(config, mailer))
   app.all('/api/*', (c) => c.json({ error: 'not_found' }, 404))
-  // Public: calendar feeds on the main host, in development and wherever no feed host is set.
-  if (!feedHost && feedPath !== '') app.route(feedPath, calendarFeedRoutes(db, config))
+  // Public: calendar feeds, next to the calendar page of the web app, which keeps every other /calendar path.
+  app.route(CALENDAR_FEED_PATH, calendarFeedRoutes(db, config))
 
   if (staticFiles) {
     app.use('/*', staticFiles.assets)

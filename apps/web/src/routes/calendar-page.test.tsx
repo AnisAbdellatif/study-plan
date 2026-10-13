@@ -81,7 +81,7 @@ const connected = (settings: CalendarSettings): CalendarOverview => ({
       id: 'f1',
       name: 'Stundenplan',
       subjects: null,
-      url: 'https://ics.study-plan.de/f1/AAAAAAAAAAAAAAAAAAAAAA.ics',
+      url: 'https://study-plan.de/calendar/f1/AAAAAAAAAAAAAAAAAAAAAA.ics',
       createdAt: '2026-10-13T05:00:00.000Z',
     },
   ],
@@ -162,11 +162,11 @@ describe('calendar page', () => {
 
     expect(await screen.findByText('Verbunden mit studip.uni-hannover.de')).toBeInTheDocument()
     expect(screen.getByLabelText('Abo-Link für Stundenplan')).toHaveValue(
-      'https://ics.study-plan.de/f1/AAAAAAAAAAAAAAAAAAAAAA.ics',
+      'https://study-plan.de/calendar/f1/AAAAAAAAAAAAAAAAAAAAAA.ics',
     )
     expect(screen.getByRole('link', { name: 'Abonnieren' })).toHaveAttribute(
       'href',
-      'webcal://ics.study-plan.de/f1/AAAAAAAAAAAAAAAAAAAAAA.ics',
+      'webcal://study-plan.de/calendar/f1/AAAAAAAAAAAAAAAAAAAAAA.ics',
     )
     expect(screen.getByText('Alle Fächer · 4 Termine')).toBeInTheDocument()
     expect(screen.getByRole('checkbox', { name: 'Rechnernetze in den Kalendern' })).toBeChecked()

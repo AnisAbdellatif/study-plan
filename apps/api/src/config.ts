@@ -46,8 +46,6 @@ const envSchema = z.object({
   OPENROUTER_MODEL: optionalText,
   /** Only for tests or a compatible proxy; defaults to OpenRouter itself. */
   OPENROUTER_BASE_URL: optionalUrl,
-  /** Where calendar feeds are served, e.g. https://ics.study-plan.de. Defaults to <PUBLIC_URL>/ics. */
-  CALENDAR_FEED_URL: optionalUrl,
   /** Comma-separated Stud.IP hosts whose calendar links students may add. The server fetches nothing else. */
   CALENDAR_SOURCE_HOSTS: z.string().default('studip.uni-hannover.de'),
   /** How often each calendar is fetched again, in minutes. 0 turns fetching off for this process. */
@@ -77,8 +75,6 @@ export interface Config {
   /** The study assistant's model access; undefined without an API key. */
   chat: { apiKey: string; model: string; baseUrl: string | undefined } | undefined
   calendar: {
-    /** Without trailing slash. When its host differs from the public URL's, that host serves feeds only. */
-    feedUrl: string
     sourceHosts: string[]
     /** 0 when fetching is off. */
     refreshMinutes: number
@@ -130,7 +126,6 @@ export function loadConfig(source: Record<string, string | undefined> = process.
         }
       : undefined,
     calendar: {
-      feedUrl: (env.CALENDAR_FEED_URL ?? `${env.PUBLIC_URL.replace(/\/+$/, '')}/ics`).replace(/\/+$/, ''),
       sourceHosts: env.CALENDAR_SOURCE_HOSTS.split(',')
         .map((host) => host.trim().toLowerCase())
         .filter((host) => host.length > 0),

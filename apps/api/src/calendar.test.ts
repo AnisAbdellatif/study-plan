@@ -71,7 +71,7 @@ async function registerVerifiedUser(email: string): Promise<string> {
     .join('; ')
 }
 
-/** The path of a feed URL, which the test app serves under PUBLIC_URL/ics. */
+/** The path of a feed URL, which the app serves under PUBLIC_URL/calendar. */
 const feedPath = (url: string) => new URL(url).pathname
 
 describe('calendar feeds', () => {
@@ -129,7 +129,7 @@ describe('calendar feeds', () => {
       expect.objectContaining({
         name: 'Stundenplan',
         subjects: null,
-        url: expect.stringMatching(/^http:\/\/localhost:5173\/ics\/[0-9a-f-]{36}\/[\w-]{22}\.ics$/),
+        url: expect.stringMatching(/^http:\/\/localhost:5173\/calendar\/[0-9a-f-]{36}\/[\w-]{22}\.ics$/),
       }),
     ])
   })
@@ -150,7 +150,7 @@ describe('calendar feeds', () => {
 
     const wrong = feedPath(feed.url).replace(/\/[\w-]{22}\.ics$/, '/AAAAAAAAAAAAAAAAAAAAAA.ics')
     expect((await app.request(wrong)).status).toBe(404)
-    expect((await app.request('/ics/not-a-uuid/AAAAAAAAAAAAAAAAAAAAAA.ics')).status).toBe(404)
+    expect((await app.request('/calendar/not-a-uuid/AAAAAAAAAAAAAAAAAAAAAA.ics')).status).toBe(404)
   })
 
   it('applies the student’s choices to every feed', async () => {
@@ -327,25 +327,23 @@ describe('calendar feeds', () => {
   })
 })
 
-describe('a separate feed host', () => {
-  it('answers feeds only on that host, and the app only on its own', async () => {
-    const separate = loadConfig({
-      NODE_ENV: 'test',
-      PUBLIC_URL: 'https://study-plan.de',
-      CALENDAR_FEED_URL: 'https://ics.study-plan.de',
-      BETTER_AUTH_SECRET: 'test-secret-that-is-long-enough-for-better-auth',
+describe('feed paths', () => {
+  it('leave the calendar page and every other /calendar path to the web app', async () => {
+    const auth = createAuth({ config, db: connection.db, mailer })
+    const withWeb = createApp({
+      config,
+      db: connection.db,
+      auth,
+      mailer,
+      calendarFetcher: fetcher,
+      staticFiles: { assets: (_c, next) => next(), index: async (c) => c.text('web app') },
     })
-    const auth = createAuth({ config: separate, db: connection.db, mailer })
-    const hosted = createApp({ config: separate, db: connection.db, auth, mailer, calendarFetcher: fetcher })
-    const onFeedHost = (path: string) =>
-      hosted.request(`https://ics.study-plan.de${path}`, { headers: { host: 'ics.study-plan.de' } })
-    expect((await onFeedHost('/api/health')).status).toBe(404)
-    expect(
-      await (await onFeedHost('/00000000-0000-4000-8000-000000000000/AAAAAAAAAAAAAAAAAAAAAA.ics')).text(),
-    ).toBe('Not found')
-    const onApp = await hosted.request('https://study-plan.de/api/health', {
-      headers: { host: 'study-plan.de' },
-    })
-    expect(await onApp.json()).toEqual({ status: 'ok' })
+    expect(await (await withWeb.request('/calendar')).text()).toBe('web app')
+    expect(await (await withWeb.request('/calendar/settings/x')).text()).toBe('web app')
+    const feed = await withWeb.request(
+      '/calendar/00000000-0000-4000-8000-000000000000/AAAAAAAAAAAAAAAAAAAAAA.ics',
+    )
+    expect(feed.status).toBe(404)
+    expect(await feed.text()).toBe('Not found')
   })
 })
