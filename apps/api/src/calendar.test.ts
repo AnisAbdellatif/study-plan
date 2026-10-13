@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import type { CalendarOverview } from '@study-plan/shared'
 import { eq } from 'drizzle-orm'
+import postgres from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { createApp } from './app.ts'
 import { createAuth } from './auth.ts'
@@ -10,9 +11,25 @@ import { type DatabaseConnection, openDatabase } from './db/connection.ts'
 import { calendarSource } from './db/schema.ts'
 import { createMemoryMailer } from './mail.ts'
 
+/**
+ * CI also runs these tests against a real PostgreSQL server (TEST_DATABASE_URL). app.test.ts migrates that database
+ * at the same time, so this file gets a database of its own on the server.
+ */
+async function ownDatabase(name: string): Promise<string> {
+  const server = process.env.TEST_DATABASE_URL
+  if (!server) return 'pglite://memory'
+  const admin = postgres(server, { max: 1 })
+  await admin.unsafe(`DROP DATABASE IF EXISTS ${name}`)
+  await admin.unsafe(`CREATE DATABASE ${name}`)
+  await admin.end()
+  const url = new URL(server)
+  url.pathname = `/${name}`
+  return url.toString()
+}
+
 const config = loadConfig({
   NODE_ENV: 'test',
-  DATABASE_URL: process.env.TEST_DATABASE_URL ?? 'pglite://memory',
+  DATABASE_URL: await ownDatabase('calendar_test'),
   PUBLIC_URL: 'http://localhost:5173',
   BETTER_AUTH_SECRET: 'test-secret-that-is-long-enough-for-better-auth',
 })
