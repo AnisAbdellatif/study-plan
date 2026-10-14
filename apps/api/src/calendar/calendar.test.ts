@@ -1,10 +1,14 @@
 import { readFileSync } from 'node:fs'
 import {
   type CalendarEvent,
+  calendarColor,
+  calendarSelectionSchema,
   calendarSettingsSchema,
   calendarSubjects,
   eventTitle,
   feedEvents,
+  groupedEvents,
+  mixedFeedEvents,
   slotKey,
   withSubjectColors,
 } from '@study-plan/shared'
@@ -364,5 +368,53 @@ describe('changes', () => {
     expect(alertItems(changes, added, settings(), 'de')).toEqual([
       { kind: 'added', title: 'Datenbanksysteme · Vorlesung', start: added[0]?.start, count: 4 },
     ])
+  })
+})
+
+describe('custom colours', () => {
+  it('accepts presets and any #rrggbb, and nothing else', () => {
+    const color = (value: string) => calendarSelectionSchema.safeParse({ subjects: { A: { color: value } } })
+    expect(color('royalblue').success).toBe(true)
+    expect(color('#1E90FF').data?.subjects.A?.color).toBe('#1e90ff')
+    for (const wrong of ['blue', '#12345', 'red; X-EVIL:1', '#12345g'])
+      expect(color(wrong).success, wrong).toBe(false)
+  })
+
+  it('goes out as the nearest CSS name, with its exact hex and the nearest round emoji', () => {
+    expect(calendarColor('#1e90ff')).toEqual({ name: 'dodgerblue', hex: '#1e90ff', dot: '🔵' })
+    expect(calendarColor('#ff6348')).toMatchObject({ name: 'tomato', dot: '🔴' })
+    expect(calendarColor('royalblue')).toMatchObject({ name: 'royalblue', hex: '#4169e1' })
+    expect(calendarColor('nope')).toBeUndefined()
+  })
+
+  it('keeps custom colours when giving new subjects presets', () => {
+    const chosen = withSubjectColors(settings({ subjects: { A: { color: '#123456' } } }), ['A', 'B'])
+    expect(chosen.subjects.A?.color).toBe('#123456')
+    expect(chosen.subjects.B?.color).toBe('tomato')
+  })
+})
+
+describe('grouping courses', () => {
+  it('puts courses into the subject the student chose', () => {
+    const events = sampleEvents()
+    const grouped = groupedEvents(events, {
+      courseSubjects: { 'Übung: Übung Datenbanksysteme': 'Rechnernetze' },
+    })
+    expect(grouped.filter((event) => event.subject === 'Rechnernetze')).toHaveLength(16)
+    expect(grouped.filter((event) => event.subject === 'Datenbanksysteme')).toHaveLength(4)
+    // The originals stay as they were.
+    expect(events.filter((event) => event.subject === 'Rechnernetze')).toHaveLength(8)
+  })
+
+  it('applies the grouping to feeds, so subject feeds and choices follow it', () => {
+    const chosen = settings({
+      courseSubjects: { 'Vorlesung: Datenbanksysteme': 'DB und RN', 'Vorlesung: Rechnernetze': 'DB und RN' },
+      subjects: { 'DB und RN': { shortName: 'DBRN' } },
+    })
+    const dates = mixedFeedEvents([{ events: sampleEvents(), settings: chosen }], ['DB und RN'])
+    expect(dates).toHaveLength(8)
+    expect(new Set(dates.map(({ event }) => eventTitle(event, chosen, LABELS)))).toEqual(
+      new Set(['DBRN · Vorlesung']),
+    )
   })
 })

@@ -8,6 +8,7 @@ import {
   calendarSelectionSchema,
   calendarSubjects,
   eventTitle,
+  groupedEvents,
   isEventIncluded,
   linkSettings,
   withSubjectColors,
@@ -186,8 +187,10 @@ export async function refreshSource(
       .where(eq(calendarSource.id, row.id))
       .for('update')
     if (!account || !current) return null
-    // New subjects get colours; the student's choices for the link stay.
-    const selection = withSubjectColors(readSelection(current.selection), calendarSubjects(result.events))
+    // New subjects get colours; the student's choices for the link stay. Subjects are the student's grouping.
+    const chosen = readSelection(current.selection)
+    const grouped = groupedEvents(result.events, chosen)
+    const selection = withSubjectColors(chosen, calendarSubjects(grouped))
     await tx
       .update(calendarSource)
       .set({
@@ -204,7 +207,7 @@ export async function refreshSource(
     const settings = linkSettings(readDisplay(account.settings), selection)
     // The first fetch of a link has nothing to compare with.
     const changes = row.lastSuccessAt
-      ? diffEvents(row.events, result.events, settings, now).map((change) => ({
+      ? diffEvents(groupedEvents(row.events, selection), grouped, settings, now).map((change) => ({
           ...change,
           sourceId: row.id,
         }))
@@ -215,7 +218,7 @@ export async function refreshSource(
         .set({ changes: [...changes, ...account.changes].slice(0, MAX_STORED_CHANGES), updatedAt: now })
         .where(eq(calendar.userId, row.userId))
     }
-    return { events: result.events, settings, changes }
+    return { events: grouped, settings, changes }
   })
   if (!stored) return 'updated'
   const { events, settings, changes } = stored

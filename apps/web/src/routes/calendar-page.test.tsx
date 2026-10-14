@@ -8,7 +8,7 @@ import {
   calendarSelectionSchema,
 } from '@study-plan/shared'
 import { createMemoryHistory, RouterProvider } from '@tanstack/react-router'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import i18n from '../i18n/index.ts'
@@ -298,6 +298,82 @@ describe('calendar page', () => {
     await user.keyboard('{ArrowLeft}')
     expect(first).toHaveAttribute('aria-selected', 'true')
     expect(first).toHaveFocus()
+  })
+
+  it('moves a course to another subject and back', async () => {
+    const { savedSelections } = mockApi(connected())
+    const user = renderCalendar()
+    // Subjects are sorted: Datenbanksysteme first, with its one course.
+    const [moveDatabases] = await screen.findAllByRole('button', { name: 'Fach ändern' })
+    if (!moveDatabases) throw new Error('no move button')
+    await user.click(moveDatabases)
+    let dialog = await screen.findByRole('dialog', { name: 'Fach für „Vorlesung: Datenbanksysteme“' })
+    expect(within(dialog).getByRole('button', { name: 'Übernehmen' })).toBeDisabled()
+    await user.click(within(dialog).getByRole('radio', { name: 'Rechnernetze' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Übernehmen' }))
+
+    expect(
+      screen.queryByRole('checkbox', { name: 'Datenbanksysteme in den Kalendern' }),
+    ).not.toBeInTheDocument()
+    expect(screen.getByText('In Stud.IP: Datenbanksysteme')).toBeInTheDocument()
+    expect(screen.getByText('1 von 1 Fächern ausgewählt · 4 Termine')).toBeInTheDocument()
+    await waitFor(
+      () =>
+        expect(savedSelections.at(-1)?.selection.courseSubjects).toEqual({
+          'Vorlesung: Datenbanksysteme': 'Rechnernetze',
+        }),
+      { timeout: 2000 },
+    )
+
+    // Back to the subject Stud.IP gives it: no entry needed any more.
+    const movedRow = screen.getByText('In Stud.IP: Datenbanksysteme').closest('div')
+    if (!movedRow) throw new Error('no moved course')
+    await user.click(within(movedRow).getByRole('button', { name: 'Fach ändern' }))
+    dialog = await screen.findByRole('dialog')
+    expect(dialog).toHaveTextContent('Datenbanksysteme (wie in Stud.IP)')
+    await user.click(within(dialog).getByRole('radio', { name: /^Datenbanksysteme/ }))
+    await user.click(within(dialog).getByRole('button', { name: 'Übernehmen' }))
+    expect(
+      await screen.findByRole('checkbox', { name: 'Datenbanksysteme in den Kalendern' }),
+    ).toBeInTheDocument()
+    await waitFor(() => expect(savedSelections.at(-1)?.selection.courseSubjects).toEqual({}), {
+      timeout: 2000,
+    })
+  })
+
+  it('merges a subject into a new one, which gets a colour', async () => {
+    const { savedSelections } = mockApi(connected())
+    const user = renderCalendar()
+    const [, mergeNetworks] = await screen.findAllByRole('button', { name: 'Zusammenführen' })
+    if (!mergeNetworks) throw new Error('no merge button')
+    await user.click(mergeNetworks)
+    const dialog = await screen.findByRole('dialog', {
+      name: '„Rechnernetze“ mit einem anderen Fach zusammenführen',
+    })
+    await user.click(within(dialog).getByRole('radio', { name: 'Neues Fach:' }))
+    await user.type(within(dialog).getByLabelText('Name des neuen Fachs'), 'Netze')
+    await user.click(within(dialog).getByRole('button', { name: 'Übernehmen' }))
+
+    expect(await screen.findByRole('checkbox', { name: 'Netze in den Kalendern' })).toBeInTheDocument()
+    await waitFor(() => expect(savedSelections.at(-1)?.selection.subjects.Netze?.color).toBeDefined(), {
+      timeout: 2000,
+    })
+    expect(savedSelections.at(-1)?.selection.courseSubjects).toEqual({
+      'Vorlesung: Rechnernetze': 'Netze',
+      'Übung: Übung Rechnernetze': 'Netze',
+    })
+  })
+
+  it('takes a custom colour next to the presets', async () => {
+    const { savedSelections } = mockApi(connected())
+    renderCalendar()
+    const [custom] = await screen.findAllByLabelText('Eigene Farbe')
+    if (!custom) throw new Error('no colour input')
+    fireEvent.change(custom, { target: { value: '#1e90ff' } })
+    await waitFor(
+      () => expect(savedSelections.at(-1)?.selection.subjects.Datenbanksysteme?.color).toBe('#1e90ff'),
+      { timeout: 2000 },
+    )
   })
 
   it('makes calendars that mix links', async () => {

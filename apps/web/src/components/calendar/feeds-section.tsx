@@ -5,6 +5,7 @@ import {
   type CalendarSourceView,
   calendarColor,
   calendarSubjects,
+  groupedEvents,
   linkSettings,
   mixedFeedEvents,
 } from '@study-plan/shared'
@@ -53,10 +54,11 @@ const settingsOf = (context: LinkContext, id: string) => {
 }
 
 /** The subjects of a link the student keeps. */
-const keptSubjects = (context: LinkContext, source: CalendarSourceView) =>
-  calendarSubjects(source.events).filter(
-    (subject) => !context.selections[source.id]?.excludedSubjects.includes(subject),
-  )
+const keptSubjects = (context: LinkContext, source: CalendarSourceView) => {
+  const selection = context.selections[source.id]
+  const events = selection ? groupedEvents(source.events, selection) : source.events
+  return calendarSubjects(events).filter((subject) => !selection?.excludedSubjects.includes(subject))
+}
 
 function feedDates(context: LinkContext, feed: Pick<CalendarFeedView, 'sources' | 'subjects'>) {
   const links = feed.sources.flatMap((id) => {

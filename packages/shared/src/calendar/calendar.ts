@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { CSS_COLOR_NAMES } from './css-colors.ts'
 
 /**
  * Calendar feeds: a student's university calendar (Stud.IP) filtered and renamed into feeds they subscribe to.
@@ -43,19 +44,82 @@ export const CALENDAR_COLORS = [
 ] as const
 
 export type CalendarColorName = (typeof CALENDAR_COLORS)[number]['name']
-export type CalendarColor = (typeof CALENDAR_COLORS)[number]
+
+/** A colour ready for a feed: CSS name for COLOR, hex for previews and Apple Calendar, round emoji for titles. */
+export interface CalendarColor {
+  name: string
+  hex: string
+  dot: string
+}
 
 const colorNames = CALENDAR_COLORS.map((color) => color.name) as [CalendarColorName, ...CalendarColorName[]]
+const HEX_COLOR = /^#[0-9a-f]{6}$/
 
-export const calendarColor = (name: string | undefined): CalendarColor | undefined =>
-  CALENDAR_COLORS.find((color) => color.name === name)
+/** A preset by name, or any colour the student picks, as #rrggbb. */
+export const calendarColorValueSchema = z.union([
+  z.enum(colorNames),
+  z
+    .string()
+    .transform((value) => value.toLowerCase())
+    .pipe(z.string().regex(HEX_COLOR)),
+])
+
+const rgb = (hex: string): [number, number, number] => [
+  Number.parseInt(hex.slice(1, 3), 16),
+  Number.parseInt(hex.slice(3, 5), 16),
+  Number.parseInt(hex.slice(5, 7), 16),
+]
+
+/** Perceived distance between two colours (the "redmean" approximation, good enough to pick a near name). */
+function colorDistance(a: string, b: string): number {
+  const [r1, g1, b1] = rgb(a)
+  const [r2, g2, b2] = rgb(b)
+  const mean = (r1 + r2) / 2
+  const dr = r1 - r2
+  const dg = g1 - g2
+  const db = b1 - b2
+  return (2 + mean / 256) * dr * dr + 4 * dg * dg + (2 + (255 - mean) / 256) * db * db
+}
+
+function nearest<T>(hex: string, candidates: readonly T[], hexOf: (candidate: T) => string): T | undefined {
+  let best: T | undefined
+  let bestDistance = Number.POSITIVE_INFINITY
+  for (const candidate of candidates) {
+    const distance = colorDistance(hex, hexOf(candidate))
+    if (distance < bestDistance) {
+      best = candidate
+      bestDistance = distance
+    }
+  }
+  return best
+}
+
+const CSS_COLORS = Object.entries(CSS_COLOR_NAMES)
+
+/**
+ * A preset or custom colour as feeds need it. Calendar files only allow CSS colour names (RFC 7986), so a custom
+ * colour goes out as the nearest name; Apple Calendar and the page use its exact value.
+ */
+export function calendarColor(value: string | undefined): CalendarColor | undefined {
+  if (!value) return undefined
+  const preset = CALENDAR_COLORS.find((color) => color.name === value)
+  if (preset) return preset
+  const hex = value.toLowerCase()
+  if (!HEX_COLOR.test(hex)) return undefined
+  const [name = 'gray'] = nearest(hex, CSS_COLORS, ([, cssHex]) => cssHex) ?? []
+  const dot = nearest(hex, CALENDAR_COLORS, (color) => color.hex)?.dot ?? '⚫'
+  return { name, hex, dot }
+}
+
+export const isPresetColor = (value: string | undefined): boolean =>
+  CALENDAR_COLORS.some((color) => color.name === value)
 
 const key = z.string().min(1).max(500)
 
 export const subjectSettingsSchema = z.object({
   /** Replaces the subject's name in event titles. */
   shortName: z.string().trim().max(80).optional(),
-  color: z.enum(colorNames).optional(),
+  color: calendarColorValueSchema.optional(),
 })
 
 /** What one link contributes: its subjects' names and colours, and the dates the student leaves out. */
@@ -69,6 +133,11 @@ export const calendarSelectionSchema = z.object({
   excludedSlots: z.array(key).max(2000).default([]),
   /** Single dates left out, by UID. */
   hiddenEvents: z.array(key).max(5000).default([]),
+  /**
+   * Courses the student put into another subject than the one read from their title, by course: for courses of
+   * one Veranstaltung named differently, for example.
+   */
+  courseSubjects: z.record(key, z.string().trim().min(1).max(200)).default({}),
 })
 
 /** How dates look in every feed of the account, and whether changes are mailed. */
@@ -101,7 +170,24 @@ export const selectionOf = (settings: CalendarSettings): CalendarSelection => ({
   excludedCourses: settings.excludedCourses,
   excludedSlots: settings.excludedSlots,
   hiddenEvents: settings.hiddenEvents,
+  courseSubjects: settings.courseSubjects,
 })
+
+/**
+ * A link's dates with the subjects the student gave their courses. Everything after reading the upstream calendar
+ * (choices, titles, colours, feeds, alerts) works on these.
+ */
+export function groupedEvents(
+  events: readonly CalendarEvent[],
+  selection: Pick<CalendarSelection, 'courseSubjects'>,
+): CalendarEvent[] {
+  const overrides = selection.courseSubjects
+  if (Object.keys(overrides).length === 0) return [...events]
+  return events.map((event) => {
+    const subject = overrides[event.course]
+    return subject && subject !== event.subject ? { ...event, subject } : event
+  })
+}
 
 /** The settings that apply to the dates of a link. */
 export const linkSettings = (display: CalendarDisplay, selection: CalendarSelection): CalendarSettings => ({
@@ -176,7 +262,9 @@ export function withSubjectColors<T extends Pick<CalendarSettings, 'subjects'>>(
   const usage = new Map<CalendarColorName, number>(CALENDAR_COLORS.map((color) => [color.name, 0]))
   for (const subject of subjects) {
     const color = settings.subjects[subject]?.color
-    if (color) usage.set(color, (usage.get(color) ?? 0) + 1)
+    // Custom colours are no preset to avoid.
+    if (color && isPresetColor(color))
+      usage.set(color as CalendarColorName, (usage.get(color as CalendarColorName) ?? 0) + 1)
   }
   const next = { ...settings.subjects }
   for (const subject of missing) {
@@ -273,7 +361,8 @@ export interface LinkedEvent {
 }
 
 /**
- * The dates of a feed: those of each of its links that the link's choices keep, of the feed's subjects (null: all).
+ * The dates of a feed: those of each of its links that the link's choices keep, of the feed's subjects (null: all),
+ * with the subjects the student gave their courses.
  * A date in two links (same UID) counts once, with the settings of the first link. Sorted by start.
  */
 export function mixedFeedEvents(
@@ -283,7 +372,7 @@ export function mixedFeedEvents(
   const seen = new Set<string>()
   const mixed: LinkedEvent[] = []
   for (const link of links) {
-    for (const event of feedEvents(link.events, link.settings, subjects)) {
+    for (const event of feedEvents(groupedEvents(link.events, link.settings), link.settings, subjects)) {
       if (seen.has(event.uid)) continue
       seen.add(event.uid)
       mixed.push({ event, settings: link.settings })

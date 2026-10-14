@@ -278,6 +278,45 @@ describe('calendar feeds', () => {
     expect((await app.request(feedPath(fresh.url))).status).toBe(404)
   })
 
+  it('lets the student regroup courses and pick any colour', async () => {
+    const source = await firstSource()
+    const saved = await call(`/api/calendar/sources/${source.id}/selection`, {
+      method: 'PUT',
+      cookie,
+      body: {
+        ...source.selection,
+        courseSubjects: { 'Übung: Übung Datenbanksysteme': 'Datenbanken' },
+        subjects: { ...source.selection.subjects, Rechnernetze: { shortName: 'RN', color: '#1E90FF' } },
+      },
+    })
+    expect(saved.status).toBe(200)
+    const selection = await json<CalendarOverview['sources'][number]['selection']>(saved)
+    // The new subject gets a colour; the custom one is stored as typed, in lower case.
+    expect(selection.subjects.Datenbanken?.color).toBeDefined()
+    expect(selection.subjects.Rechnernetze?.color).toBe('#1e90ff')
+
+    const feed = await json<CalendarOverview['feeds'][number]>(
+      await call('/api/calendar/feeds', {
+        method: 'POST',
+        cookie,
+        body: { name: 'DB', sources: [source.id], subjects: ['Datenbanken'] },
+      }),
+    )
+    const body = await feedBody(feed.url)
+    expect(count(body)).toBe(8)
+    expect(body).toContain('SUMMARY:Datenbanken · Übung')
+    const all = await feedBody((await overview()).feeds[0]?.url ?? '')
+    // Calendar files only take CSS colour names: the custom colour goes out as the nearest one.
+    expect(all).toContain('COLOR:dodgerblue')
+
+    await call(`/api/calendar/feeds/${feed.id}`, { method: 'DELETE', cookie })
+    await call(`/api/calendar/sources/${source.id}/selection`, {
+      method: 'PUT',
+      cookie,
+      body: source.selection,
+    })
+  })
+
   it('keeps other students out of feeds and links', async () => {
     const other = await registerVerifiedUser('andere@example.org')
     const source = await firstSource()

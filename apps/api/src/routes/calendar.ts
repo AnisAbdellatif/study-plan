@@ -9,6 +9,7 @@ import {
   calendarSelectionSchema,
   calendarSubjects,
   eventTitle,
+  groupedEvents,
   linkSettings,
   MAX_CALENDAR_SOURCES,
   mixedFeedEvents,
@@ -253,6 +254,7 @@ export function calendarRoutes(dependencies: CalendarDependencies) {
     const link = await checkLink(c, userId, body.data.url, source.id)
     if (!link.ok) return link.response
     const now = new Date()
+    const chosen = readSelection(source.selection)
     await db
       .update(calendarSource)
       .set({
@@ -266,7 +268,7 @@ export function calendarRoutes(dependencies: CalendarDependencies) {
         // Another link may be another calendar: nothing to compare with on its next fetch.
         lastSuccessAt: now,
         events: link.events,
-        selection: withSubjectColors(readSelection(source.selection), calendarSubjects(link.events)),
+        selection: withSubjectColors(chosen, calendarSubjects(groupedEvents(link.events, chosen))),
         updatedAt: now,
       })
       .where(eq(calendarSource.id, source.id))
@@ -279,11 +281,13 @@ export function calendarRoutes(dependencies: CalendarDependencies) {
     if (!body.success) return c.json({ error: 'invalid_request' }, 400)
     const source = await ownSource(c.get('user').id, c.req.param('id'))
     if (!source) return c.json({ error: 'not_found' }, 404)
+    // A subject made by moving a course gets a colour like any other.
+    const selection = withSubjectColors(body.data, calendarSubjects(groupedEvents(source.events, body.data)))
     await db
       .update(calendarSource)
-      .set({ selection: body.data, updatedAt: new Date() })
+      .set({ selection, updatedAt: new Date() })
       .where(eq(calendarSource.id, source.id))
-    return c.json(body.data)
+    return c.json(selection)
   })
 
   /**

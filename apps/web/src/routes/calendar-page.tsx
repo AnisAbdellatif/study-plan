@@ -7,6 +7,7 @@ import {
   type CalendarSourceView,
   calendarSubjects,
   feedEvents,
+  groupedEvents,
   linkSettings,
   selectionOf,
 } from '@study-plan/shared'
@@ -297,6 +298,7 @@ function ConnectForm({
           <li>{t('connect.step3')}</li>
         </ol>
       )}
+      {source ? null : <p className="text-xs text-zinc-600 dark:text-zinc-400">{t('connect.stepNote')}</p>}
       {error ? <Alert>{error}</Alert> : null}
       <div>
         <label htmlFor={inputId} className="block font-medium">
@@ -642,12 +644,13 @@ function SubjectsManager({
   const panelId = `${baseId}-panel`
 
   const summary = (source: CalendarSourceView) => {
-    const subjects = calendarSubjects(source.events)
-    const excluded = selections[source.id]?.excludedSubjects ?? []
+    const chosen = selections[source.id]
+    const subjects = calendarSubjects(chosen ? groupedEvents(source.events, chosen) : source.events)
+    const excluded = chosen?.excludedSubjects ?? []
     return { kept: subjects.filter((subject) => !excluded.includes(subject)).length, total: subjects.length }
   }
   const activeSummary = summary(active)
-  const keptDates = feedEvents(active.events, settings, null).length
+  const keptDates = feedEvents(groupedEvents(active.events, selection), settings, null).length
 
   const move = (from: number, step: number) => {
     const next = sources[(from + step + sources.length) % sources.length]
