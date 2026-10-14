@@ -2,6 +2,7 @@ import {
   type CalendarEvent,
   type CalendarOverview,
   type CalendarSettings,
+  type CalendarSourceView,
   calendarSettingsSchema,
 } from '@study-plan/shared'
 import { createMemoryHistory, RouterProvider } from '@tanstack/react-router'
@@ -55,27 +56,33 @@ const EVENTS = [
   event('c1', 'Vorlesung: Datenbanksysteme', '2026-10-14T13:00:00.000Z', { slot: '3|15:00|16:30' }),
 ]
 
-const connected = (settings: CalendarSettings): CalendarOverview => ({
-  source: {
-    host: 'studip.uni-hannover.de',
-    status: 'ok',
-    error: null,
-    lastFetchedAt: '2026-10-13T05:00:00.000Z',
-    lastSuccessAt: '2026-10-13T05:00:00.000Z',
-    settings,
-    events: EVENTS,
-    changes: [
-      {
-        kind: 'cancelled',
-        uid: 'a2',
-        subject: 'Rechnernetze',
-        course: 'Vorlesung: Rechnernetze',
-        start: '2026-10-20T13:00:00.000Z',
-        end: '2026-10-20T14:30:00.000Z',
-        detectedAt: '2026-10-13T05:00:00.000Z',
-      },
-    ],
-  },
+const sourceView = (id: string, label: string | null, eventCount: number): CalendarSourceView => ({
+  id,
+  host: 'studip.uni-hannover.de',
+  label,
+  status: 'ok',
+  error: null,
+  lastFetchedAt: '2026-10-13T05:00:00.000Z',
+  lastSuccessAt: '2026-10-13T05:00:00.000Z',
+  eventCount,
+  createdAt: '2026-10-13T05:00:00.000Z',
+})
+
+const connected = (settings: CalendarSettings, sources = [sourceView('s1', null, 4)]): CalendarOverview => ({
+  sources,
+  settings,
+  events: EVENTS,
+  changes: [
+    {
+      kind: 'cancelled',
+      uid: 'a2',
+      subject: 'Rechnernetze',
+      course: 'Vorlesung: Rechnernetze',
+      start: '2026-10-20T13:00:00.000Z',
+      end: '2026-10-20T14:30:00.000Z',
+      detectedAt: '2026-10-13T05:00:00.000Z',
+    },
+  ],
   feeds: [
     {
       id: 'f1',
@@ -87,17 +94,23 @@ const connected = (settings: CalendarSettings): CalendarOverview => ({
   ],
   allowedHosts: ['studip.uni-hannover.de'],
   refreshMinutes: 60,
+  maxSources: 4,
 })
 
 const EMPTY: CalendarOverview = {
-  source: null,
+  sources: [],
+  settings: null,
+  events: [],
+  changes: [],
   feeds: [],
   allowedHosts: ['studip.uni-hannover.de'],
   refreshMinutes: 60,
+  maxSources: 4,
 }
 
 function mockApi(initial: CalendarOverview) {
   const saved: CalendarSettings[] = []
+  const added: { link: string; label?: string }[] = initial.sources.map(() => ({ link: 'existing' }))
   const settings = calendarSettingsSchema.parse({
     subjects: { Rechnernetze: { color: 'royalblue' }, Datenbanksysteme: { color: 'tomato' } },
   })
@@ -105,12 +118,15 @@ function mockApi(initial: CalendarOverview) {
     const url = String(input)
     const method = init?.method ?? 'GET'
     if (url === '/api/calendar' && method === 'GET') return respond(initial)
-    if (url === '/api/calendar/source' && method === 'PUT') {
-      const { url: link } = JSON.parse(String(init?.body)) as { url: string }
+    if (url === '/api/calendar/sources' && method === 'POST') {
+      const { url: link, label } = JSON.parse(String(init?.body)) as { url: string; label?: string }
       if (!link.startsWith('https://studip.uni-hannover.de/'))
         return respond({ error: 'host_not_allowed' }, 400)
       if (link.endsWith('/kaputt')) return respond({ error: 'fetch_failed', reason: 'not_found' }, 422)
-      return respond(connected(settings))
+      if (link.endsWith('/doppelt')) return respond({ error: 'duplicate' }, 409)
+      added.push({ link, label })
+      const sources = added.map((item, index) => sourceView(`s${index + 1}`, item.label ?? null, 4))
+      return respond(connected(settings, sources), 201)
     }
     if (url === '/api/calendar/settings' && method === 'PUT') {
       const body = JSON.parse(String(init?.body)) as CalendarSettings
@@ -160,7 +176,8 @@ describe('calendar page', () => {
     await user.type(input, 'https://studip.uni-hannover.de/dispatch.php/ical/index/Ab12Cd34')
     await user.click(screen.getByRole('button', { name: 'Verbinden' }))
 
-    expect(await screen.findByText('Verbunden mit studip.uni-hannover.de')).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Deine Stud.IP-Links (1/4)' })).toBeInTheDocument()
+    expect(screen.getByText('Link 1')).toBeInTheDocument()
     expect(screen.getByLabelText('Abo-Link für Stundenplan')).toHaveValue(
       'https://study-plan.de/calendar/f1/AAAAAAAAAAAAAAAAAAAAAA.ics',
     )
@@ -189,6 +206,35 @@ describe('calendar page', () => {
     await waitFor(() => expect(saved.at(-1)?.subjects.Rechnernetze?.shortName).toBe('RN'), { timeout: 2000 })
     expect(saved.at(-1)?.excludedSubjects).toEqual(['Datenbanksysteme'])
     expect(await screen.findByText('Gespeichert')).toBeInTheDocument()
+  })
+
+  it('adds a second link with a name', async () => {
+    mockApi(connected(calendarSettingsSchema.parse({})))
+    const user = renderCalendar()
+    await user.click(await screen.findByRole('button', { name: 'Link hinzufügen' }))
+    const input = screen.getByLabelText('Link zu deinem Stud.IP-Kalender')
+    await user.type(input, 'https://studip.uni-hannover.de/dispatch.php/ical/index/doppelt')
+    await user.click(screen.getByRole('button', { name: 'Verbinden' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Diesen Link hast du schon hinzugefügt.')
+
+    await user.clear(input)
+    await user.type(input, 'https://studip.uni-hannover.de/dispatch.php/ical/index/Zw34Xy56')
+    await user.type(screen.getByLabelText('Name (optional)'), 'Zweitfach')
+    await user.click(screen.getByRole('button', { name: 'Verbinden' }))
+    expect(await screen.findByRole('heading', { name: 'Deine Stud.IP-Links (2/4)' })).toBeInTheDocument()
+    expect(screen.getByText('Zweitfach')).toBeInTheDocument()
+  })
+
+  it('offers no further link at the limit', async () => {
+    mockApi(
+      connected(
+        calendarSettingsSchema.parse({}),
+        ['s1', 's2', 's3', 's4'].map((id) => sourceView(id, null, 1)),
+      ),
+    )
+    renderCalendar()
+    expect(await screen.findByText('Mehr als 4 Links gehen nicht.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Link hinzufügen' })).not.toBeInTheDocument()
   })
 
   it('lists recent changes', async () => {

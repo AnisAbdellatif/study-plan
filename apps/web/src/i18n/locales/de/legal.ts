@@ -48,7 +48,7 @@ export const legal = {
         'Es gibt keine Werbung, kein Tracking, keine Analyse-Werkzeuge und keine eingebundenen Inhalte von Drittanbietern wie Schriften oder Skripte.',
       cookie: 'Wir setzen nur ein technisch notwendiges Cookie, und zwar erst, wenn du dich anmeldest.',
       calendar:
-        'Verbindest du deinen Stud.IP-Stundenplan, speichern wir den Link verschlüsselt und die Termine, um daraus deine Kalender-Abos zu erzeugen.',
+        'Verbindest du deinen Stud.IP-Stundenplan, speichern wir die Links verschlüsselt und die Termine, um daraus deine Kalender-Abos zu erzeugen.',
       sharing:
         'Teilst du einen Plan per Link, sieht man darüber Semester und Module, aber nie deine Ergebnisse oder Noten.',
       assistant:
@@ -97,7 +97,7 @@ export const legal = {
     },
     calendar: {
       heading: '7. Stundenplan-Kalender',
-      what: 'Angemeldet kannst du den Kalender-Link aus dem Stud.IP deiner Hochschule hinterlegen. Der Link enthält einen persönlichen Schlüssel. Wir speichern ihn verschlüsselt (AES-256-GCM), zeigen ihn nicht wieder an und rufen damit etwa stündlich deinen Stundenplan bei Stud.IP ab; dabei übermitteln wir nur den Link selbst.',
+      what: 'Angemeldet kannst du bis zu vier Kalender-Links aus dem Stud.IP deiner Hochschule hinterlegen, jeweils mit einem Namen, wenn du einen vergibst. Jeder Link enthält einen persönlichen Schlüssel. Wir speichern die Links verschlüsselt (AES-256-GCM), zeigen sie nicht wieder an und rufen damit etwa stündlich deinen Stundenplan bei Stud.IP ab; dabei übermitteln wir nur den jeweiligen Link selbst.',
       stored:
         'Wir speichern die abgerufenen Termine (Titel der Veranstaltung, Zeit, Raum und Beschreibung), deine Auswahl, Kurznamen und Farben, deine Kalender mit ihren Namen und die letzten 50 bemerkten Änderungen. Jeder erfolgreiche Abruf ersetzt die Termine des vorherigen.',
       feeds:
@@ -105,7 +105,7 @@ export const legal = {
       alerts:
         'Schaltest du Änderungsmeldungen ein, schicken wir dir eine E-Mail mit Veranstaltung, Zeit und Raum geänderter Termine. Du schaltest sie auf der Kalenderseite oder über den Link in jeder Meldung aus.',
       deletion:
-        'Entfernst du die Verbindung oder löschst du dein Konto, löschen wir den Link, alle Termine, deine Auswahl und alle Abo-Links. Rechtsgrundlage ist die Erfüllung des Nutzungsvertrags (Art. 6 Abs. 1 lit. b DSGVO).',
+        'Entfernst du einen Link, löschen wir ihn und seine Termine. Entfernst du den letzten Link oder löschst du dein Konto, löschen wir außerdem deine Auswahl und alle Abo-Links. Rechtsgrundlage ist die Erfüllung des Nutzungsvertrags (Art. 6 Abs. 1 lit. b DSGVO).',
     },
     emails: {
       heading: '8. E-Mails',

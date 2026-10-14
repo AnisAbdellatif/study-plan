@@ -92,6 +92,20 @@
       "when": 1791861654085,
       "tag": "0012_calendar_feeds",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1791964694419,
+      "tag": "0013_calendar_accounts",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1791964706187,
+      "tag": "0014_calendar_sources",
+      "breakpoints": true
     }
   ]
 }

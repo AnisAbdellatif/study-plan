@@ -48,7 +48,7 @@ export const legal = {
         'There is no advertising, no tracking, no analytics tools and no embedded third-party content such as fonts or scripts.',
       cookie: 'We only set one technically necessary cookie, and only once you sign in.',
       calendar:
-        'If you connect your Stud.IP timetable, we store the link encrypted and the dates, to build your calendar subscriptions from them.',
+        'If you connect your Stud.IP timetable, we store the links encrypted and the dates, to build your calendar subscriptions from them.',
       sharing:
         'If you share a plan via a link, the link shows semesters and modules, but never your results or grades.',
       assistant:
@@ -96,7 +96,7 @@ export const legal = {
     },
     calendar: {
       heading: '7. Timetable calendar',
-      what: 'When signed in, you can store the calendar link from your university’s Stud.IP. The link contains a personal key. We store it encrypted (AES-256-GCM), never show it again and use it about hourly to fetch your timetable from Stud.IP; we send only the link itself.',
+      what: 'When signed in, you can store up to four calendar links from your university’s Stud.IP, each with a name if you give one. Each link contains a personal key. We store the links encrypted (AES-256-GCM), never show them again and use them about hourly to fetch your timetable from Stud.IP; we send only the respective link itself.',
       stored:
         'We store the fetched dates (course title, time, room and description), your choices, short names and colours, your calendars with their names and the last 50 changes we noticed. Each successful fetch replaces the dates of the previous one.',
       feeds:
@@ -104,7 +104,7 @@ export const legal = {
       alerts:
         'If you turn on change alerts, we email you the course, time and room of changed dates. You turn them off on the calendar page or through the link in every alert.',
       deletion:
-        'If you remove the connection or delete your account, we delete the link, all dates, your choices and every subscription link. The legal basis is the performance of the user agreement (Art. 6(1)(b) GDPR).',
+        'If you remove a link, we delete it and its dates. If you remove the last link or delete your account, we also delete your choices and every subscription link. The legal basis is the performance of the user agreement (Art. 6(1)(b) GDPR).',
     },
     emails: {
       heading: '8. Emails',

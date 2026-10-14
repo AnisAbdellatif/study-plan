@@ -4,6 +4,7 @@ import { decryptSourceUrl } from '../calendar/secrets.ts'
 import type { Config } from '../config.ts'
 import type { Database } from '../db/connection.ts'
 import {
+  calendar,
   calendarFeed,
   calendarSource,
   notificationSetting,
@@ -81,21 +82,26 @@ export function accountRoutes(db: Database, config: Config) {
       .innerJoin(plan, eq(reminderDelivery.planId, plan.id))
       .where(eq(plan.userId, userId))
 
-    const [source] = await db.select().from(calendarSource).where(eq(calendarSource.userId, userId))
-    const feeds = source
-      ? await db.select().from(calendarFeed).where(eq(calendarFeed.sourceId, source.id))
+    const [account] = await db.select().from(calendar).where(eq(calendar.userId, userId))
+    const sources = account
+      ? await db.select().from(calendarSource).where(eq(calendarSource.userId, userId))
       : []
-    const calendar = source
+    const feeds = account ? await db.select().from(calendarFeed).where(eq(calendarFeed.userId, userId)) : []
+    const calendarData = account
       ? {
-          link: decryptSourceUrl(config.authSecret, source.encryptedUrl),
-          status: source.status,
-          lastError: source.lastError,
-          lastFetchedAt: source.lastFetchedAt,
-          lastSuccessAt: source.lastSuccessAt,
-          createdAt: source.createdAt,
-          settings: source.settings,
-          events: source.events,
-          changes: source.changes,
+          settings: account.settings,
+          changes: account.changes,
+          createdAt: account.createdAt,
+          links: sources.map((source) => ({
+            link: decryptSourceUrl(config.authSecret, source.encryptedUrl),
+            label: source.label,
+            status: source.status,
+            lastError: source.lastError,
+            lastFetchedAt: source.lastFetchedAt,
+            lastSuccessAt: source.lastSuccessAt,
+            createdAt: source.createdAt,
+            events: source.events,
+          })),
           feeds: feeds.map((feed) => ({
             name: feed.name,
             subjects: feed.subjects,
@@ -120,7 +126,7 @@ export function accountRoutes(db: Database, config: Config) {
       shares,
       notifications: notifications ?? { examReminders: false, updatedAt: null },
       reminders,
-      calendar,
+      calendar: calendarData,
     })
   })
 

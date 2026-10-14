@@ -191,17 +191,21 @@ export interface CalendarFeedView {
 
 export type CalendarSourceStatus = 'pending' | 'ok' | 'error'
 
-/** The upstream calendar as the owner sees it. Never the upstream URL itself. */
+/** Stud.IP links one account may add; their dates end up in the same subjects and feeds. */
+export const MAX_CALENDAR_SOURCES = 4
+
+/** A Stud.IP link as the owner sees it. Never the link itself. */
 export interface CalendarSourceView {
+  id: string
   host: string
+  label: string | null
   status: CalendarSourceStatus
   /** Why the last fetch failed, when it did. */
   error: CalendarFetchError | null
   lastFetchedAt: string | null
   lastSuccessAt: string | null
-  settings: CalendarSettings
-  events: CalendarEvent[]
-  changes: CalendarChange[]
+  eventCount: number
+  createdAt: string
 }
 
 export type CalendarFetchError =
@@ -214,10 +218,31 @@ export type CalendarFetchError =
   | 'empty'
 
 export interface CalendarOverview {
-  source: CalendarSourceView | null
+  /** Oldest first; empty until the student adds a link. */
+  sources: CalendarSourceView[]
+  /** Null without links. */
+  settings: CalendarSettings | null
+  /** The dates of all links together, each UID once. */
+  events: CalendarEvent[]
+  changes: CalendarChange[]
   feeds: CalendarFeedView[]
   /** Hosts whose calendars can be added, e.g. "studip.uni-hannover.de". */
   allowedHosts: string[]
-  /** How often the server fetches the upstream calendar, in minutes. */
+  /** How often the server fetches each link, in minutes. */
   refreshMinutes: number
+  maxSources: number
+}
+
+/** The dates of several links as one list: a date that appears in two links (same UID) counts once. */
+export function mergeCalendarEvents(lists: readonly (readonly CalendarEvent[])[]): CalendarEvent[] {
+  const seen = new Set<string>()
+  const merged: CalendarEvent[] = []
+  for (const list of lists) {
+    for (const event of list) {
+      if (seen.has(event.uid)) continue
+      seen.add(event.uid)
+      merged.push(event)
+    }
+  }
+  return merged
 }

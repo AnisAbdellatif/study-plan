@@ -12,6 +12,10 @@ export const calendar = {
     hint: 'Der Link sieht so aus: https://{{host}}/dispatch.php/ical/index/…',
     label: 'Link zu deinem Stud.IP-Kalender',
     submit: 'Verbinden',
+    replace: 'Link ersetzen',
+    replaceHint: 'Füge den neuen Link aus Stud.IP ein. Deine Auswahl und deine Kalender bleiben.',
+    name: 'Name (optional)',
+    namePlaceholder: 'z. B. Hauptfach, Zweitfach',
     privacy:
       'Der Link enthält einen persönlichen Schlüssel. Wir speichern ihn verschlüsselt, zeigen ihn nie wieder an und rufen damit nur deinen Stundenplan ab. Mehr in der <privacy>Datenschutzerklärung</privacy>.',
     errors: {
@@ -19,6 +23,8 @@ export const calendar = {
         'Das ist kein Stud.IP-Kalenderlink. Er muss mit https://{{host}}/dispatch.php/ical/index/ beginnen.',
       host_not_allowed: 'Links von dieser Adresse werden nicht unterstützt. Möglich ist: {{hosts}}.',
       fetch_failed: 'Stud.IP hat den Kalender nicht geliefert: {{reason}}',
+      duplicate: 'Diesen Link hast du schon hinzugefügt.',
+      source_limit: 'Du kannst höchstens {{max}} Links hinzufügen.',
       generic: 'Das hat nicht geklappt. Bitte versuch es noch einmal.',
     },
   },
@@ -33,20 +39,27 @@ export const calendar = {
       'Stud.IP hat plötzlich keine Termine mehr geliefert. Deine Kalender zeigen weiter die letzten Termine.',
   },
   source: {
-    title: 'Verbindung',
-    connectedTo: 'Verbunden mit {{host}}',
+    title: 'Deine Stud.IP-Links ({{count}}/{{max}})',
+    intro:
+      'Bis zu {{max}} Kalender-Links, zum Beispiel für ein Zweitfach. Ihre Termine landen zusammen in deinen Fächern und Kalendern; doppelte Termine zählen einmal.',
+    fallbackName: 'Link {{number}}',
+    add: 'Link hinzufügen',
+    addTitle: 'Weiteren Stud.IP-Link hinzufügen',
+    limit: 'Mehr als {{max}} Links gehen nicht.',
     updated: 'Zuletzt abgeglichen: {{time}}',
     never: 'Noch nicht abgeglichen',
     every: 'Wird etwa alle {{minutes}} Minuten automatisch abgeglichen.',
     failed: 'Letzter Abgleich fehlgeschlagen: {{reason}}',
     refresh: 'Jetzt abgleichen',
     tooSoon: 'Gerade erst abgeglichen. Versuch es in einer Minute noch einmal.',
-    changeLink: 'Link ändern',
+    changeLink: 'Ändern',
     cancelChange: 'Abbrechen',
-    remove: 'Verbindung entfernen',
-    removeTitle: 'Verbindung entfernen?',
+    remove: 'Entfernen',
+    removeTitle: 'Link entfernen?',
     removeBody:
-      'Der Link, alle Termine, deine Auswahl und alle Kalender-Links werden gelöscht. Abonnierte Kalender bekommen danach keine Termine mehr.',
+      'Der Link und seine Termine werden gelöscht. Deine Kalender zeigen dann nur noch die Termine der anderen Links.',
+    removeLastBody:
+      'Das ist dein letzter Link. Er, alle Termine, deine Auswahl und alle Kalender-Links werden gelöscht. Abonnierte Kalender bekommen danach keine Termine mehr.',
     removeConfirm: 'Entfernen',
   },
   feeds: {

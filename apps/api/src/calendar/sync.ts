@@ -6,12 +6,13 @@ import {
   calendarSubjects,
   eventTitle,
   isEventIncluded,
+  mergeCalendarEvents,
   withSubjectColors,
 } from '@study-plan/shared'
 import { and, asc, eq, isNull, lt, or, sql } from 'drizzle-orm'
 import type { Config } from '../config.ts'
 import type { Database } from '../db/connection.ts'
-import { calendarSource, user } from '../db/schema.ts'
+import { calendar, calendarSource, user } from '../db/schema.ts'
 import { type CalendarChangeItem, calendarChangesMail, type Mailer, mailLocale } from '../mail.ts'
 import { UNSUBSCRIBE_PATH, unsubscribeToken } from '../reminders.ts'
 import { decryptSourceUrl } from './secrets.ts'
@@ -138,7 +139,7 @@ type SourceRow = typeof calendarSource.$inferSelect
 export type RefreshOutcome = 'updated' | 'failed' | 'skipped'
 
 /**
- * Fetches one source, stores the result and mails the changes. The caller must have claimed the source (see
+ * Fetches one link, stores its dates, updates the account's colours and changes, and mails the changes. The caller must have claimed the source (see
  * claimSource), so two runs never diff the same fetch twice. Failures keep the last good events: a calendar that
  * cannot be read must not empty the student's subscribed calendars.
  */
@@ -167,23 +168,44 @@ export async function refreshSource(
     return fail('empty')
   }
 
-  const settings = withSubjectColors(readSettings(row.settings), calendarSubjects(result.events))
-  // The first fetch has nothing to compare with.
-  const changes = row.lastSuccessAt ? diffEvents(row.events, result.events, settings, now) : []
-  await db
-    .update(calendarSource)
-    .set({
-      status: 'ok',
-      lastError: null,
-      failures: 0,
-      lastFetchedAt: now,
-      lastSuccessAt: now,
-      events: result.events,
-      settings,
-      changes: [...changes, ...row.changes].slice(0, MAX_STORED_CHANGES),
-      updatedAt: now,
-    })
-    .where(eq(calendarSource.id, row.id))
+  // The link's dates, the account's settings and its change list are written together; the account row is locked so
+  // two links of one student syncing at once don't overwrite each other's changes.
+  const stored = await db.transaction(async (tx) => {
+    await tx
+      .update(calendarSource)
+      .set({
+        status: 'ok',
+        lastError: null,
+        failures: 0,
+        lastFetchedAt: now,
+        lastSuccessAt: now,
+        events: result.events,
+        updatedAt: now,
+      })
+      .where(eq(calendarSource.id, row.id))
+    const [account] = await tx.select().from(calendar).where(eq(calendar.userId, row.userId)).for('update')
+    if (!account) return null
+    const sources = await tx
+      .select({ events: calendarSource.events })
+      .from(calendarSource)
+      .where(eq(calendarSource.userId, row.userId))
+      .orderBy(asc(calendarSource.createdAt), asc(calendarSource.id))
+    const events = mergeCalendarEvents(sources.map((source) => source.events))
+    const settings = withSubjectColors(readSettings(account.settings), calendarSubjects(events))
+    // The first fetch of a link has nothing to compare with.
+    const changes = row.lastSuccessAt ? diffEvents(row.events, result.events, settings, now) : []
+    await tx
+      .update(calendar)
+      .set({
+        settings,
+        changes: [...changes, ...account.changes].slice(0, MAX_STORED_CHANGES),
+        updatedAt: now,
+      })
+      .where(eq(calendar.userId, row.userId))
+    return { events, settings, changes }
+  })
+  if (!stored) return 'updated'
+  const { events, settings, changes } = stored
 
   if (changes.length > 0 && settings.changeAlerts) {
     const [owner] = await db
@@ -197,7 +219,7 @@ export async function refreshSource(
         await mailer.send(
           calendarChangesMail(
             owner.email,
-            alertItems(changes, result.events, settings, locale),
+            alertItems(changes, events, settings, locale),
             {
               calendarUrl: `${config.publicUrl}/calendar`,
               unsubscribeUrl: `${config.publicUrl}/unsubscribe?list=calendar&token=${token}`,
@@ -221,14 +243,11 @@ export async function refreshSource(
  */
 export async function claimSource(
   db: Database,
-  where: { id: string } | { userId: string },
+  id: string,
   minAgeMs: number,
   now: Date = new Date(),
 ): Promise<SourceRow | null> {
-  const [row] = await db
-    .select()
-    .from(calendarSource)
-    .where('id' in where ? eq(calendarSource.id, where.id) : eq(calendarSource.userId, where.userId))
+  const [row] = await db.select().from(calendarSource).where(eq(calendarSource.id, id))
   if (!row) return null
   if (row.lastFetchedAt && now.getTime() - row.lastFetchedAt.getTime() < minAgeMs) return null
   const [claimed] = await db
@@ -278,7 +297,7 @@ export async function runCalendarSync(
     .limit(BATCH_SIZE)
   const run: CalendarRun = { updated: 0, failed: 0 }
   for (const candidate of due) {
-    const row = await claimSource(db, { id: candidate.id }, waitAfter(candidate.failures, refreshMs), now)
+    const row = await claimSource(db, candidate.id, waitAfter(candidate.failures, refreshMs), now)
     if (!row) continue
     const outcome = await refreshSource(dependencies, row, now)
     if (outcome === 'updated') run.updated++

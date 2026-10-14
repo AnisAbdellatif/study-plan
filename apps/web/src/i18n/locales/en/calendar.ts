@@ -15,6 +15,10 @@ export const calendar: Messages<typeof de> = {
     hint: 'The link looks like this: https://{{host}}/dispatch.php/ical/index/…',
     label: 'Link to your Stud.IP calendar',
     submit: 'Connect',
+    replace: 'Replace link',
+    replaceHint: 'Paste the new link from Stud.IP. Your choices and calendars stay.',
+    name: 'Name (optional)',
+    namePlaceholder: 'e.g. major, minor subject',
     privacy:
       'The link contains a personal key. We store it encrypted, never show it again and only use it to fetch your timetable. More in the <privacy>privacy policy</privacy>.',
     errors: {
@@ -22,6 +26,8 @@ export const calendar: Messages<typeof de> = {
         'That isn’t a Stud.IP calendar link. It must start with https://{{host}}/dispatch.php/ical/index/.',
       host_not_allowed: 'Links from this address aren’t supported. Supported: {{hosts}}.',
       fetch_failed: 'Stud.IP didn’t deliver the calendar: {{reason}}',
+      duplicate: 'You’ve already added this link.',
+      source_limit: 'You can add at most {{max}} links.',
       generic: 'That didn’t work. Please try again.',
     },
   },
@@ -35,20 +41,27 @@ export const calendar: Messages<typeof de> = {
     empty: 'Stud.IP suddenly sent no dates at all. Your calendars keep showing the last dates.',
   },
   source: {
-    title: 'Connection',
-    connectedTo: 'Connected to {{host}}',
+    title: 'Your Stud.IP links ({{count}}/{{max}})',
+    intro:
+      'Up to {{max}} calendar links, for a second subject, for example. Their dates end up together in your subjects and calendars; duplicate dates count once.',
+    fallbackName: 'Link {{number}}',
+    add: 'Add link',
+    addTitle: 'Add another Stud.IP link',
+    limit: 'You can’t add more than {{max}} links.',
     updated: 'Last synced: {{time}}',
     never: 'Not synced yet',
     every: 'Synced automatically about every {{minutes}} minutes.',
     failed: 'Last sync failed: {{reason}}',
     refresh: 'Sync now',
     tooSoon: 'Just synced. Try again in a minute.',
-    changeLink: 'Change link',
+    changeLink: 'Edit',
     cancelChange: 'Cancel',
-    remove: 'Remove connection',
-    removeTitle: 'Remove the connection?',
+    remove: 'Remove',
+    removeTitle: 'Remove the link?',
     removeBody:
-      'The link, all dates, your choices and every calendar link are deleted. Subscribed calendars stop receiving dates.',
+      'The link and its dates are deleted. Your calendars then show only the dates of the other links.',
+    removeLastBody:
+      'This is your last link. It, all dates, your choices and every calendar link are deleted. Subscribed calendars stop receiving dates.',
     removeConfirm: 'Remove',
   },
   feeds: {

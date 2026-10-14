@@ -232,15 +232,24 @@ async function calendarRequest<T>(path: string, init?: RequestInit): Promise<T> 
   return (response.status === 204 ? undefined : await response.json()) as T
 }
 
-/** The student's Stud.IP calendar and the feeds made from it. The link itself never comes back from the server. */
+/** The student's Stud.IP calendars and the feeds made from them. The links never come back from the server. */
 export const calendarApi = {
   get: (): Promise<CalendarOverview> => calendarRequest<CalendarOverview>('/api/calendar'),
-  connect: (url: string): Promise<CalendarOverview> =>
-    calendarRequest<CalendarOverview>('/api/calendar/source', {
-      method: 'PUT',
-      body: JSON.stringify({ url }),
+  addSource: (url: string, label?: string): Promise<CalendarOverview> =>
+    calendarRequest<CalendarOverview>('/api/calendar/sources', {
+      method: 'POST',
+      body: JSON.stringify({ url, label }),
     }),
-  disconnect: (): Promise<void> => calendarRequest<void>('/api/calendar/source', { method: 'DELETE' }),
+  replaceSource: (id: string, url: string, label?: string): Promise<CalendarOverview> =>
+    calendarRequest<CalendarOverview>(`/api/calendar/sources/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      body: JSON.stringify({ url, label }),
+    }),
+  /** Removing the last link removes the settings and every feed too. */
+  removeSource: (id: string): Promise<CalendarOverview> =>
+    calendarRequest<CalendarOverview>(`/api/calendar/sources/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    }),
   refresh: (): Promise<CalendarOverview> =>
     calendarRequest<CalendarOverview>('/api/calendar/refresh', { method: 'POST' }),
   saveSettings: (settings: CalendarSettings): Promise<CalendarSettings> =>

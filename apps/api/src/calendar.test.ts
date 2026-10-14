@@ -38,11 +38,30 @@ const SAMPLE = readFileSync(new URL('./calendar/fixtures/studip-sample.ics', imp
 const LINK = 'https://studip.uni-hannover.de/dispatch.php/ical/index/Ab12Cd34'
 const PASSWORD = 'richtig-langes-passwort'
 
-/** What the fake Stud.IP answers next, and which links it was asked for. */
+const SECOND_LINK = 'https://studip.uni-hannover.de/dispatch.php/ical/index/Zw34Xy56'
+/** A second Stud.IP calendar: one course of its own, and one date the first calendar has too (same UID). */
+const SECOND = [
+  'BEGIN:VCALENDAR',
+  'BEGIN:VEVENT',
+  'UID:compilerbau-1@studip.uni-hannover.de',
+  'SUMMARY:Vorlesung: Compilerbau',
+  'DTSTART;TZID=Europe/Berlin:20261112T100000',
+  'DTEND;TZID=Europe/Berlin:20261112T113000',
+  'END:VEVENT',
+  'BEGIN:VEVENT',
+  `UID:${/UID:(.+)\r\n/.exec(SAMPLE)?.[1]}`,
+  'SUMMARY:sonstige: Begrüßung Erstsemester Bachelor Informatik und Technische Informatik',
+  'DTSTART;TZID=Europe/Berlin:20261009T140000',
+  'DTEND;TZID=Europe/Berlin:20261009T160000',
+  'END:VEVENT',
+  'END:VCALENDAR',
+].join('\r\n')
+
+/** What the fake Stud.IP answers next, and which links it was asked for. The second link has its own calendar. */
 const upstream = { body: SAMPLE, status: 200, requested: [] as string[] }
 const fetcher = async (url: string) => {
   upstream.requested.push(url)
-  return new Response(upstream.body, { status: upstream.status })
+  return new Response(url === SECOND_LINK ? SECOND : upstream.body, { status: upstream.status })
 }
 
 const mailer = createMemoryMailer()
@@ -105,7 +124,13 @@ describe('calendar feeds', () => {
 
   it('starts empty and names the hosts it accepts', async () => {
     const overview = await json<CalendarOverview>(await call('/api/calendar', { cookie }))
-    expect(overview).toMatchObject({ source: null, feeds: [], allowedHosts: ['studip.uni-hannover.de'] })
+    expect(overview).toMatchObject({
+      sources: [],
+      settings: null,
+      feeds: [],
+      allowedHosts: ['studip.uni-hannover.de'],
+      maxSources: 4,
+    })
   })
 
   it('refuses links to other hosts or paths without fetching them', async () => {
@@ -113,7 +138,7 @@ describe('calendar feeds', () => {
       ['https://evil.example/dispatch.php/ical/index/Ab12Cd34', 'host_not_allowed'],
       ['https://studip.uni-hannover.de/index.php', 'invalid_url'],
     ]) {
-      const response = await call('/api/calendar/source', { method: 'PUT', cookie, body: { url } })
+      const response = await call('/api/calendar/sources', { method: 'POST', cookie, body: { url } })
       expect(response.status).toBe(400)
       expect(await json(response)).toEqual({ error })
     }
@@ -122,16 +147,16 @@ describe('calendar feeds', () => {
 
   it('stores nothing when the link does not work', async () => {
     upstream.status = 400
-    const response = await call('/api/calendar/source', { method: 'PUT', cookie, body: { url: LINK } })
+    const response = await call('/api/calendar/sources', { method: 'POST', cookie, body: { url: LINK } })
     upstream.status = 200
     expect(response.status).toBe(422)
     expect(await json(response)).toEqual({ error: 'fetch_failed', reason: 'not_found' })
-    expect((await json<CalendarOverview>(await call('/api/calendar', { cookie }))).source).toBeNull()
+    expect((await json<CalendarOverview>(await call('/api/calendar', { cookie }))).sources).toEqual([])
   })
 
   it('reads the calendar, colours its subjects and creates a feed of everything', async () => {
-    const response = await call('/api/calendar/source', { method: 'PUT', cookie, body: { url: LINK } })
-    expect(response.status).toBe(200)
+    const response = await call('/api/calendar/sources', { method: 'POST', cookie, body: { url: LINK } })
+    expect(response.status).toBe(201)
     const text = await response.clone().text()
     // The link is a secret: it never comes back, and it is stored encrypted.
     expect(text).not.toContain('Ab12Cd34')
@@ -139,9 +164,11 @@ describe('calendar feeds', () => {
     expect(row?.encryptedUrl).not.toContain('Ab12Cd34')
 
     const overview = await json<CalendarOverview>(response)
-    expect(overview.source).toMatchObject({ host: 'studip.uni-hannover.de', status: 'ok', error: null })
-    expect(overview.source?.events).toHaveLength(21)
-    expect(Object.keys(overview.source?.settings.subjects ?? {})).toHaveLength(3)
+    expect(overview.sources).toEqual([
+      expect.objectContaining({ host: 'studip.uni-hannover.de', status: 'ok', error: null, eventCount: 21 }),
+    ])
+    expect(overview.events).toHaveLength(21)
+    expect(Object.keys(overview.settings?.subjects ?? {})).toHaveLength(3)
     expect(overview.feeds).toEqual([
       expect.objectContaining({
         name: 'Stundenplan',
@@ -172,7 +199,7 @@ describe('calendar feeds', () => {
 
   it('applies the student’s choices to every feed', async () => {
     const overview = await json<CalendarOverview>(await call('/api/calendar', { cookie }))
-    const settings = overview.source?.settings
+    const settings = overview.settings
     if (!settings) throw new Error('no settings')
     expect(
       (await call('/api/calendar/settings', { method: 'PUT', cookie, body: { showKind: 'ja' } })).status,
@@ -269,8 +296,8 @@ describe('calendar feeds', () => {
       failed: 1,
     })
     const overview = await json<CalendarOverview>(await call('/api/calendar', { cookie }))
-    expect(overview.source).toMatchObject({ status: 'error', error: 'empty' })
-    expect(overview.source?.events).toHaveLength(21)
+    expect(overview.sources[0]).toMatchObject({ status: 'error', error: 'empty', eventCount: 21 })
+    expect(overview.events).toHaveLength(21)
     upstream.body = SAMPLE
     expect(await runCalendarSync({ db: connection.db, mailer, config, fetcher }, later(400))).toEqual({
       updated: 1,
@@ -280,8 +307,11 @@ describe('calendar feeds', () => {
 
   it('mails changes when alerts are on, and stops after the unsubscribe link', async () => {
     const overview = await json<CalendarOverview>(await call('/api/calendar', { cookie }))
-    const settings = overview.source?.settings
-    await call('/api/calendar/settings', { method: 'PUT', cookie, body: { ...settings, changeAlerts: true } })
+    await call('/api/calendar/settings', {
+      method: 'PUT',
+      cookie,
+      body: { ...overview.settings, changeAlerts: true },
+    })
     // The last Rechnernetze lecture (3 November) is cancelled.
     upstream.body = SAMPLE.replace(
       /SUMMARY:Vorlesung: Rechnernetze(\r\n(?:(?!END:VEVENT).)*\r\n)*?DTSTART;TZID=Europe\/Berlin:20261103/s,
@@ -309,8 +339,8 @@ describe('calendar feeds', () => {
     expect(alert?.text).not.toContain('Ab12Cd34')
     expect(alert?.headers?.['List-Unsubscribe']).toContain('list=calendar')
 
-    const changes = (await json<CalendarOverview>(await call('/api/calendar', { cookie }))).source?.changes
-    expect(changes?.[0]).toMatchObject({ kind: 'cancelled', course: 'Vorlesung: Rechnernetze' })
+    const { changes } = await json<CalendarOverview>(await call('/api/calendar', { cookie }))
+    expect(changes[0]).toMatchObject({ kind: 'cancelled', course: 'Vorlesung: Rechnernetze' })
 
     const oneClick = new URL(/<(.+)>/.exec(alert?.headers?.['List-Unsubscribe'] ?? '')?.[1] ?? '')
     const reminderToken = oneClick.searchParams.get('token') ?? ''
@@ -324,23 +354,109 @@ describe('calendar feeds', () => {
     ).toBe(400)
     expect((await app.request(`${oneClick.pathname}${oneClick.search}`, { method: 'POST' })).status).toBe(200)
     const after = await json<CalendarOverview>(await call('/api/calendar', { cookie }))
-    expect(after.source?.settings.changeAlerts).toBe(false)
+    expect(after.settings?.changeAlerts).toBe(false)
   })
 
-  it('includes the calendar in the account data export', async () => {
-    const exported = await json<{ calendar: { link: string; events: unknown[]; feeds: unknown[] } }>(
-      await call('/api/account/export', { cookie }),
-    )
-    expect(exported.calendar.link).toBe(LINK)
-    expect(exported.calendar.events).toHaveLength(21)
+  it('adds more links into the same subjects and feeds, each date once', async () => {
+    const before = await json<CalendarOverview>(await call('/api/calendar', { cookie }))
+    const duplicate = await call('/api/calendar/sources', { method: 'POST', cookie, body: { url: LINK } })
+    expect(duplicate.status).toBe(409)
+    expect(await json(duplicate)).toEqual({ error: 'duplicate' })
+
+    const added = await call('/api/calendar/sources', {
+      method: 'POST',
+      cookie,
+      body: { url: SECOND_LINK, label: 'Zweitfach' },
+    })
+    expect(added.status).toBe(201)
+    const overview = await json<CalendarOverview>(added)
+    expect(overview.sources.map((source) => [source.label, source.eventCount])).toEqual([
+      [null, 21],
+      ['Zweitfach', 2],
+    ])
+    expect(overview.events).toHaveLength(22)
+    // The new subject gets a colour; the student's choices stay.
+    expect(overview.settings?.subjects.Compilerbau?.color).toBeDefined()
+    expect(overview.settings?.subjects.Rechnernetze).toEqual(before.settings?.subjects.Rechnernetze)
+    expect(overview.feeds).toHaveLength(1)
+    const body = await (await app.request(feedPath(overview.feeds[0]?.url ?? ''))).text()
+    expect(body).toContain('SUMMARY:Compilerbau · Vorlesung')
+  })
+
+  it('allows at most four links', async () => {
+    for (const key of ['Aa11Bb22', 'Cc33Dd44']) {
+      const response = await call('/api/calendar/sources', {
+        method: 'POST',
+        cookie,
+        body: { url: `https://studip.uni-hannover.de/dispatch.php/ical/index/${key}` },
+      })
+      expect(response.status).toBe(201)
+    }
+    const fifth = await call('/api/calendar/sources', {
+      method: 'POST',
+      cookie,
+      body: { url: 'https://studip.uni-hannover.de/dispatch.php/ical/index/Ee55Ff66' },
+    })
+    expect(fifth.status).toBe(409)
+    expect(await json(fifth)).toEqual({ error: 'source_limit', limit: 4 })
+    const { sources } = await json<CalendarOverview>(await call('/api/calendar', { cookie }))
+    for (const source of sources.slice(2)) {
+      expect((await call(`/api/calendar/sources/${source.id}`, { method: 'DELETE', cookie })).status).toBe(
+        200,
+      )
+    }
+  })
+
+  it('replaces and renames a link, and keeps other students out of it', async () => {
+    const { sources } = await json<CalendarOverview>(await call('/api/calendar', { cookie }))
+    const second = sources[1]
+    if (!second) throw new Error('no second link')
+    const other = await registerVerifiedUser('fremd@example.org')
+    expect(
+      (await call(`/api/calendar/sources/${second.id}`, { method: 'DELETE', cookie: other })).status,
+    ).toBe(404)
+    // The first link is not available for the second one.
+    const taken = await call(`/api/calendar/sources/${second.id}`, {
+      method: 'PUT',
+      cookie,
+      body: { url: LINK },
+    })
+    expect(taken.status).toBe(409)
+    const renamed = await call(`/api/calendar/sources/${second.id}`, {
+      method: 'PUT',
+      cookie,
+      body: { url: SECOND_LINK, label: 'Nebenfach' },
+    })
+    expect((await json<CalendarOverview>(renamed)).sources[1]?.label).toBe('Nebenfach')
+  })
+
+  it('includes every link in the account data export', async () => {
+    const exported = await json<{
+      calendar: { links: { link: string; events: unknown[] }[]; feeds: unknown[] }
+    }>(await call('/api/account/export', { cookie }))
+    expect(exported.calendar.links.map((link) => [link.link, link.events.length])).toEqual([
+      [LINK, 21],
+      [SECOND_LINK, 2],
+    ])
     expect(exported.calendar.feeds).toHaveLength(1)
   })
 
-  it('removes the link, the dates and every feed', async () => {
-    const [feed] = (await json<CalendarOverview>(await call('/api/calendar', { cookie }))).feeds
-    expect((await call('/api/calendar/source', { method: 'DELETE', cookie })).status).toBe(204)
-    expect((await json<CalendarOverview>(await call('/api/calendar', { cookie }))).source).toBeNull()
-    expect((await app.request(feedPath(feed?.url ?? ''))).status).toBe(404)
+  it('removes a link with its dates, and with the last one the settings and every feed', async () => {
+    const { sources, feeds } = await json<CalendarOverview>(await call('/api/calendar', { cookie }))
+    const [first, second] = sources
+    const feed = feeds[0]?.url ?? ''
+    const afterFirst = await json<CalendarOverview>(
+      await call(`/api/calendar/sources/${first?.id}`, { method: 'DELETE', cookie }),
+    )
+    expect(afterFirst.events).toHaveLength(2)
+    // The welcome date is a subject the student left out above.
+    expect((await (await app.request(feedPath(feed))).text()).match(/BEGIN:VEVENT/g)).toHaveLength(1)
+
+    const afterLast = await json<CalendarOverview>(
+      await call(`/api/calendar/sources/${second?.id}`, { method: 'DELETE', cookie }),
+    )
+    expect(afterLast).toMatchObject({ sources: [], settings: null, feeds: [], events: [] })
+    expect((await app.request(feedPath(feed))).status).toBe(404)
   })
 })
 

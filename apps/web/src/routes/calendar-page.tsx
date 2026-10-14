@@ -3,9 +3,10 @@ import type {
   CalendarFetchError,
   CalendarOverview,
   CalendarSettings,
+  CalendarSourceView,
 } from '@study-plan/shared'
 import { Link, Navigate } from '@tanstack/react-router'
-import { ArrowLeft, RefreshCw } from 'lucide-react'
+import { ArrowLeft, Plus, RefreshCw } from 'lucide-react'
 import { type FormEvent, type ReactNode, useCallback, useEffect, useId, useRef, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import { formatDateTime, useAccountSync } from '../components/account-sync.tsx'
@@ -20,6 +21,8 @@ import { ApiError, CalendarFetchFailedError, calendarApi } from '../lib/api.ts'
 const cardClass = 'space-y-3 rounded-xl bg-white p-4 ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800'
 const linkClass = 'font-medium text-indigo-700 underline-offset-4 hover:underline dark:text-indigo-300'
 const mutedClass = 'text-sm text-zinc-600 dark:text-zinc-400'
+const fieldClass =
+  'mt-1 h-10 w-full rounded-lg bg-white px-3 text-sm ring-1 ring-zinc-300 ring-inset focus-visible:outline-2 focus-visible:outline-indigo-500 dark:bg-zinc-950 dark:ring-zinc-700'
 
 const FETCH_ERRORS = new Set<string>([
   'unreachable',
@@ -142,12 +145,12 @@ export function CalendarPage() {
         <Alert>{t('loadError')}</Alert>
       ) : !overview ? (
         <LoadingText>{t('common:loading')}</LoadingText>
-      ) : overview.source ? (
+      ) : overview.sources.length > 0 ? (
         <ConnectedCalendar overview={overview} onOverview={setOverview} />
       ) : (
         <section className={cardClass} aria-label={t('connect.title')}>
           <h2 className="font-semibold">{t('connect.title')}</h2>
-          <ConnectForm overview={overview} onConnected={setOverview} />
+          <ConnectForm overview={overview} onDone={setOverview} />
         </section>
       )}
     </PageLayout>
@@ -176,17 +179,22 @@ function PageLayout({ children }: { children: ReactNode }) {
 
 function ConnectForm({
   overview,
-  onConnected,
+  source,
+  onDone,
   onCancel,
 }: {
   overview: CalendarOverview
-  onConnected: (overview: CalendarOverview) => void
+  /** The link being replaced; without it, the form adds one. */
+  source?: CalendarSourceView
+  onDone: (overview: CalendarOverview) => void
   onCancel?: () => void
 }) {
   const { t } = useTranslation('calendar')
   const inputId = useId()
+  const labelId = useId()
   const hintId = useId()
   const [url, setUrl] = useState('')
+  const [label, setLabel] = useState(source?.label ?? '')
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const host = overview.allowedHosts[0] ?? 'studip.example.org'
@@ -196,8 +204,14 @@ function ConnectForm({
     setPending(true)
     setError(null)
     try {
-      onConnected(await calendarApi.connect(url))
+      const name = label.trim() || undefined
+      onDone(
+        source
+          ? await calendarApi.replaceSource(source.id, url, name)
+          : await calendarApi.addSource(url, name),
+      )
       setUrl('')
+      setLabel('')
     } catch (failure) {
       if (failure instanceof CalendarFetchFailedError) {
         const reason = FETCH_ERRORS.has(failure.reason)
@@ -206,9 +220,18 @@ function ConnectForm({
         setError(t('connect.errors.fetch_failed', { reason: t(`fetchErrors.${reason}`) }))
       } else if (
         failure instanceof ApiError &&
-        (failure.code === 'invalid_url' || failure.code === 'host_not_allowed')
+        (failure.code === 'invalid_url' ||
+          failure.code === 'host_not_allowed' ||
+          failure.code === 'duplicate' ||
+          failure.code === 'source_limit')
       ) {
-        setError(t(`connect.errors.${failure.code}`, { host, hosts: overview.allowedHosts.join(', ') }))
+        setError(
+          t(`connect.errors.${failure.code}`, {
+            host,
+            hosts: overview.allowedHosts.join(', '),
+            max: overview.maxSources,
+          }),
+        )
       } else {
         setError(t('connect.errors.generic'))
       }
@@ -219,11 +242,13 @@ function ConnectForm({
 
   return (
     <form onSubmit={(event) => void submit(event)} className="space-y-3 text-sm">
-      <ol className="list-decimal space-y-1 pl-5">
-        <li>{t('connect.step1')}</li>
-        <li>{t('connect.step2')}</li>
-        <li>{t('connect.step3')}</li>
-      </ol>
+      {source ? null : (
+        <ol className="list-decimal space-y-1 pl-5">
+          <li>{t('connect.step1')}</li>
+          <li>{t('connect.step2')}</li>
+          <li>{t('connect.step3')}</li>
+        </ol>
+      )}
       {error ? <Alert>{error}</Alert> : null}
       <div>
         <label htmlFor={inputId} className="block font-medium">
@@ -239,11 +264,25 @@ function ConnectForm({
           aria-describedby={hintId}
           value={url}
           onChange={(event) => setUrl(event.target.value)}
-          className="mt-1 h-10 w-full rounded-lg bg-white px-3 font-mono text-sm ring-1 ring-zinc-300 ring-inset focus-visible:outline-2 focus-visible:outline-indigo-500 dark:bg-zinc-950 dark:ring-zinc-700"
+          className={`${fieldClass} font-mono`}
         />
         <p id={hintId} className="mt-1 text-xs break-all text-zinc-600 dark:text-zinc-400">
-          {t('connect.hint', { host })}
+          {source ? t('connect.replaceHint') : t('connect.hint', { host })}
         </p>
+      </div>
+      <div>
+        <label htmlFor={labelId} className="block font-medium">
+          {t('connect.name')}
+        </label>
+        <input
+          id={labelId}
+          type="text"
+          maxLength={40}
+          placeholder={t('connect.namePlaceholder')}
+          value={label}
+          onChange={(event) => setLabel(event.target.value)}
+          className={fieldClass}
+        />
       </div>
       <p className="text-xs text-zinc-600 dark:text-zinc-400">
         <Trans
@@ -254,7 +293,7 @@ function ConnectForm({
       </p>
       <div className="flex flex-wrap gap-2">
         <Button type="submit" variant="primary" loading={pending}>
-          {t('connect.submit')}
+          {source ? t('connect.replace') : t('connect.submit')}
         </Button>
         {onCancel ? <Button onClick={onCancel}>{t('source.cancelChange')}</Button> : null}
       </div>
@@ -262,25 +301,21 @@ function ConnectForm({
   )
 }
 
-function ConnectedCalendar({
+/** The student's Stud.IP links: up to `maxSources`, each with its sync state. */
+function SourcesSection({
   overview,
   onOverview,
 }: {
   overview: CalendarOverview
-  onOverview: (overview: CalendarOverview | null) => void
+  onOverview: (overview: CalendarOverview) => void
 }) {
-  const { t } = useTranslation(['calendar', 'common'])
-  const source = overview.source
-  const { settings, update, state } = useSettingsSaver(source?.settings ?? null)
-  const [changingLink, setChangingLink] = useState(false)
-  const [confirmRemove, setConfirmRemove] = useState(false)
+  const { t } = useTranslation('calendar')
+  const [editing, setEditing] = useState<string | 'new' | null>(null)
+  const [removing, setRemoving] = useState<CalendarSourceView | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
-  const alertsId = useId()
-  const showKindId = useId()
-  const dotsId = useId()
-
-  if (!source || !settings) return null
+  const { sources, maxSources } = overview
+  const last = sources.length === 1
 
   const refresh = async () => {
     setRefreshing(true)
@@ -296,87 +331,146 @@ function ConnectedCalendar({
     }
   }
 
-  const remove = async () => {
+  const remove = async (source: CalendarSourceView) => {
+    setNotice(null)
     try {
-      await calendarApi.disconnect()
-      onOverview(await calendarApi.get())
+      onOverview(await calendarApi.removeSource(source.id))
     } catch {
       setNotice(t('feeds.error'))
     }
   }
+
+  return (
+    <Section
+      title={t('source.title', { count: sources.length, max: maxSources })}
+      intro={t('source.intro', { max: maxSources })}
+      aside={
+        <Button size="sm" loading={refreshing} onClick={() => void refresh()}>
+          <RefreshCw aria-hidden className="size-4" />
+          {t('source.refresh')}
+        </Button>
+      }
+    >
+      {notice ? (
+        <p role="status" className={mutedClass}>
+          {notice}
+        </p>
+      ) : null}
+      <ul className="space-y-3">
+        {sources.map((source, index) => (
+          <li key={source.id} className={cardClass}>
+            <div className="min-w-0 text-sm">
+              <p className="font-medium break-words">
+                {source.label || t('source.fallbackName', { number: index + 1 })}
+              </p>
+              <p className="text-zinc-600 dark:text-zinc-400">
+                {source.host} · {t('feeds.eventCount', { count: source.eventCount })}
+              </p>
+              <p className="text-xs text-zinc-600 dark:text-zinc-400">
+                {source.lastSuccessAt
+                  ? t('source.updated', { time: formatDateTime(source.lastSuccessAt) })
+                  : t('source.never')}
+              </p>
+            </div>
+            {source.status === 'error' && source.error ? (
+              <Alert tone="warning">{t('source.failed', { reason: t(`fetchErrors.${source.error}`) })}</Alert>
+            ) : null}
+            {editing === source.id ? (
+              <ConnectForm
+                overview={overview}
+                source={source}
+                onDone={(next) => {
+                  onOverview(next)
+                  setEditing(null)
+                }}
+                onCancel={() => setEditing(null)}
+              />
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" onClick={() => setEditing(source.id)}>
+                  {t('source.changeLink')}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-red-700 dark:text-red-400"
+                  onClick={() => setRemoving(source)}
+                >
+                  {t('source.remove')}
+                </Button>
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+      {editing === 'new' ? (
+        <div className={cardClass}>
+          <h3 className="font-semibold">{t('source.addTitle')}</h3>
+          <ConnectForm
+            overview={overview}
+            onDone={(next) => {
+              onOverview(next)
+              setEditing(null)
+            }}
+            onCancel={() => setEditing(null)}
+          />
+        </div>
+      ) : sources.length < maxSources ? (
+        <Button onClick={() => setEditing('new')}>
+          <Plus aria-hidden className="size-4" />
+          {t('source.add')}
+        </Button>
+      ) : (
+        <p className="text-xs text-zinc-600 dark:text-zinc-400">{t('source.limit', { max: maxSources })}</p>
+      )}
+      {overview.refreshMinutes > 0 ? (
+        <p className="text-xs text-zinc-600 dark:text-zinc-400">
+          {t('source.every', { minutes: overview.refreshMinutes })}
+        </p>
+      ) : null}
+      <ConfirmDialog
+        open={removing !== null}
+        onOpenChange={(open) => {
+          if (!open) setRemoving(null)
+        }}
+        title={t('source.removeTitle')}
+        description={last ? t('source.removeLastBody') : t('source.removeBody')}
+        confirmLabel={t('source.removeConfirm')}
+        destructive
+        onConfirm={() => {
+          if (removing) void remove(removing)
+        }}
+      />
+    </Section>
+  )
+}
+
+function ConnectedCalendar({
+  overview,
+  onOverview,
+}: {
+  overview: CalendarOverview
+  onOverview: (overview: CalendarOverview) => void
+}) {
+  const { t } = useTranslation(['calendar', 'common'])
+  const { settings, update, state } = useSettingsSaver(overview.settings)
+  const alertsId = useId()
+  const showKindId = useId()
+  const dotsId = useId()
+
+  if (!settings) return null
 
   const saveStatus =
     state === 'saving' ? t('subjects.saving') : state === 'saved' ? t('subjects.saved') : null
 
   return (
     <>
-      <section className={cardClass} aria-label={t('source.title')}>
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0 text-sm">
-            <p className="font-medium">{t('source.connectedTo', { host: source.host })}</p>
-            <p className="text-zinc-600 dark:text-zinc-400">
-              {source.lastSuccessAt
-                ? t('source.updated', { time: formatDateTime(source.lastSuccessAt) })
-                : t('source.never')}
-            </p>
-            {overview.refreshMinutes > 0 ? (
-              <p className="text-xs text-zinc-600 dark:text-zinc-400">
-                {t('source.every', { minutes: overview.refreshMinutes })}
-              </p>
-            ) : null}
-          </div>
-          <Button size="sm" loading={refreshing} onClick={() => void refresh()}>
-            <RefreshCw aria-hidden className="size-4" />
-            {t('source.refresh')}
-          </Button>
-        </div>
-        {source.status === 'error' && source.error ? (
-          <Alert tone="warning">{t('source.failed', { reason: t(`fetchErrors.${source.error}`) })}</Alert>
-        ) : null}
-        {notice ? (
-          <p role="status" className={mutedClass}>
-            {notice}
-          </p>
-        ) : null}
-        {changingLink ? (
-          <ConnectForm
-            overview={overview}
-            onConnected={(next) => {
-              onOverview(next)
-              setChangingLink(false)
-            }}
-            onCancel={() => setChangingLink(false)}
-          />
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            <Button size="sm" onClick={() => setChangingLink(true)}>
-              {t('source.changeLink')}
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="text-red-700 dark:text-red-400"
-              onClick={() => setConfirmRemove(true)}
-            >
-              {t('source.remove')}
-            </Button>
-          </div>
-        )}
-        <ConfirmDialog
-          open={confirmRemove}
-          onOpenChange={setConfirmRemove}
-          title={t('source.removeTitle')}
-          description={t('source.removeBody')}
-          confirmLabel={t('source.removeConfirm')}
-          destructive
-          onConfirm={() => void remove()}
-        />
-      </section>
+      <SourcesSection overview={overview} onOverview={onOverview} />
 
       <Section title={t('feeds.title')} intro={t('feeds.intro')}>
         <FeedsSection
           feeds={overview.feeds}
-          events={source.events}
+          events={overview.events}
           settings={settings}
           onFeedsChange={(feeds) => onOverview({ ...overview, feeds })}
         />
@@ -396,7 +490,7 @@ function ConnectedCalendar({
         }
       >
         {state === 'error' ? <Alert>{t('subjects.saveError')}</Alert> : null}
-        <SubjectsSection events={source.events} settings={settings} onChange={update} />
+        <SubjectsSection events={overview.events} settings={settings} onChange={update} />
       </Section>
 
       <Section title={t('display.title')}>
@@ -453,11 +547,11 @@ function ConnectedCalendar({
             <label htmlFor={alertsId}>{t('alerts.label')}</label>
           </div>
           <h3 className="pt-1 text-sm font-medium">{t('alerts.recent')}</h3>
-          {source.changes.length === 0 ? (
+          {overview.changes.length === 0 ? (
             <p className={mutedClass}>{t('alerts.none')}</p>
           ) : (
             <ul className="divide-y divide-zinc-200 text-sm dark:divide-zinc-800">
-              {source.changes.slice(0, 12).map((change) => (
+              {overview.changes.slice(0, 12).map((change) => (
                 <ChangeRow
                   key={`${change.detectedAt}|${change.uid}|${change.kind}`}
                   change={change}
