@@ -1,22 +1,38 @@
-import type {
-  CalendarChange,
-  CalendarFetchError,
-  CalendarOverview,
-  CalendarSettings,
-  CalendarSourceView,
+import {
+  type CalendarChange,
+  type CalendarDisplay,
+  type CalendarFetchError,
+  type CalendarOverview,
+  type CalendarSelection,
+  type CalendarSourceView,
+  calendarSubjects,
+  feedEvents,
+  linkSettings,
+  selectionOf,
 } from '@study-plan/shared'
 import { Link, Navigate } from '@tanstack/react-router'
 import { ArrowLeft, Plus, RefreshCw } from 'lucide-react'
-import { type FormEvent, type ReactNode, useCallback, useEffect, useId, useRef, useState } from 'react'
+import {
+  type FormEvent,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import { formatDateTime, useAccountSync } from '../components/account-sync.tsx'
-import { FeedsSection } from '../components/calendar/feeds-section.tsx'
+import { FeedsSection, type LinkContext } from '../components/calendar/feeds-section.tsx'
 import { formatEventStart } from '../components/calendar/format.ts'
+import { LinkBadge, linkName } from '../components/calendar/links.tsx'
 import { SubjectsSection } from '../components/calendar/subjects-section.tsx'
 import { Button } from '../components/ui/button.tsx'
 import { ConfirmDialog } from '../components/ui/dialog.tsx'
 import { LoadingText } from '../components/ui/spinner.tsx'
 import { ApiError, CalendarFetchFailedError, calendarApi } from '../lib/api.ts'
+import { cn } from '../lib/cn.ts'
 
 const cardClass = 'space-y-3 rounded-xl bg-white p-4 ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800'
 const linkClass = 'font-medium text-indigo-700 underline-offset-4 hover:underline dark:text-indigo-300'
@@ -80,32 +96,64 @@ function Section({
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'error'
 
-/** Keeps settings locally and saves them shortly after the last change, one request at a time. */
-function useSettingsSaver(initial: CalendarSettings | null) {
-  const [settings, setSettings] = useState(initial)
+/**
+ * The display options and each link's choices, kept locally and saved shortly after the last change: one request at
+ * a time, and one per link or display however many changes were made.
+ */
+function useCalendarDrafts(overview: CalendarOverview) {
+  const initialSelections = useMemo(
+    () => Object.fromEntries(overview.sources.map((source) => [source.id, source.selection])),
+    [overview.sources],
+  )
+  const [display, setDisplay] = useState(overview.display)
+  const [selections, setSelections] = useState<Record<string, CalendarSelection>>(initialSelections)
   const [state, setState] = useState<SaveState>('idle')
-  const timer = useRef<number | undefined>(undefined)
+  const timers = useRef(new Map<string, number>())
   const queue = useRef<Promise<void>>(Promise.resolve())
 
-  // A fresh overview from the server (connect, sync) replaces the local copy.
-  useEffect(() => setSettings(initial), [initial])
-  useEffect(() => () => window.clearTimeout(timer.current), [])
-
-  const update = useCallback((next: CalendarSettings) => {
-    setSettings(next)
-    setState('saving')
-    window.clearTimeout(timer.current)
-    timer.current = window.setTimeout(() => {
-      queue.current = queue.current.then(() =>
-        calendarApi.saveSettings(next).then(
-          () => setState('saved'),
-          () => setState('error'),
-        ),
-      )
-    }, SAVE_DELAY_MS)
+  // A fresh overview from the server (new link, sync) replaces the local copy.
+  useEffect(() => setDisplay(overview.display), [overview.display])
+  useEffect(() => setSelections(initialSelections), [initialSelections])
+  useEffect(() => {
+    const pending = timers.current
+    return () => {
+      for (const timer of pending.values()) window.clearTimeout(timer)
+    }
   }, [])
 
-  return { settings, update, state }
+  const schedule = useCallback((key: string, save: () => Promise<unknown>) => {
+    setState('saving')
+    window.clearTimeout(timers.current.get(key))
+    timers.current.set(
+      key,
+      window.setTimeout(() => {
+        timers.current.delete(key)
+        queue.current = queue.current.then(() =>
+          save().then(
+            () => setState('saved'),
+            () => setState('error'),
+          ),
+        )
+      }, SAVE_DELAY_MS),
+    )
+  }, [])
+
+  const updateDisplay = useCallback(
+    (next: CalendarDisplay) => {
+      setDisplay(next)
+      schedule('display', () => calendarApi.saveDisplay(next))
+    },
+    [schedule],
+  )
+  const updateSelection = useCallback(
+    (sourceId: string, next: CalendarSelection) => {
+      setSelections((current) => ({ ...current, [sourceId]: next }))
+      schedule(sourceId, () => calendarApi.saveSelection(sourceId, next))
+    },
+    [schedule],
+  )
+
+  return { display, selections, updateDisplay, updateSelection, state }
 }
 
 export function CalendarPage() {
@@ -360,11 +408,12 @@ function SourcesSection({
         {sources.map((source, index) => (
           <li key={source.id} className={cardClass}>
             <div className="min-w-0 text-sm">
-              <p className="font-medium break-words">
-                {source.label || t('source.fallbackName', { number: index + 1 })}
+              <p className="flex items-center gap-2 font-medium">
+                <LinkBadge index={index} />
+                <span className="min-w-0 break-words">{linkName(t, sources, source.id)}</span>
               </p>
               <p className="text-zinc-600 dark:text-zinc-400">
-                {source.host} · {t('feeds.eventCount', { count: source.eventCount })}
+                {source.host} · {t('feeds.eventCount', { count: source.events.length })}
               </p>
               <p className="text-xs text-zinc-600 dark:text-zinc-400">
                 {source.lastSuccessAt
@@ -453,12 +502,16 @@ function ConnectedCalendar({
   onOverview: (overview: CalendarOverview) => void
 }) {
   const { t } = useTranslation(['calendar', 'common'])
-  const { settings, update, state } = useSettingsSaver(overview.settings)
+  const { display, selections, updateDisplay, updateSelection, state } = useCalendarDrafts(overview)
   const alertsId = useId()
   const showKindId = useId()
   const dotsId = useId()
+  const context = useMemo(
+    () => (display ? { sources: overview.sources, display, selections } : null),
+    [overview.sources, display, selections],
+  )
 
-  if (!settings) return null
+  if (!display || !context) return null
 
   const saveStatus =
     state === 'saving' ? t('subjects.saving') : state === 'saved' ? t('subjects.saved') : null
@@ -470,8 +523,7 @@ function ConnectedCalendar({
       <Section title={t('feeds.title')} intro={t('feeds.intro')}>
         <FeedsSection
           feeds={overview.feeds}
-          events={overview.events}
-          settings={settings}
+          context={context}
           onFeedsChange={(feeds) => onOverview({ ...overview, feeds })}
         />
         <p className="text-xs text-zinc-600 dark:text-zinc-400">{t('feeds.secret')}</p>
@@ -480,7 +532,7 @@ function ConnectedCalendar({
 
       <Section
         title={t('subjects.title')}
-        intro={t('subjects.intro')}
+        intro={overview.sources.length > 1 ? t('subjects.introLinks') : t('subjects.intro')}
         aside={
           saveStatus ? (
             <p role="status" className="text-xs text-zinc-600 dark:text-zinc-400">
@@ -490,7 +542,7 @@ function ConnectedCalendar({
         }
       >
         {state === 'error' ? <Alert>{t('subjects.saveError')}</Alert> : null}
-        <SubjectsSection events={overview.events} settings={settings} onChange={update} />
+        <SubjectsManager context={context} onChange={updateSelection} />
       </Section>
 
       <Section title={t('display.title')}>
@@ -500,8 +552,8 @@ function ConnectedCalendar({
               id={showKindId}
               type="checkbox"
               className="mt-0.5 size-4 shrink-0 accent-indigo-600"
-              checked={settings.showKind}
-              onChange={(event) => update({ ...settings, showKind: event.target.checked })}
+              checked={display.showKind}
+              onChange={(event) => updateDisplay({ ...display, showKind: event.target.checked })}
             />
             <label htmlFor={showKindId}>{t('display.showKind')}</label>
           </div>
@@ -510,8 +562,8 @@ function ConnectedCalendar({
               id={dotsId}
               type="checkbox"
               className="mt-0.5 size-4 shrink-0 accent-indigo-600"
-              checked={settings.colorDots}
-              onChange={(event) => update({ ...settings, colorDots: event.target.checked })}
+              checked={display.colorDots}
+              onChange={(event) => updateDisplay({ ...display, colorDots: event.target.checked })}
             />
             <label htmlFor={dotsId}>{t('display.colorDots')}</label>
           </div>
@@ -523,8 +575,8 @@ function ConnectedCalendar({
                   type="radio"
                   name="cancelled-dates"
                   className="mt-0.5 size-4 shrink-0 accent-indigo-600"
-                  checked={settings.cancelled === choice}
-                  onChange={() => update({ ...settings, cancelled: choice })}
+                  checked={display.cancelled === choice}
+                  onChange={() => updateDisplay({ ...display, cancelled: choice })}
                 />
                 {choice === 'mark' ? t('display.cancelledMark') : t('display.cancelledHide')}
               </label>
@@ -541,8 +593,8 @@ function ConnectedCalendar({
               id={alertsId}
               type="checkbox"
               className="mt-0.5 size-4 shrink-0 accent-indigo-600"
-              checked={settings.changeAlerts}
-              onChange={(event) => update({ ...settings, changeAlerts: event.target.checked })}
+              checked={display.changeAlerts}
+              onChange={(event) => updateDisplay({ ...display, changeAlerts: event.target.checked })}
             />
             <label htmlFor={alertsId}>{t('alerts.label')}</label>
           </div>
@@ -555,7 +607,7 @@ function ConnectedCalendar({
                 <ChangeRow
                   key={`${change.detectedAt}|${change.uid}|${change.kind}`}
                   change={change}
-                  settings={settings}
+                  context={context}
                 />
               ))}
             </ul>
@@ -566,9 +618,119 @@ function ConnectedCalendar({
   )
 }
 
-function ChangeRow({ change, settings }: { change: CalendarChange; settings: CalendarSettings }) {
+/**
+ * Each link's subjects on their own: a tab per link with how many of its subjects are kept, and the link's subjects,
+ * courses and dates below. One link needs no tabs.
+ */
+function SubjectsManager({
+  context,
+  onChange,
+}: {
+  context: LinkContext
+  onChange: (sourceId: string, selection: CalendarSelection) => void
+}) {
   const { t } = useTranslation('calendar')
-  const name = settings.subjects[change.subject]?.shortName || change.course
+  const { sources, display, selections } = context
+  const [activeId, setActiveId] = useState(sources[0]?.id)
+  const baseId = useId()
+  const tabRefs = useRef(new Map<string, HTMLButtonElement>())
+  const active = sources.find((source) => source.id === activeId) ?? sources[0]
+  const selection = active ? selections[active.id] : undefined
+  if (!active || !selection) return null
+  const settings = linkSettings(display, selection)
+  const tabId = (id: string) => `${baseId}-tab-${id}`
+  const panelId = `${baseId}-panel`
+
+  const summary = (source: CalendarSourceView) => {
+    const subjects = calendarSubjects(source.events)
+    const excluded = selections[source.id]?.excludedSubjects ?? []
+    return { kept: subjects.filter((subject) => !excluded.includes(subject)).length, total: subjects.length }
+  }
+  const activeSummary = summary(active)
+  const keptDates = feedEvents(active.events, settings, null).length
+
+  const move = (from: number, step: number) => {
+    const next = sources[(from + step + sources.length) % sources.length]
+    if (!next) return
+    setActiveId(next.id)
+    tabRefs.current.get(next.id)?.focus()
+  }
+
+  return (
+    <div className="space-y-3">
+      {sources.length > 1 ? (
+        <div
+          role="tablist"
+          aria-label={t('subjects.linkTabs')}
+          className="flex gap-1 overflow-x-auto rounded-xl bg-zinc-100 p-1 ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800"
+        >
+          {sources.map((source, index) => {
+            const selected = source.id === active.id
+            const { kept, total } = summary(source)
+            return (
+              <button
+                key={source.id}
+                ref={(element) => {
+                  if (element) tabRefs.current.set(source.id, element)
+                  else tabRefs.current.delete(source.id)
+                }}
+                id={tabId(source.id)}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                aria-controls={panelId}
+                tabIndex={selected ? 0 : -1}
+                onClick={() => setActiveId(source.id)}
+                onKeyDown={(event) => {
+                  if (event.key === 'ArrowRight') move(index, 1)
+                  else if (event.key === 'ArrowLeft') move(index, -1)
+                  else return
+                  event.preventDefault()
+                }}
+                className={cn(
+                  'flex min-w-0 shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-indigo-500 motion-reduce:transition-none sm:max-w-[16rem]',
+                  selected
+                    ? 'bg-white text-zinc-900 shadow-sm ring-1 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-100 dark:ring-zinc-700'
+                    : 'text-zinc-600 hover:bg-white/60 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-100',
+                )}
+              >
+                <LinkBadge index={index} />
+                <span className="max-w-[10rem] truncate">{linkName(t, sources, source.id)}</span>
+                <span className="text-xs font-normal text-zinc-500 tabular-nums dark:text-zinc-400">
+                  {kept}/{total}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      ) : null}
+      <div
+        id={panelId}
+        // A panel of tabs only when there are tabs.
+        {...(sources.length > 1 ? { role: 'tabpanel', 'aria-labelledby': tabId(active.id) } : {})}
+        className="space-y-3"
+      >
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+          {t('subjects.kept', { kept: activeSummary.kept, total: activeSummary.total })} ·{' '}
+          {t('feeds.eventCount', { count: keptDates })}
+        </p>
+        <SubjectsSection
+          key={active.id}
+          events={active.events}
+          settings={settings}
+          onChange={(next) => onChange(active.id, selectionOf(next))}
+        />
+      </div>
+    </div>
+  )
+}
+
+function ChangeRow({ change, context }: { change: CalendarChange; context: LinkContext }) {
+  const { t } = useTranslation('calendar')
+  const { sources, selections } = context
+  const index = sources.findIndex((source) => source.id === change.sourceId)
+  const selection = change.sourceId ? selections[change.sourceId] : undefined
+  const name = selection?.subjects[change.subject]?.shortName || change.course
   const detail =
     change.kind === 'moved' && change.previousStart
       ? t('alerts.movedFrom', { time: formatEventStart(change.previousStart) })
@@ -577,6 +739,12 @@ function ChangeRow({ change, settings }: { change: CalendarChange; settings: Cal
         : null
   return (
     <li className="flex flex-wrap items-baseline gap-x-2 py-2">
+      {sources.length > 1 && index !== -1 ? (
+        <span className="self-center">
+          <LinkBadge index={index} />
+          <span className="sr-only">{linkName(t, sources, sources[index]?.id ?? '')}</span>
+        </span>
+      ) : null}
       <span
         className={
           change.kind === 'added' || change.kind === 'restored'

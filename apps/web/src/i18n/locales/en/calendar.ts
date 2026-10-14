@@ -43,7 +43,7 @@ export const calendar: Messages<typeof de> = {
   source: {
     title: 'Your Stud.IP links ({{count}}/{{max}})',
     intro:
-      'Up to {{max}} calendar links, for a second subject, for example. Their dates end up together in your subjects and calendars; duplicate dates count once.',
+      'Up to {{max}} calendar links, for a second subject, for example. Each link gets a calendar and subjects of its own; calendars that mix several links are made under “Your calendars”.',
     fallbackName: 'Link {{number}}',
     add: 'Add link',
     addTitle: 'Add another Stud.IP link',
@@ -67,7 +67,7 @@ export const calendar: Messages<typeof de> = {
   feeds: {
     title: 'Your calendars',
     intro:
-      'Subscribe to a link in Google Calendar, Apple Calendar, Outlook or Thunderbird. For a colour per subject, add one calendar per subject and pick its colour in your calendar app.',
+      'Subscribe to a link in Google Calendar, Apple Calendar, Outlook or Thunderbird. Each Stud.IP link has a calendar of its own; “Add calendar” mixes several links. For a colour per subject, add one calendar per subject and pick its colour in your calendar app.',
     refreshNote:
       'Calendar apps fetch changes on their own: Apple and Outlook about hourly, Google Calendar only every few hours up to once a day.',
     all: 'All subjects',
@@ -92,6 +92,9 @@ export const calendar: Messages<typeof de> = {
     deleteConfirm: 'Delete',
     add: 'Add calendar',
     perSubject: 'One calendar per subject',
+    mixAll: 'All links in one calendar',
+    mixName: 'All links',
+    fromLinks: 'From these links',
     perSubjectDone: 'Every subject already has its own calendar.',
     secret: 'Treat the links like passwords: anyone with a link sees these dates.',
     limit: 'You can’t add more calendars.',
@@ -106,11 +109,18 @@ export const calendar: Messages<typeof de> = {
     all: 'All subjects, including new ones',
     pick: 'Only these subjects:',
     pickOne: 'Choose at least one subject.',
+    links: 'Stud.IP links',
+    linksHint: 'Choose several to mix their dates in this calendar.',
+    pickLink: 'Choose at least one link.',
     save: 'Save',
   },
   subjects: {
     title: 'Subjects and dates',
     intro: 'Tick what belongs in your calendars. New courses from Stud.IP are included at first.',
+    introLinks:
+      'Each link has its own choices, short names and colours. Pick a link above and tick what belongs in its calendars.',
+    linkTabs: 'Stud.IP links',
+    kept: '{{kept}} of {{total}} subjects chosen',
     saving: 'Saving…',
     saved: 'Saved',
     saveError: 'Saving failed. Your last change wasn’t applied.',

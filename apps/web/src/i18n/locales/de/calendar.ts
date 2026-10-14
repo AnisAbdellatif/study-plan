@@ -41,7 +41,7 @@ export const calendar = {
   source: {
     title: 'Deine Stud.IP-Links ({{count}}/{{max}})',
     intro:
-      'Bis zu {{max}} Kalender-Links, zum Beispiel für ein Zweitfach. Ihre Termine landen zusammen in deinen Fächern und Kalendern; doppelte Termine zählen einmal.',
+      'Bis zu {{max}} Kalender-Links, zum Beispiel für ein Zweitfach. Jeder Link bekommt einen eigenen Kalender und eigene Fächer; Kalender, die mehrere Links mischen, legst du unter „Deine Kalender“ an.',
     fallbackName: 'Link {{number}}',
     add: 'Link hinzufügen',
     addTitle: 'Weiteren Stud.IP-Link hinzufügen',
@@ -65,7 +65,7 @@ export const calendar = {
   feeds: {
     title: 'Deine Kalender',
     intro:
-      'Abonniere einen Link in Google Kalender, Apple Kalender, Outlook oder Thunderbird. Für eigene Farben je Fach lege einen Kalender pro Fach an: Die Farbe wählst du dann in deiner Kalender-App.',
+      'Abonniere einen Link in Google Kalender, Apple Kalender, Outlook oder Thunderbird. Jeder Stud.IP-Link hat seinen eigenen Kalender; „Kalender hinzufügen“ mischt mehrere Links. Für eigene Farben je Fach lege einen Kalender pro Fach an: Die Farbe wählst du dann in deiner Kalender-App.',
     refreshNote:
       'Kalender-Apps holen Änderungen selbst ab: Apple und Outlook etwa stündlich, Google Kalender nur alle paar Stunden bis einmal am Tag.',
     all: 'Alle Fächer',
@@ -90,6 +90,9 @@ export const calendar = {
     deleteConfirm: 'Löschen',
     add: 'Kalender hinzufügen',
     perSubject: 'Einen Kalender pro Fach',
+    mixAll: 'Alle Links in einem Kalender',
+    mixName: 'Alle Links',
+    fromLinks: 'Aus diesen Links',
     perSubjectDone: 'Für jedes Fach gibt es schon einen eigenen Kalender.',
     secret: 'Behandle die Links wie Passwörter: Wer einen Link hat, sieht diese Termine.',
     limit: 'Mehr Kalender gehen nicht.',
@@ -104,11 +107,18 @@ export const calendar = {
     all: 'Alle Fächer, auch neue',
     pick: 'Nur diese Fächer:',
     pickOne: 'Wähle mindestens ein Fach.',
+    links: 'Stud.IP-Links',
+    linksHint: 'Wähle mehrere, um ihre Termine in diesem Kalender zu mischen.',
+    pickLink: 'Wähle mindestens einen Link.',
     save: 'Speichern',
   },
   subjects: {
     title: 'Fächer und Termine',
     intro: 'Hake ab, was in deine Kalender soll. Neue Veranstaltungen aus Stud.IP sind zuerst dabei.',
+    introLinks:
+      'Jeder Link hat seine eigene Auswahl, eigene Kurznamen und Farben. Wähle oben einen Link und hake ab, was in seine Kalender soll.',
+    linkTabs: 'Stud.IP-Links',
+    kept: '{{kept}} von {{total}} Fächern ausgewählt',
     saving: 'Wird gespeichert…',
     saved: 'Gespeichert',
     saveError: 'Speichern fehlgeschlagen. Deine letzte Änderung ist nicht übernommen.',

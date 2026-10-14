@@ -1,12 +1,15 @@
 import {
   type CalendarChange,
+  type CalendarDisplay,
   type CalendarEvent,
+  type CalendarSelection,
   type CalendarSettings,
-  calendarSettingsSchema,
+  calendarDisplaySchema,
+  calendarSelectionSchema,
   calendarSubjects,
   eventTitle,
   isEventIncluded,
-  mergeCalendarEvents,
+  linkSettings,
   withSubjectColors,
 } from '@study-plan/shared'
 import { and, asc, eq, isNull, lt, or, sql } from 'drizzle-orm'
@@ -35,9 +38,14 @@ export interface CalendarDependencies {
   fetcher?: Fetcher
 }
 
-export const readSettings = (value: unknown): CalendarSettings => {
-  const parsed = calendarSettingsSchema.safeParse(value)
-  return parsed.success ? parsed.data : calendarSettingsSchema.parse({})
+export const readDisplay = (value: unknown): CalendarDisplay => {
+  const parsed = calendarDisplaySchema.safeParse(value)
+  return parsed.success ? parsed.data : calendarDisplaySchema.parse({})
+}
+
+export const readSelection = (value: unknown): CalendarSelection => {
+  const parsed = calendarSelectionSchema.safeParse(value)
+  return parsed.success ? parsed.data : calendarSelectionSchema.parse({})
 }
 
 /**
@@ -139,7 +147,7 @@ type SourceRow = typeof calendarSource.$inferSelect
 export type RefreshOutcome = 'updated' | 'failed' | 'skipped'
 
 /**
- * Fetches one link, stores its dates, updates the account's colours and changes, and mails the changes. The caller must have claimed the source (see
+ * Fetches one link, stores its dates and new subjects' colours, records the changes and mails them. The caller must have claimed the source (see
  * claimSource), so two runs never diff the same fetch twice. Failures keep the last good events: a calendar that
  * cannot be read must not empty the student's subscribed calendars.
  */
@@ -168,9 +176,18 @@ export async function refreshSource(
     return fail('empty')
   }
 
-  // The link's dates, the account's settings and its change list are written together; the account row is locked so
-  // two links of one student syncing at once don't overwrite each other's changes.
+  // The link's dates and colours and the account's change list are written together. Both rows are locked, so two
+  // links of one student syncing at once keep each other's changes and the student's edits aren't lost.
   const stored = await db.transaction(async (tx) => {
+    const [account] = await tx.select().from(calendar).where(eq(calendar.userId, row.userId)).for('update')
+    const [current] = await tx
+      .select({ selection: calendarSource.selection })
+      .from(calendarSource)
+      .where(eq(calendarSource.id, row.id))
+      .for('update')
+    if (!account || !current) return null
+    // New subjects get colours; the student's choices for the link stay.
+    const selection = withSubjectColors(readSelection(current.selection), calendarSubjects(result.events))
     await tx
       .update(calendarSource)
       .set({
@@ -180,29 +197,25 @@ export async function refreshSource(
         lastFetchedAt: now,
         lastSuccessAt: now,
         events: result.events,
+        selection,
         updatedAt: now,
       })
       .where(eq(calendarSource.id, row.id))
-    const [account] = await tx.select().from(calendar).where(eq(calendar.userId, row.userId)).for('update')
-    if (!account) return null
-    const sources = await tx
-      .select({ events: calendarSource.events })
-      .from(calendarSource)
-      .where(eq(calendarSource.userId, row.userId))
-      .orderBy(asc(calendarSource.createdAt), asc(calendarSource.id))
-    const events = mergeCalendarEvents(sources.map((source) => source.events))
-    const settings = withSubjectColors(readSettings(account.settings), calendarSubjects(events))
+    const settings = linkSettings(readDisplay(account.settings), selection)
     // The first fetch of a link has nothing to compare with.
-    const changes = row.lastSuccessAt ? diffEvents(row.events, result.events, settings, now) : []
-    await tx
-      .update(calendar)
-      .set({
-        settings,
-        changes: [...changes, ...account.changes].slice(0, MAX_STORED_CHANGES),
-        updatedAt: now,
-      })
-      .where(eq(calendar.userId, row.userId))
-    return { events, settings, changes }
+    const changes = row.lastSuccessAt
+      ? diffEvents(row.events, result.events, settings, now).map((change) => ({
+          ...change,
+          sourceId: row.id,
+        }))
+      : []
+    if (changes.length > 0) {
+      await tx
+        .update(calendar)
+        .set({ changes: [...changes, ...account.changes].slice(0, MAX_STORED_CHANGES), updatedAt: now })
+        .where(eq(calendar.userId, row.userId))
+    }
+    return { events: result.events, settings, changes }
   })
   if (!stored) return 'updated'
   const { events, settings, changes } = stored

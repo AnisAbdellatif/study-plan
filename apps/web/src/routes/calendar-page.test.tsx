@@ -1,9 +1,11 @@
 import {
   type CalendarEvent,
+  type CalendarFeedView,
   type CalendarOverview,
-  type CalendarSettings,
+  type CalendarSelection,
   type CalendarSourceView,
-  calendarSettingsSchema,
+  calendarDisplaySchema,
+  calendarSelectionSchema,
 } from '@study-plan/shared'
 import { createMemoryHistory, RouterProvider } from '@tanstack/react-router'
 import { render, screen, waitFor, within } from '@testing-library/react'
@@ -49,14 +51,25 @@ const event = (
   }
 }
 
-const EVENTS = [
+const MAIN = [
   event('a1', 'Vorlesung: Rechnernetze', '2026-10-13T13:00:00.000Z'),
   event('a2', 'Vorlesung: Rechnernetze', '2026-10-20T13:00:00.000Z', { cancelled: true }),
   event('b1', 'Übung: Übung Rechnernetze', '2026-10-15T13:00:00.000Z', { slot: '4|15:00|16:30' }),
   event('c1', 'Vorlesung: Datenbanksysteme', '2026-10-14T13:00:00.000Z', { slot: '3|15:00|16:30' }),
 ]
+const MINOR = [
+  event('m1', 'Vorlesung: Compilerbau', '2026-11-12T09:00:00.000Z', { slot: '4|10:00|11:30' }),
+  event('m2', 'Vorlesung: Logik', '2026-11-13T09:00:00.000Z', { slot: '5|10:00|11:30' }),
+]
 
-const sourceView = (id: string, label: string | null, eventCount: number): CalendarSourceView => ({
+const selection = (input: Partial<CalendarSelection> = {}) => calendarSelectionSchema.parse(input)
+
+const sourceView = (
+  id: string,
+  label: string | null,
+  events: CalendarEvent[] = MAIN,
+  chosen: CalendarSelection = selection(),
+): CalendarSourceView => ({
   id,
   host: 'studip.uni-hannover.de',
   label,
@@ -64,17 +77,32 @@ const sourceView = (id: string, label: string | null, eventCount: number): Calen
   error: null,
   lastFetchedAt: '2026-10-13T05:00:00.000Z',
   lastSuccessAt: '2026-10-13T05:00:00.000Z',
-  eventCount,
+  createdAt: '2026-10-13T05:00:00.000Z',
+  events,
+  selection: chosen,
+})
+
+const feedView = (id: string, name: string, sources: string[]): CalendarFeedView => ({
+  id,
+  name,
+  sources,
+  subjects: null,
+  url: `https://study-plan.de/calendar/${id}/AAAAAAAAAAAAAAAAAAAAAA.ics`,
   createdAt: '2026-10-13T05:00:00.000Z',
 })
 
-const connected = (settings: CalendarSettings, sources = [sourceView('s1', null, 4)]): CalendarOverview => ({
+const connected = (
+  sources: CalendarSourceView[] = [sourceView('s1', null)],
+  feeds: CalendarFeedView[] = sources.map((source, index) =>
+    feedView(`f${index + 1}`, source.label ?? 'Stundenplan', [source.id]),
+  ),
+): CalendarOverview => ({
   sources,
-  settings,
-  events: EVENTS,
+  display: calendarDisplaySchema.parse({}),
   changes: [
     {
       kind: 'cancelled',
+      sourceId: 's1',
       uid: 'a2',
       subject: 'Rechnernetze',
       course: 'Vorlesung: Rechnernetze',
@@ -83,15 +111,7 @@ const connected = (settings: CalendarSettings, sources = [sourceView('s1', null,
       detectedAt: '2026-10-13T05:00:00.000Z',
     },
   ],
-  feeds: [
-    {
-      id: 'f1',
-      name: 'Stundenplan',
-      subjects: null,
-      url: 'https://study-plan.de/calendar/f1/AAAAAAAAAAAAAAAAAAAAAA.ics',
-      createdAt: '2026-10-13T05:00:00.000Z',
-    },
-  ],
+  feeds,
   allowedHosts: ['studip.uni-hannover.de'],
   refreshMinutes: 60,
   maxSources: 4,
@@ -99,8 +119,7 @@ const connected = (settings: CalendarSettings, sources = [sourceView('s1', null,
 
 const EMPTY: CalendarOverview = {
   sources: [],
-  settings: null,
-  events: [],
+  display: null,
   changes: [],
   feeds: [],
   allowedHosts: ['studip.uni-hannover.de'],
@@ -108,34 +127,55 @@ const EMPTY: CalendarOverview = {
   maxSources: 4,
 }
 
+const TWO_LINKS = () =>
+  connected([
+    sourceView('s1', null, MAIN, selection({ subjects: { Rechnernetze: { color: 'royalblue' } } })),
+    sourceView('s2', 'Zweitfach', MINOR, selection({ subjects: { Compilerbau: { color: 'tomato' } } })),
+  ])
+
 function mockApi(initial: CalendarOverview) {
-  const saved: CalendarSettings[] = []
-  const added: { link: string; label?: string }[] = initial.sources.map(() => ({ link: 'existing' }))
-  const settings = calendarSettingsSchema.parse({
-    subjects: { Rechnernetze: { color: 'royalblue' }, Datenbanksysteme: { color: 'tomato' } },
-  })
+  const savedSelections: { source: string; selection: CalendarSelection }[] = []
+  const createdFeeds: { name: string; sources: string[]; subjects: string[] | null }[] = []
+  let current = initial
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     const url = String(input)
     const method = init?.method ?? 'GET'
-    if (url === '/api/calendar' && method === 'GET') return respond(initial)
+    const body = () => JSON.parse(String(init?.body))
+    if (url === '/api/calendar' && method === 'GET') return respond(current)
     if (url === '/api/calendar/sources' && method === 'POST') {
-      const { url: link, label } = JSON.parse(String(init?.body)) as { url: string; label?: string }
+      const { url: link, label } = body() as { url: string; label?: string }
       if (!link.startsWith('https://studip.uni-hannover.de/'))
         return respond({ error: 'host_not_allowed' }, 400)
       if (link.endsWith('/kaputt')) return respond({ error: 'fetch_failed', reason: 'not_found' }, 422)
       if (link.endsWith('/doppelt')) return respond({ error: 'duplicate' }, 409)
-      added.push({ link, label })
-      const sources = added.map((item, index) => sourceView(`s${index + 1}`, item.label ?? null, 4))
-      return respond(connected(settings, sources), 201)
+      const id = `s${current.sources.length + 1}`
+      const events = current.sources.length === 0 ? MAIN : MINOR
+      current = connected(
+        [...current.sources, sourceView(id, label ?? null, events)],
+        [...current.feeds, feedView(`f${current.feeds.length + 1}`, label ?? 'Stundenplan', [id])],
+      )
+      return respond(current, 201)
     }
-    if (url === '/api/calendar/settings' && method === 'PUT') {
-      const body = JSON.parse(String(init?.body)) as CalendarSettings
-      saved.push(body)
-      return respond(body)
+    const selectionPath = /^\/api\/calendar\/sources\/([^/]+)\/selection$/.exec(url)
+    if (selectionPath && method === 'PUT') {
+      savedSelections.push({ source: selectionPath[1] ?? '', selection: body() })
+      return respond(body())
+    }
+    if (url === '/api/calendar/display' && method === 'PUT') return respond(body())
+    if (url === '/api/calendar/feeds' && method === 'POST') {
+      const created = body() as { name: string; sources: string[]; subjects: string[] | null }
+      createdFeeds.push(created)
+      return respond(
+        {
+          ...feedView(`f${current.feeds.length + 1}`, created.name, created.sources),
+          subjects: created.subjects,
+        },
+        201,
+      )
     }
     return respond({ error: 'not_found' }, 404)
   })
-  return { saved, settings }
+  return { savedSelections, createdFeeds }
 }
 
 function renderCalendar() {
@@ -157,7 +197,7 @@ afterEach(() => {
 })
 
 describe('calendar page', () => {
-  it('connects a Stud.IP link and shows the feed and the subjects', async () => {
+  it('connects a Stud.IP link and shows its feed and subjects, without tabs for one link', async () => {
     mockApi(EMPTY)
     const user = renderCalendar()
     expect(await screen.findByRole('heading', { level: 1, name: 'Stundenplan-Kalender' })).toBeInTheDocument()
@@ -177,7 +217,6 @@ describe('calendar page', () => {
     await user.click(screen.getByRole('button', { name: 'Verbinden' }))
 
     expect(await screen.findByRole('heading', { name: 'Deine Stud.IP-Links (1/4)' })).toBeInTheDocument()
-    expect(screen.getByText('Link 1')).toBeInTheDocument()
     expect(screen.getByLabelText('Abo-Link für Stundenplan')).toHaveValue(
       'https://study-plan.de/calendar/f1/AAAAAAAAAAAAAAAAAAAAAA.ics',
     )
@@ -186,16 +225,16 @@ describe('calendar page', () => {
       'webcal://study-plan.de/calendar/f1/AAAAAAAAAAAAAAAAAAAAAA.ics',
     )
     expect(screen.getByText('Alle Fächer · 4 Termine')).toBeInTheDocument()
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument()
+    expect(screen.getByText('2 von 2 Fächern ausgewählt · 4 Termine')).toBeInTheDocument()
     expect(screen.getByRole('checkbox', { name: 'Rechnernetze in den Kalendern' })).toBeChecked()
-    expect(screen.getByRole('checkbox', { name: 'Datenbanksysteme in den Kalendern' })).toBeChecked()
     expect(screen.getByText('So heißt ein Termin: Rechnernetze · Vorlesung')).toBeInTheDocument()
   })
 
-  it('saves choices shortly after they change and updates titles and counts at once', async () => {
-    const { saved } = mockApi(connected(calendarSettingsSchema.parse({})))
+  it('saves a link’s choices shortly after they change and updates titles and counts at once', async () => {
+    const { savedSelections } = mockApi(connected())
     const user = renderCalendar()
-    const subject = await screen.findByRole('checkbox', { name: 'Datenbanksysteme in den Kalendern' })
-    await user.click(subject)
+    await user.click(await screen.findByRole('checkbox', { name: 'Datenbanksysteme in den Kalendern' }))
     expect(screen.getByText('Alle Fächer · 3 Termine')).toBeInTheDocument()
 
     const [shortName] = screen.getAllByLabelText('Kurzer Name')
@@ -203,13 +242,19 @@ describe('calendar page', () => {
     await user.type(shortName, 'RN')
     expect(screen.getByText('So heißt ein Termin: RN · Vorlesung')).toBeInTheDocument()
 
-    await waitFor(() => expect(saved.at(-1)?.subjects.Rechnernetze?.shortName).toBe('RN'), { timeout: 2000 })
-    expect(saved.at(-1)?.excludedSubjects).toEqual(['Datenbanksysteme'])
+    await waitFor(
+      () => expect(savedSelections.at(-1)?.selection.subjects.Rechnernetze?.shortName).toBe('RN'),
+      { timeout: 2000 },
+    )
+    expect(savedSelections.at(-1)).toMatchObject({
+      source: 's1',
+      selection: { excludedSubjects: ['Datenbanksysteme'] },
+    })
     expect(await screen.findByText('Gespeichert')).toBeInTheDocument()
   })
 
-  it('adds a second link with a name', async () => {
-    mockApi(connected(calendarSettingsSchema.parse({})))
+  it('adds a second link with a name and its own calendar', async () => {
+    mockApi(connected())
     const user = renderCalendar()
     await user.click(await screen.findByRole('button', { name: 'Link hinzufügen' }))
     const input = screen.getByLabelText('Link zu deinem Stud.IP-Kalender')
@@ -222,23 +267,77 @@ describe('calendar page', () => {
     await user.type(screen.getByLabelText('Name (optional)'), 'Zweitfach')
     await user.click(screen.getByRole('button', { name: 'Verbinden' }))
     expect(await screen.findByRole('heading', { name: 'Deine Stud.IP-Links (2/4)' })).toBeInTheDocument()
-    expect(screen.getByText('Zweitfach')).toBeInTheDocument()
+    expect(screen.getByLabelText('Abo-Link für Zweitfach')).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /Zweitfach/ })).toBeInTheDocument()
+  })
+
+  it('manages each link’s subjects in its own tab', async () => {
+    const { savedSelections } = mockApi(TWO_LINKS())
+    const user = renderCalendar()
+    const tabs = await screen.findByRole('tablist', { name: 'Stud.IP-Links' })
+    const [first, second] = within(tabs).getAllByRole('tab')
+    if (!first || !second) throw new Error('no tabs')
+    expect(first).toHaveAttribute('aria-selected', 'true')
+    expect(first).toHaveTextContent('Link 12/2')
+    expect(second).toHaveTextContent('Zweitfach2/2')
+    expect(screen.getByRole('checkbox', { name: 'Rechnernetze in den Kalendern' })).toBeInTheDocument()
+    expect(screen.queryByRole('checkbox', { name: 'Compilerbau in den Kalendern' })).not.toBeInTheDocument()
+
+    await user.click(second)
+    expect(second).toHaveAttribute('aria-selected', 'true')
+    expect(screen.queryByRole('checkbox', { name: 'Rechnernetze in den Kalendern' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('checkbox', { name: 'Logik in den Kalendern' }))
+    expect(second).toHaveTextContent('Zweitfach1/2')
+    expect(first).toHaveTextContent('Link 12/2')
+    await waitFor(() => expect(savedSelections.at(-1)?.source).toBe('s2'), { timeout: 2000 })
+    expect(savedSelections.at(-1)?.selection.excludedSubjects).toEqual(['Logik'])
+    expect(savedSelections.some((saved) => saved.source === 's1')).toBe(false)
+
+    // Arrow keys move between tabs.
+    second.focus()
+    await user.keyboard('{ArrowLeft}')
+    expect(first).toHaveAttribute('aria-selected', 'true')
+    expect(first).toHaveFocus()
+  })
+
+  it('makes calendars that mix links', async () => {
+    const { createdFeeds } = mockApi(TWO_LINKS())
+    const user = renderCalendar()
+    // Each link has a calendar of its own.
+    expect(await screen.findByLabelText('Abo-Link für Zweitfach')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Alle Links in einem Kalender' }))
+    await waitFor(() =>
+      expect(createdFeeds).toEqual([{ name: 'Alle Links', sources: ['s1', 's2'], subjects: null }]),
+    )
+    expect(await screen.findByText('Alle Fächer · 6 Termine')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Alle Links in einem Kalender' })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Kalender hinzufügen' }))
+    const dialog = await screen.findByRole('dialog')
+    await user.type(within(dialog).getByLabelText('Name'), 'Nur Compilerbau')
+    await user.click(within(dialog).getByRole('checkbox', { name: /Link 1/ }))
+    await user.click(within(dialog).getByRole('radio', { name: 'Nur diese Fächer:' }))
+    expect(within(dialog).queryByRole('checkbox', { name: /Rechnernetze/ })).not.toBeInTheDocument()
+    await user.click(within(dialog).getByRole('checkbox', { name: /Compilerbau/ }))
+    await user.click(within(dialog).getByRole('button', { name: 'Speichern' }))
+    await waitFor(() =>
+      expect(createdFeeds.at(-1)).toEqual({
+        name: 'Nur Compilerbau',
+        sources: ['s2'],
+        subjects: ['Compilerbau'],
+      }),
+    )
   })
 
   it('offers no further link at the limit', async () => {
-    mockApi(
-      connected(
-        calendarSettingsSchema.parse({}),
-        ['s1', 's2', 's3', 's4'].map((id) => sourceView(id, null, 1)),
-      ),
-    )
+    mockApi(connected(['s1', 's2', 's3', 's4'].map((id) => sourceView(id, null))))
     renderCalendar()
     expect(await screen.findByText('Mehr als 4 Links gehen nicht.')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Link hinzufügen' })).not.toBeInTheDocument()
   })
 
   it('lists recent changes', async () => {
-    mockApi(connected(calendarSettingsSchema.parse({})))
+    mockApi(connected())
     renderCalendar()
     const heading = await screen.findByRole('heading', { name: 'Letzte Änderungen' })
     const list = heading.parentElement?.querySelector('ul')

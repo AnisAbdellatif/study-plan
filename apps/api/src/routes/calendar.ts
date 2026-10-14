@@ -1,16 +1,17 @@
 import { createHash } from 'node:crypto'
 import {
+  type CalendarDisplay,
   type CalendarEvent,
   type CalendarFeedView,
   type CalendarOverview,
-  type CalendarSettings,
   calendarColor,
-  calendarSettingsSchema,
+  calendarDisplaySchema,
+  calendarSelectionSchema,
   calendarSubjects,
   eventTitle,
-  feedEvents,
+  linkSettings,
   MAX_CALENDAR_SOURCES,
-  mergeCalendarEvents,
+  mixedFeedEvents,
   withSubjectColors,
 } from '@study-plan/shared'
 import { and, asc, eq } from 'drizzle-orm'
@@ -23,7 +24,8 @@ import {
   type CalendarDependencies,
   claimSource,
   MANUAL_REFRESH_MS,
-  readSettings,
+  readDisplay,
+  readSelection,
   refreshSource,
 } from '../calendar/sync.ts'
 import type { Config } from '../config.ts'
@@ -38,12 +40,17 @@ const readJson = (request: Request): Promise<unknown> => request.json().catch(()
 
 const feedName = z.string().trim().min(1).max(80)
 const feedSubjects = z.array(z.string().min(1).max(500)).max(500).nullable()
+const feedSources = z.array(z.uuid()).min(1).max(MAX_CALENDAR_SOURCES)
 const sourceBody = z.object({
   url: z.string().min(1).max(2000),
   label: z.string().trim().max(40).optional(),
 })
-const createFeedBody = z.object({ name: feedName, subjects: feedSubjects })
-const updateFeedBody = z.object({ name: feedName.optional(), subjects: feedSubjects.optional() })
+const createFeedBody = z.object({ name: feedName, sources: feedSources, subjects: feedSubjects })
+const updateFeedBody = z.object({
+  name: feedName.optional(),
+  sources: feedSources.optional(),
+  subjects: feedSubjects.optional(),
+})
 
 const DEFAULT_FEED_NAMES = { de: 'Stundenplan', en: 'Timetable' }
 const FEED_LABELS = {
@@ -52,6 +59,7 @@ const FEED_LABELS = {
 }
 
 type FeedRow = typeof calendarFeed.$inferSelect
+type SourceRow = typeof calendarSource.$inferSelect
 
 /** Feeds live under the calendar page's path: /calendar/<feed id>/<token>.ics. */
 export const CALENDAR_FEED_PATH = '/calendar'
@@ -62,6 +70,7 @@ export const feedUrl = (config: Config, feed: Pick<FeedRow, 'id' | 'tokenVersion
 const feedView = (config: Config, feed: FeedRow): CalendarFeedView => ({
   id: feed.id,
   name: feed.name,
+  sources: feed.sourceIds,
   subjects: feed.subjects,
   url: feedUrl(config, feed),
   createdAt: feed.createdAt.toISOString(),
@@ -75,21 +84,32 @@ const sourcesOf = (db: Database, userId: string) =>
     .where(eq(calendarSource.userId, userId))
     .orderBy(asc(calendarSource.createdAt), asc(calendarSource.id))
 
-/** The dates of all a student's links. */
-export async function accountEvents(db: Database, userId: string) {
-  return mergeCalendarEvents((await sourcesOf(db, userId)).map((source) => source.events))
+const feedsOf = (db: Database, userId: string) =>
+  db
+    .select()
+    .from(calendarFeed)
+    .where(eq(calendarFeed.userId, userId))
+    .orderBy(asc(calendarFeed.createdAt), asc(calendarFeed.id))
+
+/** The dates a feed shows, each with the settings of the link it comes from. */
+function feedDates(
+  feed: Pick<FeedRow, 'sourceIds' | 'subjects'>,
+  sources: readonly SourceRow[],
+  display: CalendarDisplay,
+) {
+  const links = feed.sourceIds.flatMap((id) => {
+    const source = sources.find((candidate) => candidate.id === id)
+    return source
+      ? [{ events: source.events, settings: linkSettings(display, readSelection(source.selection)) }]
+      : []
+  })
+  return mixedFeedEvents(links, feed.subjects)
 }
 
 async function overview(db: Database, config: Config, userId: string): Promise<CalendarOverview> {
   const [account] = await db.select().from(calendar).where(eq(calendar.userId, userId))
   const sources = account ? await sourcesOf(db, userId) : []
-  const feeds = account
-    ? await db
-        .select()
-        .from(calendarFeed)
-        .where(eq(calendarFeed.userId, userId))
-        .orderBy(asc(calendarFeed.createdAt), asc(calendarFeed.id))
-    : []
+  const feeds = account ? await feedsOf(db, userId) : []
   return {
     sources: sources.map((source) => ({
       id: source.id,
@@ -99,11 +119,11 @@ async function overview(db: Database, config: Config, userId: string): Promise<C
       error: source.lastError,
       lastFetchedAt: source.lastFetchedAt?.toISOString() ?? null,
       lastSuccessAt: source.lastSuccessAt?.toISOString() ?? null,
-      eventCount: source.events.length,
       createdAt: source.createdAt.toISOString(),
+      events: source.events,
+      selection: readSelection(source.selection),
     })),
-    settings: account ? readSettings(account.settings) : null,
-    events: mergeCalendarEvents(sources.map((source) => source.events)),
+    display: account ? readDisplay(account.settings) : null,
     changes: account?.changes ?? [],
     feeds: feeds.map((feed) => feedView(config, feed)),
     allowedHosts: config.calendar.sourceHosts,
@@ -135,6 +155,12 @@ export function calendarRoutes(dependencies: CalendarDependencies) {
     return row ?? null
   }
 
+  /** Whether every id names one of the student's links. */
+  const ownSources = async (userId: string, ids: readonly string[]) => {
+    const own = new Set((await sourcesOf(db, userId)).map((source) => source.id))
+    return ids.every((id) => own.has(id))
+  }
+
   type LinkCheck =
     | { ok: true; url: string; host: string; events: CalendarEvent[] }
     | { ok: false; response: Response }
@@ -157,25 +183,15 @@ export function calendarRoutes(dependencies: CalendarDependencies) {
     )
     if (duplicate) return { ok: false, response: c.json({ error: 'duplicate' }, 409) }
     const fetched = await fetchSourceCalendar(parsed.url, dependencies.fetcher)
-    if (!fetched.ok)
+    if (!fetched.ok) {
       return { ok: false, response: c.json({ error: 'fetch_failed', reason: fetched.error }, 422) }
+    }
     return { ok: true, url: parsed.url, host: parsed.host, events: fetched.events }
-  }
-
-  /** New subjects get colours; the rest of the settings stay. */
-  const recolour = async (userId: string, now: Date) => {
-    const [account] = await db.select().from(calendar).where(eq(calendar.userId, userId))
-    if (!account) return
-    const settings = withSubjectColors(
-      readSettings(account.settings),
-      calendarSubjects(await accountEvents(db, userId)),
-    )
-    await db.update(calendar).set({ settings, updatedAt: now }).where(eq(calendar.userId, userId))
   }
 
   routes.get('/', async (c) => c.json(await overview(db, config, c.get('user').id)))
 
-  /** Adds a link. The first one also creates the account's settings and a feed of everything. */
+  /** Adds a link with a feed of its own. The first one also creates the account's display settings. */
   routes.post('/sources', async (c) => {
     const body = sourceBody.safeParse(await readJson(c.req.raw))
     if (!body.success) return c.json({ error: 'invalid_request' }, 400)
@@ -187,41 +203,47 @@ export function calendarRoutes(dependencies: CalendarDependencies) {
     if (!link.ok) return link.response
 
     const now = new Date()
-    const [created] = await db
+    await db
       .insert(calendar)
-      .values({ userId, settings: calendarSettingsSchema.parse({}) })
+      .values({ userId, settings: calendarDisplaySchema.parse({}) })
       .onConflictDoNothing()
-      .returning({ userId: calendar.userId })
-    if (created) {
+    const label = body.data.label || null
+    const [created] = await db
+      .insert(calendarSource)
+      .values({
+        userId,
+        encryptedUrl: encryptSourceUrl(config.authSecret, link.url),
+        host: link.host,
+        label,
+        status: 'ok',
+        lastFetchedAt: now,
+        lastSuccessAt: now,
+        events: link.events,
+        selection: withSubjectColors(calendarSelectionSchema.parse({}), calendarSubjects(link.events)),
+      })
+      .returning({ id: calendarSource.id })
+    if (!created) throw new Error('source insert returned nothing')
+    // Two requests at once could both pass the limit check; the later one goes again.
+    const sources = await sourcesOf(db, userId)
+    if (sources.length > MAX_CALENDAR_SOURCES && sources.at(-1)?.id === created.id) {
+      await db.delete(calendarSource).where(eq(calendarSource.id, created.id))
+      return c.json({ error: 'source_limit', limit: MAX_CALENDAR_SOURCES }, 409)
+    }
+    // Each link gets a calendar of its own; calendars that mix links are the student's to make.
+    if ((await db.$count(calendarFeed, eq(calendarFeed.userId, userId))) < MAX_FEEDS) {
       const [owner] = await db.select({ locale: user.locale }).from(user).where(eq(user.id, userId))
+      const base = DEFAULT_FEED_NAMES[owner?.locale === 'en' ? 'en' : 'de']
       await db.insert(calendarFeed).values({
         userId,
-        name: DEFAULT_FEED_NAMES[owner?.locale === 'en' ? 'en' : 'de'],
+        name: label ?? (sources.length === 1 ? base : `${base} ${sources.length}`),
+        sourceIds: [created.id],
         subjects: null,
       })
     }
-    await db.insert(calendarSource).values({
-      userId,
-      encryptedUrl: encryptSourceUrl(config.authSecret, link.url),
-      host: link.host,
-      label: body.data.label || null,
-      status: 'ok',
-      lastFetchedAt: now,
-      lastSuccessAt: now,
-      events: link.events,
-    })
-    // Two requests at once could both pass the limit check; the later one goes again.
-    const sources = await sourcesOf(db, userId)
-    const latest = sources.at(-1)
-    if (sources.length > MAX_CALENDAR_SOURCES && latest) {
-      await db.delete(calendarSource).where(eq(calendarSource.id, latest.id))
-      return c.json({ error: 'source_limit', limit: MAX_CALENDAR_SOURCES }, 409)
-    }
-    await recolour(userId, now)
     return c.json(await overview(db, config, userId), 201)
   })
 
-  /** Replaces a link and its name. */
+  /** Replaces a link and its name. Its choices and feeds stay. */
   routes.put('/sources/:id', async (c) => {
     const body = sourceBody.safeParse(await readJson(c.req.raw))
     if (!body.success) return c.json({ error: 'invalid_request' }, 400)
@@ -244,16 +266,29 @@ export function calendarRoutes(dependencies: CalendarDependencies) {
         // Another link may be another calendar: nothing to compare with on its next fetch.
         lastSuccessAt: now,
         events: link.events,
+        selection: withSubjectColors(readSelection(source.selection), calendarSubjects(link.events)),
         updatedAt: now,
       })
       .where(eq(calendarSource.id, source.id))
-    await recolour(userId, now)
     return c.json(await overview(db, config, userId))
   })
 
+  /** The student's choices, short names and colours for one link's subjects and dates. */
+  routes.put('/sources/:id/selection', async (c) => {
+    const body = calendarSelectionSchema.safeParse(await readJson(c.req.raw))
+    if (!body.success) return c.json({ error: 'invalid_request' }, 400)
+    const source = await ownSource(c.get('user').id, c.req.param('id'))
+    if (!source) return c.json({ error: 'not_found' }, 404)
+    await db
+      .update(calendarSource)
+      .set({ selection: body.data, updatedAt: new Date() })
+      .where(eq(calendarSource.id, source.id))
+    return c.json(body.data)
+  })
+
   /**
-   * Removes a link and its dates. Removing the last one removes the settings and every feed too: subscribed
-   * calendars stop receiving dates.
+   * Removes a link and its dates. Feeds of only this link go too; mixed ones keep their other links. Removing the
+   * last link removes the settings and every feed: subscribed calendars stop receiving dates.
    */
   routes.delete('/sources/:id', async (c) => {
     const userId = c.get('user').id
@@ -262,9 +297,15 @@ export function calendarRoutes(dependencies: CalendarDependencies) {
     await db.delete(calendarSource).where(eq(calendarSource.id, source.id))
     if ((await sourcesOf(db, userId)).length === 0) {
       await db.delete(calendar).where(eq(calendar.userId, userId))
-    } else {
-      await db.update(calendar).set({ updatedAt: new Date() }).where(eq(calendar.userId, userId))
+      return c.json(await overview(db, config, userId))
     }
+    for (const feed of await feedsOf(db, userId)) {
+      if (!feed.sourceIds.includes(source.id)) continue
+      const rest = feed.sourceIds.filter((id) => id !== source.id)
+      if (rest.length === 0) await db.delete(calendarFeed).where(eq(calendarFeed.id, feed.id))
+      else await db.update(calendarFeed).set({ sourceIds: rest }).where(eq(calendarFeed.id, feed.id))
+    }
+    await db.update(calendar).set({ updatedAt: new Date() }).where(eq(calendar.userId, userId))
     return c.json(await overview(db, config, userId))
   })
 
@@ -284,8 +325,9 @@ export function calendarRoutes(dependencies: CalendarDependencies) {
     return c.json(await overview(db, config, userId))
   })
 
-  routes.put('/settings', async (c) => {
-    const body = calendarSettingsSchema.safeParse(await readJson(c.req.raw))
+  /** How dates look in every feed, and change alerts. */
+  routes.put('/display', async (c) => {
+    const body = calendarDisplaySchema.safeParse(await readJson(c.req.raw))
     if (!body.success) return c.json({ error: 'invalid_request' }, 400)
     const [updated] = await db
       .update(calendar)
@@ -300,16 +342,17 @@ export function calendarRoutes(dependencies: CalendarDependencies) {
     const body = createFeedBody.safeParse(await readJson(c.req.raw))
     if (!body.success) return c.json({ error: 'invalid_request' }, 400)
     const userId = c.get('user').id
-    const [account] = await db
-      .select({ userId: calendar.userId })
-      .from(calendar)
-      .where(eq(calendar.userId, userId))
-    if (!account) return c.json({ error: 'not_found' }, 404)
+    if (!(await ownSources(userId, body.data.sources))) return c.json({ error: 'invalid_request' }, 400)
     const count = await db.$count(calendarFeed, eq(calendarFeed.userId, userId))
     if (count >= MAX_FEEDS) return c.json({ error: 'feed_limit', limit: MAX_FEEDS }, 409)
     const [feed] = await db
       .insert(calendarFeed)
-      .values({ userId, name: body.data.name, subjects: body.data.subjects })
+      .values({
+        userId,
+        name: body.data.name,
+        sourceIds: [...new Set(body.data.sources)],
+        subjects: body.data.subjects,
+      })
       .returning()
     if (!feed) throw new Error('feed insert returned nothing')
     return c.json(feedView(config, feed), 201)
@@ -318,12 +361,17 @@ export function calendarRoutes(dependencies: CalendarDependencies) {
   routes.patch('/feeds/:id', async (c) => {
     const body = updateFeedBody.safeParse(await readJson(c.req.raw))
     if (!body.success) return c.json({ error: 'invalid_request' }, 400)
-    const feed = await ownFeed(c.get('user').id, c.req.param('id'))
+    const userId = c.get('user').id
+    const feed = await ownFeed(userId, c.req.param('id'))
     if (!feed) return c.json({ error: 'not_found' }, 404)
+    if (body.data.sources && !(await ownSources(userId, body.data.sources))) {
+      return c.json({ error: 'invalid_request' }, 400)
+    }
     const [updated] = await db
       .update(calendarFeed)
       .set({
         ...(body.data.name !== undefined ? { name: body.data.name } : {}),
+        ...(body.data.sources !== undefined ? { sourceIds: [...new Set(body.data.sources)] } : {}),
         ...(body.data.subjects !== undefined ? { subjects: body.data.subjects } : {}),
       })
       .where(eq(calendarFeed.id, feed.id))
@@ -366,7 +414,7 @@ export async function unsubscribeCalendarAlerts(
     .from(calendar)
     .where(eq(calendar.userId, userId))
   if (account) {
-    const settings: CalendarSettings = { ...readSettings(account.settings), changeAlerts: false }
+    const settings: CalendarDisplay = { ...readDisplay(account.settings), changeAlerts: false }
     await db.update(calendar).set({ settings, updatedAt: new Date() }).where(eq(calendar.userId, userId))
   }
   return true
@@ -392,19 +440,21 @@ export function calendarFeedRoutes(db: Database, config: Config) {
       .where(eq(calendarFeed.id, id))
     if (!row || !isFeedToken(config.authSecret, row.feed.id, row.feed.tokenVersion, token)) return notFound()
 
-    const sources = await sourcesOf(db, row.account.userId)
-    const events = mergeCalendarEvents(sources.map((source) => source.events))
+    const sources = (await sourcesOf(db, row.account.userId)).filter((source) =>
+      row.feed.sourceIds.includes(source.id),
+    )
+    const dates = feedDates(row.feed, sources, readDisplay(row.account.settings))
     // The stamp follows the stored data, so the same data gives the same file and the ETag below holds.
     const stamp = new Date(
       Math.max(row.account.updatedAt.getTime(), ...sources.map((source) => source.updatedAt.getTime())),
     )
     const labels = FEED_LABELS[row.locale === 'en' ? 'en' : 'de']
-    const settings = readSettings(row.account.settings)
-    const subjects = row.feed.subjects
-    // A feed of one subject takes its colour; Apple Calendar uses it when subscribing.
+    // A feed of one subject of one link takes its colour; Apple Calendar uses it when subscribing.
+    const [only] = sources
+    const subject = row.feed.subjects?.length === 1 ? row.feed.subjects[0] : undefined
     const color =
-      subjects?.length === 1 && subjects[0] !== undefined
-        ? calendarColor(settings.subjects[subjects[0]]?.color)
+      sources.length === 1 && only && subject !== undefined
+        ? calendarColor(readSelection(only.selection).subjects[subject]?.color)
         : undefined
     const body = renderCalendar(
       {
@@ -412,7 +462,7 @@ export function calendarFeedRoutes(db: Database, config: Config) {
         description: labels.description,
         color: color ? { name: color.name, hex: color.hex } : undefined,
         refreshMinutes: config.calendar.refreshMinutes || 60,
-        events: feedEvents(events, settings, subjects).map((event) => ({
+        events: dates.map(({ event, settings }) => ({
           uid: event.uid,
           summary: eventTitle(event, settings, labels),
           start: event.start,

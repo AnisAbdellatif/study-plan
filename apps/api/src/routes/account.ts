@@ -89,7 +89,7 @@ export function accountRoutes(db: Database, config: Config) {
     const feeds = account ? await db.select().from(calendarFeed).where(eq(calendarFeed.userId, userId)) : []
     const calendarData = account
       ? {
-          settings: account.settings,
+          display: account.settings,
           changes: account.changes,
           createdAt: account.createdAt,
           links: sources.map((source) => ({
@@ -100,10 +100,12 @@ export function accountRoutes(db: Database, config: Config) {
             lastFetchedAt: source.lastFetchedAt,
             lastSuccessAt: source.lastSuccessAt,
             createdAt: source.createdAt,
+            selection: source.selection,
             events: source.events,
           })),
           feeds: feeds.map((feed) => ({
             name: feed.name,
+            links: feed.sourceIds,
             subjects: feed.subjects,
             url: feedUrl(config, feed),
             createdAt: feed.createdAt,

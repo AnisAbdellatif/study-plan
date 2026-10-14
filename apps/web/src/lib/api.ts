@@ -1,7 +1,8 @@
 import type {
+  CalendarDisplay,
   CalendarFeedView,
   CalendarOverview,
-  CalendarSettings,
+  CalendarSelection,
   CustomPresetFailure,
   CustomPresetIssue,
   CustomPresetWarning,
@@ -252,14 +253,26 @@ export const calendarApi = {
     }),
   refresh: (): Promise<CalendarOverview> =>
     calendarRequest<CalendarOverview>('/api/calendar/refresh', { method: 'POST' }),
-  saveSettings: (settings: CalendarSettings): Promise<CalendarSettings> =>
-    calendarRequest<CalendarSettings>('/api/calendar/settings', {
+  saveDisplay: (display: CalendarDisplay): Promise<CalendarDisplay> =>
+    calendarRequest<CalendarDisplay>('/api/calendar/display', {
       method: 'PUT',
-      body: JSON.stringify(settings),
+      body: JSON.stringify(display),
     }),
-  createFeed: (feed: { name: string; subjects: string[] | null }): Promise<CalendarFeedView> =>
+  saveSelection: (sourceId: string, selection: CalendarSelection): Promise<CalendarSelection> =>
+    calendarRequest<CalendarSelection>(`/api/calendar/sources/${encodeURIComponent(sourceId)}/selection`, {
+      method: 'PUT',
+      body: JSON.stringify(selection),
+    }),
+  createFeed: (feed: {
+    name: string
+    sources: string[]
+    subjects: string[] | null
+  }): Promise<CalendarFeedView> =>
     calendarRequest<CalendarFeedView>('/api/calendar/feeds', { method: 'POST', body: JSON.stringify(feed) }),
-  updateFeed: (id: string, feed: { name?: string; subjects?: string[] | null }): Promise<CalendarFeedView> =>
+  updateFeed: (
+    id: string,
+    feed: { name?: string; sources?: string[]; subjects?: string[] | null },
+  ): Promise<CalendarFeedView> =>
     calendarRequest<CalendarFeedView>(`/api/calendar/feeds/${encodeURIComponent(id)}`, {
       method: 'PATCH',
       body: JSON.stringify(feed),

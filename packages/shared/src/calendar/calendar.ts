@@ -58,7 +58,8 @@ export const subjectSettingsSchema = z.object({
   color: z.enum(colorNames).optional(),
 })
 
-export const calendarSettingsSchema = z.object({
+/** What one link contributes: its subjects' names and colours, and the dates the student leaves out. */
+export const calendarSelectionSchema = z.object({
   subjects: z.record(key, subjectSettingsSchema).default({}),
   /** Subjects left out of every feed, including courses of them that appear later. */
   excludedSubjects: z.array(key).max(500).default([]),
@@ -68,6 +69,10 @@ export const calendarSettingsSchema = z.object({
   excludedSlots: z.array(key).max(2000).default([]),
   /** Single dates left out, by UID. */
   hiddenEvents: z.array(key).max(5000).default([]),
+})
+
+/** How dates look in every feed of the account, and whether changes are mailed. */
+export const calendarDisplaySchema = z.object({
   /** Adds the course type to titles, e.g. "Analysis I · Übung". */
   showKind: z.boolean().default(true),
   /** Puts the subject's colour as a round emoji in front of titles. */
@@ -78,10 +83,31 @@ export const calendarSettingsSchema = z.object({
   changeAlerts: z.boolean().default(false),
 })
 
+export type CalendarSelection = z.infer<typeof calendarSelectionSchema>
+export type CalendarDisplay = z.infer<typeof calendarDisplaySchema>
+
+/** Everything that decides one link's dates in a feed: its selection and the account's display options. */
+export const calendarSettingsSchema = calendarSelectionSchema.extend(calendarDisplaySchema.shape)
+
 export type CalendarSettings = z.infer<typeof calendarSettingsSchema>
 export type SubjectSettings = z.infer<typeof subjectSettingsSchema>
 
 export const defaultCalendarSettings = (): CalendarSettings => calendarSettingsSchema.parse({})
+
+/** The link's part of settings, e.g. after editing them as a whole. */
+export const selectionOf = (settings: CalendarSettings): CalendarSelection => ({
+  subjects: settings.subjects,
+  excludedSubjects: settings.excludedSubjects,
+  excludedCourses: settings.excludedCourses,
+  excludedSlots: settings.excludedSlots,
+  hiddenEvents: settings.hiddenEvents,
+})
+
+/** The settings that apply to the dates of a link. */
+export const linkSettings = (display: CalendarDisplay, selection: CalendarSelection): CalendarSettings => ({
+  ...selection,
+  ...display,
+})
 
 export const slotKey = (course: string, slot: string): string => `${course}#${slot}`
 
@@ -141,7 +167,10 @@ export const calendarSubjects = (events: readonly CalendarEvent[]): string[] =>
  * Settings with a colour for every subject that has none yet, picking the least used colours first so subjects
  * stay apart. Existing choices are kept.
  */
-export function withSubjectColors(settings: CalendarSettings, subjects: readonly string[]): CalendarSettings {
+export function withSubjectColors<T extends Pick<CalendarSettings, 'subjects'>>(
+  settings: T,
+  subjects: readonly string[],
+): T {
   const missing = subjects.filter((subject) => !settings.subjects[subject]?.color)
   if (missing.length === 0) return settings
   const usage = new Map<CalendarColorName, number>(CALENDAR_COLORS.map((color) => [color.name, 0]))
@@ -162,6 +191,8 @@ export function withSubjectColors(settings: CalendarSettings, subjects: readonly
 /** What changed about a date the student keeps, for alerts and the recent changes list. */
 export interface CalendarChange {
   kind: 'cancelled' | 'restored' | 'moved' | 'room' | 'added' | 'removed'
+  /** The link the date belongs to; missing on changes noticed before links had their own choices. */
+  sourceId?: string
   uid: string
   subject: string
   course: string
@@ -182,6 +213,8 @@ export interface CalendarChange {
 export interface CalendarFeedView {
   id: string
   name: string
+  /** The links whose dates the feed shows, as source ids; several mix them into one calendar. */
+  sources: string[]
   /** Null: every subject the student keeps. */
   subjects: string[] | null
   /** The subscription URL; it is a secret. */
@@ -204,8 +237,10 @@ export interface CalendarSourceView {
   error: CalendarFetchError | null
   lastFetchedAt: string | null
   lastSuccessAt: string | null
-  eventCount: number
   createdAt: string
+  /** This link's dates. */
+  events: CalendarEvent[]
+  selection: CalendarSelection
 }
 
 export type CalendarFetchError =
@@ -221,9 +256,7 @@ export interface CalendarOverview {
   /** Oldest first; empty until the student adds a link. */
   sources: CalendarSourceView[]
   /** Null without links. */
-  settings: CalendarSettings | null
-  /** The dates of all links together, each UID once. */
-  events: CalendarEvent[]
+  display: CalendarDisplay | null
   changes: CalendarChange[]
   feeds: CalendarFeedView[]
   /** Hosts whose calendars can be added, e.g. "studip.uni-hannover.de". */
@@ -233,16 +266,30 @@ export interface CalendarOverview {
   maxSources: number
 }
 
-/** The dates of several links as one list: a date that appears in two links (same UID) counts once. */
-export function mergeCalendarEvents(lists: readonly (readonly CalendarEvent[])[]): CalendarEvent[] {
+export interface LinkedEvent {
+  event: CalendarEvent
+  /** The settings of the link the date comes from. */
+  settings: CalendarSettings
+}
+
+/**
+ * The dates of a feed: those of each of its links that the link's choices keep, of the feed's subjects (null: all).
+ * A date in two links (same UID) counts once, with the settings of the first link. Sorted by start.
+ */
+export function mixedFeedEvents(
+  links: readonly { events: readonly CalendarEvent[]; settings: CalendarSettings }[],
+  subjects: readonly string[] | null,
+): LinkedEvent[] {
   const seen = new Set<string>()
-  const merged: CalendarEvent[] = []
-  for (const list of lists) {
-    for (const event of list) {
+  const mixed: LinkedEvent[] = []
+  for (const link of links) {
+    for (const event of feedEvents(link.events, link.settings, subjects)) {
       if (seen.has(event.uid)) continue
       seen.add(event.uid)
-      merged.push(event)
+      mixed.push({ event, settings: link.settings })
     }
   }
-  return merged
+  return mixed.sort(
+    (a, b) => a.event.start.localeCompare(b.event.start) || a.event.uid.localeCompare(b.event.uid),
+  )
 }

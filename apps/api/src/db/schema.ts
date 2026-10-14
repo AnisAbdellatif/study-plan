@@ -4,9 +4,10 @@
  */
 import type {
   CalendarChange,
+  CalendarDisplay,
   CalendarEvent,
   CalendarFetchError,
-  CalendarSettings,
+  CalendarSelection,
   GuestDocument,
   Preset,
 } from '@study-plan/shared'
@@ -230,7 +231,8 @@ export const calendar = pgTable('calendar', {
   userId: text('user_id')
     .primaryKey()
     .references(() => user.id, { onDelete: 'cascade' }),
-  settings: jsonb('settings').$type<CalendarSettings>().notNull(),
+  /** How dates look in every feed; what each link contributes is calendar_source.selection. */
+  settings: jsonb('settings').$type<CalendarDisplay>().notNull(),
   /** The latest changes, newest first, for the calendar page. */
   changes: jsonb('changes').$type<CalendarChange[]>().notNull().default([]),
   ...timestamps(),
@@ -261,6 +263,8 @@ export const calendarSource = pgTable(
     lastFetchedAt: timestamp('last_fetched_at', { withTimezone: true }),
     lastSuccessAt: timestamp('last_success_at', { withTimezone: true }),
     events: jsonb('events').$type<CalendarEvent[]>().notNull().default([]),
+    /** The student's choices, short names and colours for this link's subjects. */
+    selection: jsonb('selection').$type<CalendarSelection>().notNull(),
     ...timestamps(),
   },
   (table) => [
@@ -278,6 +282,8 @@ export const calendarFeed = pgTable(
       .notNull()
       .references(() => calendar.userId, { onDelete: 'cascade' }),
     name: text('name').notNull(),
+    /** The links (calendar_source ids) whose dates the feed shows; several mix them into one calendar. */
+    sourceIds: jsonb('source_ids').$type<string[]>().notNull(),
     /** Null: every subject the student keeps. */
     subjects: jsonb('subjects').$type<string[] | null>(),
     /** Raised to make the current URL stop working. */
