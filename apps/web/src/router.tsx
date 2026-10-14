@@ -29,6 +29,7 @@ const UnsubscribePage = lazyRouteComponent(authPages, 'UnsubscribePage')
 const ImpressumPage = lazyRouteComponent(() => import('./legal/impressum-page.tsx'), 'ImpressumPage')
 const DatenschutzPage = lazyRouteComponent(() => import('./legal/datenschutz-page.tsx'), 'DatenschutzPage')
 const AdminPage = lazyRouteComponent(() => import('./routes/admin-page.tsx'), 'AdminPage')
+const CalendarPage = lazyRouteComponent(() => import('./routes/calendar-page.tsx'), 'CalendarPage')
 const ContactPage = lazyRouteComponent(() => import('./routes/contact-page.tsx'), 'ContactPage')
 const PrintPage = lazyRouteComponent(() => import('./routes/print-page.tsx'), 'PrintPage')
 const SharedPlanPage = lazyRouteComponent(() => import('./routes/shared-plan-page.tsx'), 'SharedPlanPage')
@@ -105,6 +106,11 @@ const datenschutzRoute = createRoute({
   path: '/privacy',
   component: DatenschutzPage,
 })
+const calendarRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/calendar',
+  component: CalendarPage,
+})
 const contactRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/contact',
@@ -144,6 +150,7 @@ export const routeTree = rootRoute.addChildren([
   unsubscribeRoute,
   adminRoute,
   contactRoute,
+  calendarRoute,
   aboutRoute,
   printRoute,
 ])

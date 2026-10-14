@@ -453,3 +453,160 @@ export function reminderMail(
     },
   }
 }
+
+export interface CalendarChangeItem {
+  kind: 'cancelled' | 'restored' | 'moved' | 'room' | 'added' | 'removed'
+  /** The title the date has in the student's feeds. */
+  title: string
+  /** ISO instants; for grouped items the first date. */
+  start: string
+  previousStart?: string
+  location?: string
+  previousLocation?: string
+  /** Several new or removed dates of one course in one row. */
+  count?: number
+}
+
+export interface CalendarAlertLinks {
+  calendarUrl: string
+  /** Page that asks before turning alerts off, so link scanners cannot unsubscribe anyone. */
+  unsubscribeUrl: string
+  /** RFC 8058 one-click endpoint for mail clients. */
+  oneClickUrl: string
+}
+
+const calendarMails = {
+  de: {
+    subject: (count: number) =>
+      count === 1 ? 'Stundenplan: 1 Änderung' : `Stundenplan: ${count} Änderungen`,
+    heading: 'Dein Stundenplan hat sich geändert',
+    intro:
+      'in deinem Stud.IP-Kalender hat sich bei Terminen, die du in deinen Kalendern hast, etwas geändert:',
+    labels: {
+      cancelled: 'Entfällt',
+      restored: 'Findet wieder statt',
+      moved: 'Verschoben',
+      room: 'Neuer Raum',
+      added: 'Neu',
+      removed: 'Entfernt',
+    },
+    dates: (count: number, first: string) => `${count} Termine ab ${first}`,
+    more: (count: number) => `… und ${count} weitere Änderungen.`,
+    disclaimer:
+      'Die Änderungen stammen aus Stud.IP. Abonnierte Kalender übernehmen sie beim nächsten Abgleich; Google Kalender kann dafür bis zu einem Tag brauchen.',
+    manage: 'Kalender öffnen',
+    unsubscribe: 'Keine Änderungsmeldungen mehr bekommen',
+    footer: 'Du bekommst diese E-Mail, weil du Änderungsmeldungen für deine Kalender eingeschaltet hast.',
+  },
+  en: {
+    subject: (count: number) => (count === 1 ? 'Timetable: 1 change' : `Timetable: ${count} changes`),
+    heading: 'Your timetable changed',
+    intro: 'dates you keep in your calendars changed in your Stud.IP calendar:',
+    labels: {
+      cancelled: 'Cancelled',
+      restored: 'Back on',
+      moved: 'Moved',
+      room: 'New room',
+      added: 'New',
+      removed: 'Removed',
+    },
+    dates: (count: number, first: string) => `${count} dates from ${first}`,
+    more: (count: number) => `… and ${count} more changes.`,
+    disclaimer:
+      'The changes come from Stud.IP. Subscribed calendars pick them up on their next refresh; Google Calendar can take up to a day.',
+    manage: 'Open calendar',
+    unsubscribe: 'Stop change alerts',
+    footer: 'You’re receiving this email because you turned on change alerts for your calendars.',
+  },
+}
+
+const dateTimes: Record<MailLocale, Intl.DateTimeFormat> = {
+  de: new Intl.DateTimeFormat('de-DE', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'Europe/Berlin',
+  }),
+  en: new Intl.DateTimeFormat('en-GB', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'Europe/Berlin',
+  }),
+}
+
+/** Rows shown in one alert; the rest are counted. */
+const MAX_CALENDAR_ROWS = 15
+
+/** Course titles, dates and rooms only. */
+export function calendarChangesMail(
+  to: string,
+  items: readonly CalendarChangeItem[],
+  links: CalendarAlertLinks,
+  locale: MailLocale = 'de',
+): OutgoingMail {
+  const text = calendarMails[locale]
+  const when = (iso: string) => dateTimes[locale].format(new Date(iso))
+  const sorted = [...items].sort((a, b) => a.start.localeCompare(b.start) || a.title.localeCompare(b.title))
+  const shown = sorted.slice(0, MAX_CALENDAR_ROWS)
+  const rows = shown.map((item) => {
+    let value = when(item.start)
+    if (item.count !== undefined && item.count > 1) value = text.dates(item.count, value)
+    else if (item.kind === 'moved' && item.previousStart) value = `${when(item.previousStart)} → ${value}`
+    else if (item.kind === 'room')
+      value = `${value}: ${item.previousLocation || '–'} → ${item.location || '–'}`
+    return {
+      label: text.labels[item.kind],
+      tone: item.kind === 'added' || item.kind === 'restored' ? ('info' as const) : ('warning' as const),
+      title: item.title,
+      value,
+    }
+  })
+  const hidden = sorted.length - shown.length
+  const subject = text.subject(items.length)
+  const blocks: EmailBlock[] = [
+    { kind: 'paragraph', text: `${shared[locale].greeting} ${text.intro}` },
+    { kind: 'rows', rows },
+    ...(hidden > 0 ? [{ kind: 'paragraph' as const, text: text.more(hidden) }] : []),
+    { kind: 'button', label: text.manage, url: links.calendarUrl, fallback: shared[locale].fallback },
+    { kind: 'note', text: text.disclaimer },
+  ]
+  return {
+    to,
+    subject,
+    text: [
+      shared[locale].greeting,
+      '',
+      text.intro,
+      '',
+      ...rows.map((row) => `- ${row.label}: ${row.title}, ${row.value}`),
+      ...(hidden > 0 ? [text.more(hidden)] : []),
+      '',
+      text.disclaimer,
+      '',
+      `${text.manage}: ${links.calendarUrl}`,
+      `${text.unsubscribe}: ${links.unsubscribeUrl}`,
+    ].join('\n'),
+    html: renderEmail({
+      locale,
+      origin: originOf(links.calendarUrl),
+      subject,
+      preheader: rows.map((row) => `${row.label}: ${row.title}`).join(' · '),
+      heading: text.heading,
+      blocks,
+      footer: [text.footer],
+      footerLinks: [
+        { label: text.manage, url: links.calendarUrl },
+        { label: text.unsubscribe, url: links.unsubscribeUrl },
+      ],
+    }),
+    headers: {
+      'List-Unsubscribe': `<${links.oneClickUrl}>`,
+      'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+    },
+  }
+}

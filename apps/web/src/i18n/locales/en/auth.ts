@@ -80,6 +80,14 @@ export const auth = {
     submit: 'Turn off reminders',
     toAccount: 'Go to your account',
   },
+  unsubscribeCalendar: {
+    title: 'Turn off change alerts',
+    done: 'Change alerts are turned off. You can turn them back on any time on the calendar page.',
+    invalid: 'This link is invalid. You can turn off change alerts on the calendar page.',
+    explanation: 'You won’t get emails any more when dates in your timetable change.',
+    submit: 'Turn off change alerts',
+    toCalendar: 'Go to the timetable calendar',
+  },
   account: {
     loadingTitle: 'Account',
     title: 'Your account',
@@ -148,6 +156,7 @@ export const auth = {
     signIn: 'Sign in',
     account: 'Account',
     manageAccount: 'Manage account',
+    calendar: 'Timetable calendar',
     signOut: 'Sign out',
   },
   sync: {

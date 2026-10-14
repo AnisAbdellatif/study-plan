@@ -47,6 +47,8 @@ export const legal = {
       noTracking:
         'There is no advertising, no tracking, no analytics tools and no embedded third-party content such as fonts or scripts.',
       cookie: 'We only set one technically necessary cookie, and only once you sign in.',
+      calendar:
+        'If you connect your Stud.IP timetable, we store the links encrypted and the dates, to build your calendar subscriptions from them.',
       sharing:
         'If you share a plan via a link, the link shows semesters and modules, but never your results or grades.',
       assistant:
@@ -58,7 +60,7 @@ export const legal = {
     website: {
       heading: '3. Visiting the website',
       serverLogs:
-        'When you visit the site, the server processes technically necessary connection data such as your IP address, the time and the requested address, so that the site can be delivered (Art. 6(1)(f) GDPR). This data is only processed for the duration of the connection. We do not keep access logs with IP addresses: neither the web server nor the application stores IP addresses in logs. The only exceptions are the sign-ins and misuse counters described in sections 5 and 10.',
+        'When you visit the site, the server processes technically necessary connection data such as your IP address, the time and the requested address, so that the site can be delivered (Art. 6(1)(f) GDPR). This data is only processed for the duration of the connection. We do not keep access logs with IP addresses: neither the web server nor the application stores IP addresses in logs. The only exceptions are the sign-ins and misuse counters described in sections 5 and 11.',
       appLogs:
         'The application logs requests only with method, path, status code and duration, without IP addresses and without content. These technical logs have a fixed maximum size; older entries are overwritten automatically.',
       hosting:
@@ -92,8 +94,20 @@ export const legal = {
       heading: '6. Shared plans',
       body: "When you share a plan, we create a random link. Of that link, we only store a check value (hash), when it was created and whether you have deactivated it. Anyone who knows the link can see the plan's name, programme, semesters and modules, and can take over the plan as their own copy. Results, grades, exam dates, recognitions and the target average are never visible. You can deactivate the link at any time; it is deleted together with the plan or your account. The legal basis is Art. 6(1)(b) GDPR.",
     },
+    calendar: {
+      heading: '7. Timetable calendar',
+      what: 'When signed in, you can store up to four calendar links from your university’s Stud.IP, each with a name if you give one. Each link contains a personal key. We store the links encrypted (AES-256-GCM), never show them again and use them about hourly to fetch your timetable from Stud.IP; we send only the respective link itself.',
+      stored:
+        'We store the fetched dates (course title, time, room and description), your choices, short names and colours, your calendars with their names and the last 50 changes we noticed. Each successful fetch replaces the dates of the previous one.',
+      feeds:
+        'For each calendar we create a secret subscription link. Anyone who knows it sees the chosen dates, but not your name or email address. Subscription links are usually fetched by the server of your calendar app (for example Google or Apple); what it does with the dates is governed by its privacy policy. Our logs contain such requests without the secret part of the link. You can replace any link with a new one at any time.',
+      alerts:
+        'If you turn on change alerts, we email you the course, time and room of changed dates. You turn them off on the calendar page or through the link in every alert.',
+      deletion:
+        'If you remove a link, we delete it and its dates. If you remove the last link or delete your account, we also delete your choices and every subscription link. The legal basis is the performance of the user agreement (Art. 6(1)(b) GDPR).',
+    },
     emails: {
-      heading: '7. Emails',
+      heading: '8. Emails',
       account:
         'We send you emails that are necessary for your account: the confirmation of your email address and links to reset your password (Art. 6(1)(b) GDPR).',
       reminders:
@@ -101,15 +115,15 @@ export const legal = {
       provider: 'All emails are sent via <mail/>, which processes the data on our behalf (Art. 28 GDPR).',
     },
     contact: {
-      heading: '8. Contact form',
-      what: 'You can send us a message using the <form>contact form</form>. We email your email address, your name if you enter it, the subject, your message and the language of the website to our mailbox so that we can reply. It is sent via the email service named in section 7.',
+      heading: '9. Contact form',
+      what: 'You can send us a message using the <form>contact form</form>. We email your email address, your name if you enter it, the subject, your message and the language of the website to our mailbox so that we can reply. It is sent via the email service named in section 8.',
       storage:
         'We don’t store the message in the app. We delete the email in our mailbox and our reply once your request has been dealt with, unless statutory retention obligations prevent this.',
       basis:
         'The legal basis is our legitimate interest in answering requests (Art. 6(1)(f) GDPR); if your request concerns your account, it is the performance of the contract of use (Art. 6(1)(b) GDPR).',
     },
     assistant: {
-      heading: '9. Study assistant',
+      heading: '10. Study assistant',
       what: 'Signed-in users can ask a study assistant questions about their programme. For this we send your question, the conversation so far and the programme data of your plan (module names, credits, module catalogue information, areas and examination rules) to OpenRouter, Inc. (USA). OpenRouter passes the request on to the provider of the language model that writes the answer. To look things up, the model may ask several times; it only gets this programme data then as well.',
       models:
         'We choose which language model answers in the admin dashboard. Depending on the model, a different provider processes the request, which may also be based outside the EU. We only let requests be routed to providers that, according to OpenRouter, neither store them nor use them for training.',
@@ -125,15 +139,15 @@ export const legal = {
         'OpenRouter is based in the USA, and the providers of the language models may also be based outside the EU. Your questions and the programme data are therefore transferred to third countries that may not offer a level of data protection like the EU’s; authorities there may be able to access the data without you having effective legal remedies. By confirming the notice, you also explicitly consent to this transfer (Art. 49(1)(a) GDPR).',
     },
     abuse: {
-      heading: '10. Protection against misuse',
+      heading: '11. Protection against misuse',
       body: 'To limit repeated sign-in attempts and other automated attacks on accounts, we briefly store a counter per IP address and sign-in function used. We limit requests for shared plans and messages sent through the contact form in the same way; the counters per IP address for this are only kept in memory, discarded after a few minutes and not stored permanently. The legal basis is our legitimate interest in a secure service (Art. 6(1)(f) GDPR).',
     },
     cookies: {
-      heading: '11. Cookies',
+      heading: '12. Cookies',
       body: 'After you sign in, we set a cookie with your session key so that you stay signed in. It is strictly necessary for signing in (Section 25(2) no. 2 TDDDG) and is removed when you sign out. We do not use any other cookies.',
     },
     rights: {
-      heading: '12. Your rights',
+      heading: '13. Your rights',
       list: 'You have the right of access (Art. 15 GDPR), rectification (Art. 16), erasure (Art. 17), restriction of processing (Art. 18) and data portability (Art. 20). You can object to processing based on legitimate interests (Art. 21).',
       selfService:
         'You can exercise your rights of access and data portability yourself at any time via “Download data”, and you can delete your account yourself, both on the <account>account page</account>. For anything else, write to the email address given above or use the <contact>contact form</contact>.',
@@ -141,9 +155,9 @@ export const legal = {
         'You can also lodge a complaint with a data protection supervisory authority (Art. 77 GDPR), for example the one responsible for where you live.',
     },
     misc: {
-      heading: '13. Other information',
+      heading: '14. Other information',
       body: 'Using the app is voluntary. You only need an account if you want your plan to be available on several devices. There is no automated decision-making and no profiling.',
     },
-    updated: 'Last updated: September 2026',
+    updated: 'Last updated: October 2026',
   },
 } satisfies Messages<typeof de>

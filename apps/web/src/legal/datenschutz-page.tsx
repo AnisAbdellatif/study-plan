@@ -10,6 +10,7 @@ const SECTIONS = [
   'guest',
   'account',
   'sharing',
+  'calendar',
   'emails',
   'contact',
   'assistant',
@@ -24,6 +25,7 @@ const SUMMARY_ITEMS = [
   'noTracking',
   'cookie',
   'sharing',
+  'calendar',
   'assistant',
   'contact',
   'selfService',
@@ -97,6 +99,14 @@ export function DatenschutzPage() {
 
       <LegalSection id="sharing" heading={heading('sharing')}>
         <p>{t('privacy.sharing.body')}</p>
+      </LegalSection>
+
+      <LegalSection id="calendar" heading={heading('calendar')}>
+        <p>{t('privacy.calendar.what')}</p>
+        <p>{t('privacy.calendar.stored')}</p>
+        <p>{t('privacy.calendar.feeds')}</p>
+        <p>{t('privacy.calendar.alerts')}</p>
+        <p>{t('privacy.calendar.deletion')}</p>
       </LegalSection>
 
       <LegalSection id="emails" heading={heading('emails')}>

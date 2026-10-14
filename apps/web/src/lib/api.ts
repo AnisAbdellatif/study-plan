@@ -1,4 +1,8 @@
 import type {
+  CalendarDisplay,
+  CalendarFeedView,
+  CalendarOverview,
+  CalendarSelection,
   CustomPresetFailure,
   CustomPresetIssue,
   CustomPresetWarning,
@@ -201,10 +205,84 @@ export const notificationApi = {
       body: JSON.stringify(settings),
     }),
   /** Uses the token from a reminder e-mail, no sign-in needed. */
-  unsubscribe: (token: string): Promise<NotificationSettings> =>
-    request<NotificationSettings>(`/api/notifications/unsubscribe?token=${encodeURIComponent(token)}`, {
+  /** `calendar` turns off calendar change alerts instead of exam reminders. */
+  unsubscribe: (token: string, list: 'reminders' | 'calendar' = 'reminders'): Promise<unknown> =>
+    request<unknown>(
+      `/api/notifications/unsubscribe?${list === 'calendar' ? 'list=calendar&' : ''}token=${encodeURIComponent(token)}`,
+      { method: 'POST' },
+    ),
+}
+
+/** Thrown when the server could not read a calendar link; `reason` says why. */
+export class CalendarFetchFailedError extends ApiError {
+  readonly reason: string
+
+  constructor(status: number, reason: string) {
+    super(status, 'fetch_failed')
+    this.reason = reason
+  }
+}
+
+async function calendarRequest<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await send(path, init)
+  if (response.status === 422) {
+    const body = (await response.json().catch(() => null)) as { reason?: unknown } | null
+    throw new CalendarFetchFailedError(422, typeof body?.reason === 'string' ? body.reason : 'unreachable')
+  }
+  if (!response.ok) throw await readError(response)
+  return (response.status === 204 ? undefined : await response.json()) as T
+}
+
+/** The student's Stud.IP calendars and the feeds made from them. The links never come back from the server. */
+export const calendarApi = {
+  get: (): Promise<CalendarOverview> => calendarRequest<CalendarOverview>('/api/calendar'),
+  addSource: (url: string, label?: string): Promise<CalendarOverview> =>
+    calendarRequest<CalendarOverview>('/api/calendar/sources', {
+      method: 'POST',
+      body: JSON.stringify({ url, label }),
+    }),
+  replaceSource: (id: string, url: string, label?: string): Promise<CalendarOverview> =>
+    calendarRequest<CalendarOverview>(`/api/calendar/sources/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      body: JSON.stringify({ url, label }),
+    }),
+  /** Removing the last link removes the settings and every feed too. */
+  removeSource: (id: string): Promise<CalendarOverview> =>
+    calendarRequest<CalendarOverview>(`/api/calendar/sources/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    }),
+  refresh: (): Promise<CalendarOverview> =>
+    calendarRequest<CalendarOverview>('/api/calendar/refresh', { method: 'POST' }),
+  saveDisplay: (display: CalendarDisplay): Promise<CalendarDisplay> =>
+    calendarRequest<CalendarDisplay>('/api/calendar/display', {
+      method: 'PUT',
+      body: JSON.stringify(display),
+    }),
+  saveSelection: (sourceId: string, selection: CalendarSelection): Promise<CalendarSelection> =>
+    calendarRequest<CalendarSelection>(`/api/calendar/sources/${encodeURIComponent(sourceId)}/selection`, {
+      method: 'PUT',
+      body: JSON.stringify(selection),
+    }),
+  createFeed: (feed: {
+    name: string
+    sources: string[]
+    subjects: string[] | null
+  }): Promise<CalendarFeedView> =>
+    calendarRequest<CalendarFeedView>('/api/calendar/feeds', { method: 'POST', body: JSON.stringify(feed) }),
+  updateFeed: (
+    id: string,
+    feed: { name?: string; sources?: string[]; subjects?: string[] | null },
+  ): Promise<CalendarFeedView> =>
+    calendarRequest<CalendarFeedView>(`/api/calendar/feeds/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(feed),
+    }),
+  newLink: (id: string): Promise<CalendarFeedView> =>
+    calendarRequest<CalendarFeedView>(`/api/calendar/feeds/${encodeURIComponent(id)}/new-link`, {
       method: 'POST',
     }),
+  deleteFeed: (id: string): Promise<void> =>
+    calendarRequest<void>(`/api/calendar/feeds/${encodeURIComponent(id)}`, { method: 'DELETE' }),
 }
 
 export interface PresetSummary {

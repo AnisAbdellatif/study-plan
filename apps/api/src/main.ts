@@ -5,6 +5,7 @@
 import { serveStatic } from 'hono/bun'
 import { createApp } from './app.ts'
 import { createAuth } from './auth.ts'
+import { startCalendarScheduler } from './calendar/sync.ts'
 import { loadConfig } from './config.ts'
 import { openDatabase } from './db/connection.ts'
 import { createOpenRouterClient } from './llm/openrouter.ts'
@@ -63,6 +64,9 @@ const app = createApp({
 
 if (config.reminderIntervalMinutes > 0 && config.env !== 'test') {
   startReminderScheduler({ db: database.db, mailer, config }, config.reminderIntervalMinutes * 60_000)
+}
+if (config.calendar.refreshMinutes > 0 && config.env !== 'test') {
+  startCalendarScheduler({ db: database.db, mailer, config })
 }
 
 console.info(

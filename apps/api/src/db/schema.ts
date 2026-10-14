@@ -2,7 +2,15 @@
  * Database schema. The first five tables are the ones Better Auth expects (field names must match its models);
  * `plan` holds each account's plans as validated guest documents.
  */
-import type { GuestDocument, Preset } from '@study-plan/shared'
+import type {
+  CalendarChange,
+  CalendarDisplay,
+  CalendarEvent,
+  CalendarFetchError,
+  CalendarSelection,
+  GuestDocument,
+  Preset,
+} from '@study-plan/shared'
 import { sql } from 'drizzle-orm'
 import {
   bigint,
@@ -213,6 +221,76 @@ export const reminderDelivery = pgTable(
       table.eventDate,
     ),
   ],
+)
+
+/**
+ * A student's calendar settings, feeds and noticed changes, shared by all their Stud.IP links (calendar_source).
+ * The row exists while the student has at least one link.
+ */
+export const calendar = pgTable('calendar', {
+  userId: text('user_id')
+    .primaryKey()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  /** How dates look in every feed; what each link contributes is calendar_source.selection. */
+  settings: jsonb('settings').$type<CalendarDisplay>().notNull(),
+  /** The latest changes, newest first, for the calendar page. */
+  changes: jsonb('changes').$type<CalendarChange[]>().notNull().default([]),
+  ...timestamps(),
+})
+
+/**
+ * A Stud.IP calendar link of a student, up to MAX_CALENDAR_SOURCES per account. The link is stored encrypted, see
+ * calendar/secrets.ts; `events` keeps the last good copy, which the feeds serve while the upstream is unreachable.
+ */
+export const calendarSource = pgTable(
+  'calendar_source',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => calendar.userId, { onDelete: 'cascade' }),
+    /** The link, encrypted. Never sent back to the browser or logged. */
+    encryptedUrl: text('encrypted_url').notNull(),
+    host: text('host').notNull(),
+    /** The student's name for the link, e.g. "Zweitfach". */
+    label: text('label'),
+    status: text('status', { enum: ['pending', 'ok', 'error'] })
+      .notNull()
+      .default('pending'),
+    lastError: text('last_error').$type<CalendarFetchError>(),
+    /** Failed fetches in a row; the sync waits longer between them. */
+    failures: integer('failures').notNull().default(0),
+    lastFetchedAt: timestamp('last_fetched_at', { withTimezone: true }),
+    lastSuccessAt: timestamp('last_success_at', { withTimezone: true }),
+    events: jsonb('events').$type<CalendarEvent[]>().notNull().default([]),
+    /** The student's choices, short names and colours for this link's subjects. */
+    selection: jsonb('selection').$type<CalendarSelection>().notNull(),
+    ...timestamps(),
+  },
+  (table) => [
+    index('calendar_source_user_id_idx').on(table.userId),
+    index('calendar_source_last_fetched_at_idx').on(table.lastFetchedAt),
+  ],
+)
+
+/** A subscribable selection of a student's subjects. Its URL is derived, see calendar/secrets.ts. */
+export const calendarFeed = pgTable(
+  'calendar_feed',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => calendar.userId, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    /** The links (calendar_source ids) whose dates the feed shows; several mix them into one calendar. */
+    sourceIds: jsonb('source_ids').$type<string[]>().notNull(),
+    /** Null: every subject the student keeps. */
+    subjects: jsonb('subjects').$type<string[] | null>(),
+    /** Raised to make the current URL stop working. */
+    tokenVersion: integer('token_version').notNull().default(1),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('calendar_feed_user_id_idx').on(table.userId)],
 )
 
 /**

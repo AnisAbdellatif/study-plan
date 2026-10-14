@@ -46,6 +46,10 @@ const envSchema = z.object({
   OPENROUTER_MODEL: optionalText,
   /** Only for tests or a compatible proxy; defaults to OpenRouter itself. */
   OPENROUTER_BASE_URL: optionalUrl,
+  /** Comma-separated Stud.IP hosts whose calendar links students may add. The server fetches nothing else. */
+  CALENDAR_SOURCE_HOSTS: z.string().default('studip.uni-hannover.de'),
+  /** How often each calendar is fetched again, in minutes. 0 turns fetching off for this process. */
+  CALENDAR_REFRESH_MINUTES: z.coerce.number().int().min(0).max(1440).default(60),
 })
 
 /** Local development only, so a fresh checkout has a working admin account. */
@@ -70,6 +74,11 @@ export interface Config {
   superadmin: { email: string; password: string; name: string } | undefined
   /** The study assistant's model access; undefined without an API key. */
   chat: { apiKey: string; model: string; baseUrl: string | undefined } | undefined
+  calendar: {
+    sourceHosts: string[]
+    /** 0 when fetching is off. */
+    refreshMinutes: number
+  }
 }
 
 export function loadConfig(source: Record<string, string | undefined> = process.env): Config {
@@ -116,5 +125,11 @@ export function loadConfig(source: Record<string, string | undefined> = process.
           baseUrl: env.OPENROUTER_BASE_URL,
         }
       : undefined,
+    calendar: {
+      sourceHosts: env.CALENDAR_SOURCE_HOSTS.split(',')
+        .map((host) => host.trim().toLowerCase())
+        .filter((host) => host.length > 0),
+      refreshMinutes: env.CALENDAR_REFRESH_MINUTES,
+    },
   }
 }

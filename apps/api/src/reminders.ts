@@ -21,18 +21,30 @@ export function berlinDate(now: Date): string {
   }).format(now)
 }
 
-const unsubscribeMac = (secret: string, userId: string) =>
-  createHmac('sha256', secret).update(`reminder-unsubscribe:${userId}`).digest('base64url')
+/** The e-mails a student can turn off from a link: exam reminders, and alerts about calendar changes. */
+export type MailingList = 'reminders' | 'calendar'
 
-/** A link token that turns reminders off without signing in. It stays valid until the auth secret changes. */
-export const unsubscribeToken = (secret: string, userId: string): string =>
-  `${userId}.${unsubscribeMac(secret, userId)}`
+const MAC_PURPOSES: Record<MailingList, string> = {
+  reminders: 'reminder-unsubscribe',
+  calendar: 'calendar-alerts-unsubscribe',
+}
 
-export function verifyUnsubscribeToken(secret: string, token: string): string | null {
+const unsubscribeMac = (secret: string, userId: string, list: MailingList) =>
+  createHmac('sha256', secret).update(`${MAC_PURPOSES[list]}:${userId}`).digest('base64url')
+
+/** A link token that turns one kind of e-mail off without signing in. It stays valid until the auth secret changes. */
+export const unsubscribeToken = (secret: string, userId: string, list: MailingList = 'reminders'): string =>
+  `${userId}.${unsubscribeMac(secret, userId, list)}`
+
+export function verifyUnsubscribeToken(
+  secret: string,
+  token: string,
+  list: MailingList = 'reminders',
+): string | null {
   const separator = token.lastIndexOf('.')
   if (separator <= 0) return null
   const userId = token.slice(0, separator)
-  const expected = Buffer.from(unsubscribeMac(secret, userId))
+  const expected = Buffer.from(unsubscribeMac(secret, userId, list))
   const given = Buffer.from(token.slice(separator + 1))
   return expected.length === given.length && timingSafeEqual(expected, given) ? userId : null
 }

@@ -23,7 +23,7 @@ describe('legal pages', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Datenschutzerklärung' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Zur Startseite' })).toHaveAttribute('href', '/')
     expect(screen.getByRole('link', { name: 'Study Plan' })).toHaveAttribute('href', '/')
-    expect(screen.getByText('Stand: September 2026')).toBeInTheDocument()
+    expect(screen.getByText('Stand: Oktober 2026')).toBeInTheDocument()
   })
 
   it('links every privacy section from the table of contents', async () => {
@@ -31,14 +31,18 @@ describe('legal pages', () => {
     const contents = await screen.findByRole('navigation', { name: 'Inhalt' })
     const link = within(contents).getByRole('link', { name: '3. Aufruf der Website' })
     expect(link).toHaveAttribute('href', '#website')
-    expect(within(contents).getAllByRole('link')).toHaveLength(13)
-    expect(within(contents).getByRole('link', { name: '8. Kontaktformular' })).toHaveAttribute(
+    expect(within(contents).getAllByRole('link')).toHaveLength(14)
+    expect(within(contents).getByRole('link', { name: '9. Kontaktformular' })).toHaveAttribute(
       'href',
       '#contact',
     )
-    expect(within(contents).getByRole('link', { name: '9. Studienassistent' })).toHaveAttribute(
+    expect(within(contents).getByRole('link', { name: '10. Studienassistent' })).toHaveAttribute(
       'href',
       '#assistant',
+    )
+    expect(within(contents).getByRole('link', { name: '7. Stundenplan-Kalender' })).toHaveAttribute(
+      'href',
+      '#calendar',
     )
     expect(screen.getByRole('region', { name: '3. Aufruf der Website' })).toHaveAttribute('id', 'website')
   })
